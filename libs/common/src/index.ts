@@ -7,3 +7,4 @@ export * from './helpers/encryption';
 export * from './interceptors';
 export * from './decorators';
 export * from './intefaces';
+export * from './types';

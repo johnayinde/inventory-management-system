@@ -49,6 +49,8 @@ export class AuthGuard implements CanActivate {
         const user = await prisma.user.findFirst({
           where: { id: payload.userId },
         });
+        await prisma.$disconnect();
+
         if (!user) throw new UnauthorizedException(); // or user is suspended
       }
       request['user'] = payload;
