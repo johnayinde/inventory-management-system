@@ -6,14 +6,17 @@ import {
   HttpStatus,
   Post,
   Req,
+  UseInterceptors,
 } from '@nestjs/common';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/category.dto';
-import { ApiBearerAuth, ApiBody,  ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
+import { TenantInterceptor } from '@app/common';
 
 @ApiTags('Category')
 @ApiBearerAuth()
+@UseInterceptors(TenantInterceptor)
 @Controller('category')
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}

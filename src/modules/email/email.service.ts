@@ -7,10 +7,7 @@ import { encryption } from '@app/common';
 @Injectable()
 export class EmailService {
   transporter: any;
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly cache: CacheService,
-  ) {
+  constructor(private readonly configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -42,12 +39,13 @@ export class EmailService {
 
   public async sendResetPasswordToEmail(
     email: string,
+    path: string = 'auth',
   ): Promise<{ salt: string; iv: string; encryptedText: string }> {
     const encrypted_data = encryption(email);
 
     const url = `${this.configService.get<string>(
       'FRONTEND_URL',
-    )}/auth/reset-password?token=${encrypted_data.encryptedText}`;
+    )}/${path}/reset-password?token=${encrypted_data.encryptedText}`;
     const subject = 'Password Reset Link';
     const html = `To Reset Password continue with the link ${url}`;
     this.sendmail(email, subject, html);

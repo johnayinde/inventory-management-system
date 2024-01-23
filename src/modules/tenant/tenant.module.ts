@@ -6,12 +6,6 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
   controllers: [TenantController],
-  providers: [
-    TenantService,
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: TenantInterceptor,
-    },
-  ],
+  providers: [TenantService],
 })
 export class TenantModule {}

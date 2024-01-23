@@ -5,8 +5,9 @@ import {
   Body,
   HttpCode,
   HttpStatus,
-  Put,
   Req,
+  Patch,
+  UseInterceptors,
 } from '@nestjs/common';
 import { TenantService } from './tenant.service';
 import {
@@ -16,9 +17,11 @@ import {
 } from './dto/tenant.dto';
 import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
+import { TenantInterceptor } from '@app/common';
 
 @ApiTags('Tenant')
 @ApiBearerAuth()
+@UseInterceptors(TenantInterceptor)
 @Controller('tenant')
 export class TenantController {
   constructor(private readonly tenantService: TenantService) {}
@@ -52,7 +55,7 @@ export class TenantController {
     );
   }
 
-  @Put('/personal-business-info')
+  @Patch('/personal-business-info')
   @ApiBody({
     description: 'update tenant personal and business information',
     type: EditPersonalBusinessDTO,

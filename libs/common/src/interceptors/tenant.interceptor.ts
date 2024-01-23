@@ -24,7 +24,10 @@ export class TenantInterceptor implements NestInterceptor {
     next: CallHandler,
   ): Promise<Observable<any>> {
     const request = context.switchToHttp().getRequest();
+    // console.log(request);
+
     const user = request.user as ReqUser;
+    console.log('intercepting request');
 
     if (user) {
       const prisma = new PrismaClient();
@@ -48,6 +51,7 @@ export class TenantInterceptor implements NestInterceptor {
 
       return next.handle();
     }
+    console.log('intercepting request***');
 
     throw new UnauthorizedException();
   }

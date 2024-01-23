@@ -138,11 +138,21 @@ export class AuthService {
         await this.emailService.sendOTP(otp, data.email);
         return user;
       }
+      let userId: number;
+
+      if (user.isUser) {
+        const userRec = await this.postgresService.user.findFirst({
+          where: { email: user.email },
+        });
+        userId = userRec.id;
+      } else {
+        userId = user.id;
+      }
 
       delete user.password;
       return {
         ...user,
-        token: await this.generateAccessToken(user.id, user.email, user.isUser),
+        token: await this.generateAccessToken(userId, user.email, user.isUser),
       };
     } catch (error) {
       throw new HttpException(error.message, error.status);

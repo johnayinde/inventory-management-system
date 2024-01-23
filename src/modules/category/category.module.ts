@@ -6,12 +6,6 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
   controllers: [CategoryController],
-  providers: [
-    CategoryService,
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: TenantInterceptor,
-    },
-  ],
+  providers: [CategoryService],
 })
 export class CategoryModule {}
