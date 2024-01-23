@@ -5,7 +5,6 @@ import {
   HttpStatus,
   Post,
   Query,
-  UseInterceptors,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Public } from '@app/common';

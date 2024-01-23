@@ -9,7 +9,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import {
   AllExceptionsFilter,
   AuthGuard,
-  TenantInterceptor,
+  RolesGuard,
   TransformInterceptor,
 } from '@app/common';
 import { JwtService } from '@nestjs/jwt';
@@ -57,6 +57,10 @@ import { UserModule } from './modules/user/user.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: TransformInterceptor,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
 
     AppService,
