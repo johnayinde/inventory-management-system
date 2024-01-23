@@ -16,6 +16,9 @@ import { JwtService } from '@nestjs/jwt';
 import { EmailModule } from './modules/email/email.module';
 import { CacheMod } from './modules/cache/cache.module';
 import { redisStore } from 'cache-manager-redis-store';
+import { TenantModule } from './modules/tenant/tenant.module';
+import { CategoryModule } from './modules/category/category.module';
+import { UserModule } from './modules/user/user.module';
 
 @Module({
   imports: [
@@ -37,6 +40,9 @@ import { redisStore } from 'cache-manager-redis-store';
     DatabaseModule,
     EmailModule,
     CacheMod,
+    TenantModule,
+    CategoryModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [
@@ -52,10 +58,7 @@ import { redisStore } from 'cache-manager-redis-store';
       provide: APP_INTERCEPTOR,
       useClass: TransformInterceptor,
     },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: TenantInterceptor,
-    },
+
     AppService,
     // remove to test with auth module
     JwtService,
