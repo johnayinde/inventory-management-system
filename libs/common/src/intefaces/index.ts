@@ -12,3 +12,8 @@ export interface encryptData {
   iv: string;
   encryptedText: string;
 }
+export interface ReqUser {
+  email: string;
+  userId: number;
+  isUser: boolean;
+}

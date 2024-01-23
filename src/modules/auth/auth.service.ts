@@ -50,11 +50,16 @@ export class AuthService {
     return isMatch;
   }
 
-  async generateAccessToken(userId: number, email: string): Promise<string> {
+  async generateAccessToken(
+    userId: number,
+    email: string,
+    isUser: boolean,
+  ): Promise<string> {
     const token = await this.jwtService.signAsync(
       {
         email,
         userId,
+        isUser,
       },
       {
         secret: this.configService.get('JWT_SECRET'),
@@ -137,7 +142,7 @@ export class AuthService {
       delete user.password;
       return {
         ...user,
-        token: await this.generateAccessToken(user.id, user.email),
+        token: await this.generateAccessToken(user.id, user.email, user.isUser),
       };
     } catch (error) {
       throw new HttpException(error.message, error.status);
@@ -179,13 +184,13 @@ export class AuthService {
 
           await this.postgresService.tenant.create({
             data: {
-              tenantId: user.id,
+              email: user.email,
             },
           });
 
           return {
             ...user,
-            token: this.generateAccessToken(user.id, user.email),
+            token: this.generateAccessToken(user.id, user.email, user.isUser),
           };
         });
       } else {
@@ -194,6 +199,7 @@ export class AuthService {
           token: this.generateAccessToken(
             existing_user.id,
             existing_user.email,
+            existing_user.isUser,
           ),
         };
       }
@@ -231,7 +237,7 @@ export class AuthService {
 
         this.postgresService.tenant.create({
           data: {
-            tenantId: user.id,
+            email: user.email,
           },
         }),
       ]);
