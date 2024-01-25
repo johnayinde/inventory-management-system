@@ -44,6 +44,7 @@ model Tenant {
   business Business?
   category Category[]
   users    User[]
+  products Product[]
 
   //
   is_active  Boolean   @default(false)
@@ -73,6 +74,7 @@ model Category {
   name           String
   description    String?
   sub_categories Subcategory[]
+  products       Product[]
 
   //
   is_active  Boolean   @default(false)
@@ -123,6 +125,20 @@ model Permission {
   tenant_id Int
   userId    Int     @unique
   user_id   User    @relation(fields: [userId], references: [id])
+
+  //
+  is_active  Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+}
+
+model Product {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String?
+  categories  Category[]
+  tenant_id   Int
+  tenant      Tenant     @relation(fields: [tenant_id], references: [id])
 
   //
   is_active  Boolean   @default(false)
