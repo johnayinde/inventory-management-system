@@ -9,7 +9,6 @@ export class CategoryService {
   async createCategory(tenant_id: number, data: CreateCategoryDto) {
     try {
       const { sub_categories, ...categoryData } = data;
-      console.log({ tenant_id, sub_categories, categoryData });
 
       return await this.postgresService.category.create({
         data: {

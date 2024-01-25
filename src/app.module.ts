@@ -19,6 +19,7 @@ import { redisStore } from 'cache-manager-redis-store';
 import { TenantModule } from './modules/tenant/tenant.module';
 import { CategoryModule } from './modules/category/category.module';
 import { UserModule } from './modules/user/user.module';
+import { ProductModule } from './modules/product/product.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { UserModule } from './modules/user/user.module';
     TenantModule,
     CategoryModule,
     UserModule,
+    ProductModule,
   ],
   controllers: [AppController],
   providers: [
