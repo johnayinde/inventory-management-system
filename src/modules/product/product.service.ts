@@ -96,7 +96,6 @@ export class ProductService {
         throw new NotFoundException('Product not found');
       }
 
-      // Modify the duplicated product as needed
       const duplicatedProduct = await this.postgresService.product.create({
         data: {
           ...productToDuplicate,
