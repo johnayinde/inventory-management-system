@@ -187,20 +187,33 @@ export class ExpenseService {
         id,
         tenant_id: originalTenantId,
         expense_categoryId,
+        category,
         productId,
+        product,
         ...expenseData
       } = expenseToDuplicate;
 
-      return await this.postgresService.expense.create({
-        data: {
-          ...expenseData,
-          name: `Copy of ${expenseToDuplicate.name}`,
-          tenant: { connect: { id: tenant_id } },
-          category: { connect: { id: expense_categoryId } },
-          product: { connect: { id: productId } },
-        },
-        include: { category: true, product: true },
-      });
+      if (expenseToDuplicate.type == ExpenseType.product) {
+        return await this.postgresService.expense.create({
+          data: {
+            ...expenseData,
+            name: `Copy of ${expenseToDuplicate.name}`,
+            tenant: { connect: { id: tenant_id } },
+            product: { connect: { id: productId } },
+          },
+          include: { product: true },
+        });
+      } else if (expenseToDuplicate.type == ExpenseType.general) {
+        return await this.postgresService.expense.create({
+          data: {
+            ...expenseData,
+            name: `Copy of ${expenseToDuplicate.name}`,
+            tenant: { connect: { id: tenant_id } },
+            category: { connect: { id: expense_categoryId } },
+          },
+          include: { category: true },
+        });
+      }
     } catch (error) {
       throw new HttpException(error.message, error.status);
     }
