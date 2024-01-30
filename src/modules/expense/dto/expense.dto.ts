@@ -34,7 +34,7 @@ export class CreateExpenseDto {
   @IsOptional()
   description?: string;
 
-  @ApiProperty({ type: Number })
+  @ApiProperty()
   @IsString()
   amount: string;
 
@@ -59,7 +59,7 @@ export class CreateExpenseDto {
   categoryId: number;
 
   @ApiProperty({ type: Number })
-  @IsInt()
+  // @IsInt()
   @IsOptional()
   productId: number;
 }
@@ -75,7 +75,7 @@ export class EditExpenseDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ type: Number })
+  @ApiPropertyOptional()
   @IsString()
   @IsOptional()
   amount?: string;
