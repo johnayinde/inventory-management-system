@@ -20,6 +20,8 @@ import { TenantModule } from './modules/tenant/tenant.module';
 import { CategoryModule } from './modules/category/category.module';
 import { UserModule } from './modules/user/user.module';
 import { ProductModule } from './modules/product/product.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
+import { ExpenseModule } from './modules/expense/expense.module';
 
 @Module({
   imports: [
@@ -45,6 +47,8 @@ import { ProductModule } from './modules/product/product.module';
     CategoryModule,
     UserModule,
     ProductModule,
+    InventoryModule,
+    ExpenseModule,
   ],
   controllers: [AppController],
   providers: [

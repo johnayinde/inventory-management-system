@@ -20,6 +20,11 @@ enum StatusType {
   offline
 }
 
+enum ExpenseType {
+  product
+  general
+}
+
 model Auth {
   id           Int     @id @default(autoincrement())
   first_name   String?
@@ -41,10 +46,12 @@ model Tenant {
   id    Int     @id @default(autoincrement())
   email String?
 
-  business Business?
-  category Category[]
-  users    User[]
-  products Product[]
+  business           Business?
+  category           Category[]
+  users              User[]
+  products           Product[]
+  expense_categories ExpenseCategory[]
+  expenses           Expense[]
 
   //
   is_active  Boolean   @default(false)
@@ -139,6 +146,44 @@ model Product {
   categories  Category[]
   tenant_id   Int
   tenant      Tenant     @relation(fields: [tenant_id], references: [id])
+  Expense     Expense[]
+
+  //
+  is_active  Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+}
+
+model ExpenseCategory {
+  id          Int     @id @default(autoincrement())
+  tenant      Tenant  @relation(fields: [tenant_id], references: [id])
+  tenant_id   Int
+  name        String
+  description String?
+
+  //
+  is_active  Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+  expenses   Expense[]
+
+  @@map("expense_category")
+}
+
+model Expense {
+  id                 Int              @id @default(autoincrement())
+  tenant             Tenant           @relation(fields: [tenant_id], references: [id])
+  tenant_id          Int
+  name               String
+  description        String?
+  amount             String
+  date               DateTime
+  type               ExpenseType      @default(general)
+  attachment         String?
+  expense_categoryId Int?
+  category           ExpenseCategory? @relation(fields: [expense_categoryId], references: [id])
+  product            Product?         @relation(fields: [productId], references: [id])
+  productId          Int?
 
   //
   is_active  Boolean   @default(false)
