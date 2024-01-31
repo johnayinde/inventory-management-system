@@ -1,34 +1,45 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  UseInterceptors,
+  HttpCode,
+  HttpStatus,
+  Req,
+} from '@nestjs/common';
 import { InventoryService } from './inventory.service';
-import { CreateInventoryDto } from './dto/create-inventory.dto';
-import { UpdateInventoryDto } from './dto/update-inventory.dto';
+import { TenantInterceptor } from '@app/common';
+import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { CreateInventoryDto } from './dto/inventory.dto';
+import { Request } from 'express';
 
-@Controller('inventory')
+@ApiTags('Inventory')
+@ApiBearerAuth()
+@UseInterceptors(TenantInterceptor)
+@Controller('inventories')
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
-  @Post()
-  create(@Body() createInventoryDto: CreateInventoryDto) {
-    return this.inventoryService.create(createInventoryDto);
+  @Post('')
+  @ApiBody({
+    description: 'Create Inventory',
+    type: CreateInventoryDto,
+  })
+  @HttpCode(HttpStatus.CREATED)
+  create(
+    @Body() createInventoryDto: CreateInventoryDto,
+    @Req() { tenant_id }: Request,
+  ) {
+    return this.inventoryService.create(createInventoryDto, tenant_id);
   }
 
-  @Get()
-  findAll() {
-    return this.inventoryService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.inventoryService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateInventoryDto: UpdateInventoryDto) {
-    return this.inventoryService.update(+id, updateInventoryDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.inventoryService.remove(+id);
+  @Post('/:inventoryId/duplicate')
+  @HttpCode(HttpStatus.CREATED)
+  duplicateInventory(
+    @Param('inventoryId') inventoryId: number,
+    @Req() { tenant_id }: Request,
+  ) {
+    return this.inventoryService.duplicateInventory(tenant_id, inventoryId);
   }
 }

@@ -47,8 +47,8 @@ import { ExpenseModule } from './modules/expense/expense.module';
     CategoryModule,
     UserModule,
     ProductModule,
-    InventoryModule,
     ExpenseModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [

@@ -90,7 +90,6 @@ export class UserService {
         email: user,
         password: new_password,
         isUser: true,
-        is_active: true,
         email_verified: true,
       },
     });

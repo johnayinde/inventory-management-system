@@ -188,7 +188,6 @@ export class AuthService {
             data: {
               email,
               email_verified: true,
-              is_active: true,
             },
           });
 
@@ -241,7 +240,6 @@ export class AuthService {
           },
           data: {
             email_verified: true,
-            is_active: true,
           },
         }),
 
