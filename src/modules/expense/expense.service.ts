@@ -190,6 +190,8 @@ export class ExpenseService {
         category,
         productId,
         product,
+        inventoryId,
+
         ...expenseData
       } = expenseToDuplicate;
 
