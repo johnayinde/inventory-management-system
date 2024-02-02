@@ -69,6 +69,7 @@ model Tenant {
   created_at DateTime    @default(now()) @db.Timestamptz(3)
   updated_at DateTime?   @updatedAt
   Inventory  Inventory[]
+  Customer   Customer[]
 }
 
 model Business {
@@ -231,6 +232,22 @@ model Inventory {
   tenant_id      Int
   products       Product[]
   expenses       Expense[]
+
+  //
+  deleted    Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+}
+
+model Customer {
+  id           Int    @id @default(autoincrement())
+  name         String
+  phone_number String
+  email        String
+  address      String
+
+  tenant_id Int
+  tenant    Tenant @relation(fields: [tenant_id], references: [id])
 
   //
   deleted    Boolean   @default(false)

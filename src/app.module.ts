@@ -22,6 +22,7 @@ import { UserModule } from './modules/user/user.module';
 import { ProductModule } from './modules/product/product.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { ExpenseModule } from './modules/expense/expense.module';
+import { CustomerModule } from './modules/customer/customer.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { ExpenseModule } from './modules/expense/expense.module';
     ProductModule,
     ExpenseModule,
     InventoryModule,
+    CustomerModule,
   ],
   controllers: [AppController],
   providers: [
