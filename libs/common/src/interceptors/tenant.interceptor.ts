@@ -43,11 +43,11 @@ export class TenantInterceptor implements NestInterceptor {
         const userRec = await prisma.user.findFirst({
           where: { id: user.userId },
         });
-        await prisma.$disconnect();
         if (!userRec) throw new UnauthorizedException();
 
         request.tenant_id = userRec.tenant_id;
       }
+      await prisma.$disconnect();
       return next.handle();
     }
     throw new UnauthorizedException();

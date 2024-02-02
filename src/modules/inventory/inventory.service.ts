@@ -135,8 +135,8 @@ export class InventoryService {
       const { id, shipping_name, ...inventory_data } = existingInventory;
       const newInventory = await tx.inventory.create({
         data: {
-          ...inventory_data,
           shipping_name: `Copy of ${shipping_name}`,
+          ...inventory_data,
           products: {
             connect: existingInventory.products.map((product) => ({
               id: product.id,
