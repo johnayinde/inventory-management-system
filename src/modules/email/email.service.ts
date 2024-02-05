@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-import { CacheService } from '../cache/cache.service';
 import { encryption } from '@app/common';
 
 @Injectable()

@@ -81,193 +81,173 @@ export class AuthService {
     return user;
   }
   async registerAccount(data: RegisterDto) {
-    try {
-      const userNotVerified = await this.postgresService.auth.findFirst({
-        where: {
+    const userNotVerified = await this.postgresService.auth.findFirst({
+      where: {
+        email: data.email,
+        email_verified: false,
+      },
+    });
+
+    if (userNotVerified) {
+      const otp = await this.cache.setOTPValue(data.email);
+      await this.emailService.sendOTP(otp, data.email);
+      return REGISTEROTP;
+    } else {
+      await this.comparePassword(data.password, data.confirm_password);
+
+      data.password = await this.hashPassword(data.password);
+      const new_account = await this.postgresService.auth.create({
+        data: {
           email: data.email,
-          email_verified: false,
+          password: data.password,
         },
       });
 
-      if (userNotVerified) {
-        const otp = await this.cache.setOTPValue(data.email);
-        await this.emailService.sendOTP(otp, data.email);
-        return REGISTEROTP;
-      } else {
-        await this.comparePassword(data.password, data.confirm_password);
-
-        data.password = await this.hashPassword(data.password);
-        const new_account = await this.postgresService.auth.create({
-          data: {
-            email: data.email,
-            password: data.password,
-          },
-        });
-
-        if (!new_account) {
-          throw new HttpException(
-            'Something went wrong',
-            HttpStatus.INTERNAL_SERVER_ERROR,
-          );
-        }
-
-        const otp = await this.cache.setOTPValue(data.email);
-        await this.emailService.sendOTP(otp, data.email);
-      }
-      return REGISTEROTP;
-    } catch (error) {
-      throw new HttpException(error.message, error.status);
-    }
-  }
-
-  async loginUser(data: LoginDto) {
-    try {
-      const user = await this.getUserByEmail(data.email);
-
-      const isMatch = await bcrypt.compare(data.password, user.password);
-
-      if (!isMatch) {
+      if (!new_account) {
         throw new HttpException(
-          'Email or password is incorrect',
-          HttpStatus.FORBIDDEN,
+          'Something went wrong',
+          HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
 
-      if (user.email_verified !== true) {
-        const otp = await this.cache.setOTPValue(data.email);
-        await this.emailService.sendOTP(otp, data.email);
-        return user;
-      }
-      let userId: number;
-
-      if (user.isUser) {
-        const userRec = await this.postgresService.user.findFirst({
-          where: { email: user.email },
-        });
-        userId = userRec.id;
-      } else {
-        userId = user.id;
-      }
-
-      delete user.password;
-      return {
-        ...user,
-        token: await this.generateAccessToken(userId, user.email, user.isUser),
-      };
-    } catch (error) {
-      throw new HttpException(error.message, error.status);
+      const otp = await this.cache.setOTPValue(data.email);
+      await this.emailService.sendOTP(otp, data.email);
     }
+    return REGISTEROTP;
+  }
+
+  async loginUser(data: LoginDto) {
+    const user = await this.getUserByEmail(data.email);
+
+    const isMatch = await bcrypt.compare(data.password, user.password);
+
+    if (!isMatch) {
+      throw new HttpException(
+        'Email or password is incorrect',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    if (user.email_verified !== true) {
+      const otp = await this.cache.setOTPValue(data.email);
+      await this.emailService.sendOTP(otp, data.email);
+      return user;
+    }
+    let userId: number;
+
+    if (user.isUser) {
+      const userRec = await this.postgresService.user.findFirst({
+        where: { email: user.email },
+      });
+      userId = userRec.id;
+    } else {
+      userId = user.id;
+    }
+
+    delete user.password;
+    return {
+      ...user,
+      token: await this.generateAccessToken(userId, user.email, user.isUser),
+    };
   }
 
   async googleAuth(dto: OAuthDto) {
-    try {
-      const client = new OAuth2Client(
-        await this.configService.get('GOOGLE_CLIENT_ID'),
-        await this.configService.get('GOOGLE_CLIENT_SECRET'),
-        'postmessage',
-      );
+    const client = new OAuth2Client(
+      await this.configService.get('GOOGLE_CLIENT_ID'),
+      await this.configService.get('GOOGLE_CLIENT_SECRET'),
+      'postmessage',
+    );
 
-      const getTokenFromCLient = await client.getToken(dto.token);
+    const getTokenFromCLient = await client.getToken(dto.token);
 
-      const verifyClientToken = await client.verifyIdToken({
-        idToken: getTokenFromCLient.tokens.id_token,
-        audience: await this.configService.get('GOOGLE_CLIENT_ID'),
-      });
-      const { email } = verifyClientToken.getPayload();
+    const verifyClientToken = await client.verifyIdToken({
+      idToken: getTokenFromCLient.tokens.id_token,
+      audience: await this.configService.get('GOOGLE_CLIENT_ID'),
+    });
+    const { email } = verifyClientToken.getPayload();
 
-      const existing_user = await this.postgresService.auth.findUnique({
-        where: {
-          email,
-        },
-      });
+    const existing_user = await this.postgresService.auth.findUnique({
+      where: {
+        email,
+      },
+    });
 
-      if (!existing_user) {
-        return this.postgresService.$transaction(async (tx) => {
-          // Code running in a transaction...
-          const user = await tx.auth.create({
-            data: {
-              email,
-              email_verified: true,
-            },
-          });
-
-          await this.postgresService.tenant.create({
-            data: {
-              email: user.email,
-            },
-          });
-
-          return {
-            ...user,
-            token: this.generateAccessToken(user.id, user.email, user.isUser),
-          };
+    if (!existing_user) {
+      return this.postgresService.$transaction(async (tx) => {
+        // Code running in a transaction...
+        const user = await tx.auth.create({
+          data: {
+            email,
+            email_verified: true,
+          },
         });
-      } else {
+
+        await this.postgresService.tenant.create({
+          data: {
+            email: user.email,
+          },
+        });
+
         return {
-          ...existing_user,
-          token: this.generateAccessToken(
-            existing_user.id,
-            existing_user.email,
-            existing_user.isUser,
-          ),
+          ...user,
+          token: this.generateAccessToken(user.id, user.email, user.isUser),
         };
-      }
-    } catch (error) {
-      throw new HttpException(error.message, error.status);
+      });
+    } else {
+      return {
+        ...existing_user,
+        token: this.generateAccessToken(
+          existing_user.id,
+          existing_user.email,
+          existing_user.isUser,
+        ),
+      };
     }
   }
 
   async verifyEmailOtp(data: OTPDto) {
-    try {
-      const cached_value = await this.cache.getOTPValue(data.email);
+    const cached_value = await this.cache.getOTPValue(data.email);
 
-      if (!cached_value) {
-        throw new HttpException(
-          'Seems, you have provided an Invalid OTP, please retry again',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-      if (cached_value !== data.otp) {
-        throw new HttpException('Invalid OTP Provided', HttpStatus.BAD_REQUEST);
-      }
-
-      const user = await this.getUserByEmail(data.email);
-
-      await this.postgresService.$transaction([
-        this.postgresService.auth.update({
-          where: {
-            email: data.email,
-          },
-          data: {
-            email_verified: true,
-          },
-        }),
-
-        this.postgresService.tenant.create({
-          data: {
-            email: user.email,
-          },
-        }),
-      ]);
-      await this.cache.deleteOTPValue(data.email);
-
-      return 'Your email has been verified, please continue with your registration process';
-    } catch (error) {
-      throw new HttpException(error.message, error.status);
+    if (!cached_value) {
+      throw new HttpException(
+        'Seems, you have provided an Invalid OTP, please retry again',
+        HttpStatus.BAD_REQUEST,
+      );
     }
+    if (cached_value !== data.otp) {
+      throw new HttpException('Invalid OTP Provided', HttpStatus.BAD_REQUEST);
+    }
+
+    const user = await this.getUserByEmail(data.email);
+
+    await this.postgresService.$transaction([
+      this.postgresService.auth.update({
+        where: {
+          email: data.email,
+        },
+        data: {
+          email_verified: true,
+        },
+      }),
+
+      this.postgresService.tenant.create({
+        data: {
+          email: user.email,
+        },
+      }),
+    ]);
+    await this.cache.deleteOTPValue(data.email);
+
+    return 'Your email has been verified, please continue with your registration process';
   }
 
   async resetPassword(email: string) {
-    try {
-      const user = await this.getUserByEmail(email);
+    const user = await this.getUserByEmail(email);
 
-      const data = await this.emailService.sendResetPasswordToEmail(user.email);
-      this.cache.setData(data.encryptedText, data);
+    const data = await this.emailService.sendResetPasswordToEmail(user.email);
+    this.cache.setData(data.encryptedText, data);
 
-      return `An OTP has been sent to your registered email address.`;
-    } catch (error) {
-      throw new HttpException(error.message, error.status);
-    }
+    return `An OTP has been sent to your registered email address.`;
   }
 
   async validateEmailForReset(token: ValidateTokenDto, body: ResetPasswordDto) {

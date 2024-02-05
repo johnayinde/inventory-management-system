@@ -109,15 +109,11 @@ export class UserService {
   }
 
   async getAllTenantUsers(tenant_id: number): Promise<User[]> {
-    try {
-      const tenantAndUsers = await this.postgresService.tenant.findFirst({
-        where: { id: tenant_id },
-        include: { users: true },
-      });
-      return tenantAndUsers.users;
-    } catch (error) {
-      throw new HttpException(error.message, error.status);
-    }
+    const tenantAndUsers = await this.postgresService.tenant.findFirst({
+      where: { id: tenant_id },
+      include: { users: true },
+    });
+    return tenantAndUsers.users;
   }
 
   async editUser(tenant_id: number, id: number, user: EditUserDto) {
