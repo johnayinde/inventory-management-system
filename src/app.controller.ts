@@ -6,7 +6,7 @@ import { Public, Role, Roles, TenantInterceptor } from '@app/common';
 
 @Controller()
 @ApiBearerAuth()
-// @Roles()
+// @Roles(Role.Dashboard)
 @UseInterceptors(TenantInterceptor)
 export class AppController {
   constructor(private readonly appService: AppService) {}

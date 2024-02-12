@@ -40,7 +40,7 @@ export class CreateExpenseDto {
 
   @ApiProperty()
   @IsString()
-  date: string;
+  date: Date;
 
   @ApiProperty({ enum: ExpenseType })
   @IsString()
@@ -83,7 +83,7 @@ export class EditExpenseDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  date?: string;
+  date?: Date;
 
   @ApiPropertyOptional({ enum: ExpenseType })
   @IsString()

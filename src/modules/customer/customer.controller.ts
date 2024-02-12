@@ -12,7 +12,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { CustomerService } from './customer.service';
-import { TenantInterceptor } from '@app/common';
+import { Role, Roles, TenantInterceptor } from '@app/common';
 import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { CreateCustomerDto, EditCustomerDto } from './dto/customer.dto';
 import { Request } from 'express';
@@ -20,6 +20,7 @@ import { Request } from 'express';
 @ApiTags('Customer')
 @ApiBearerAuth()
 @UseInterceptors(TenantInterceptor)
+@Roles(Role.Customers)
 @Controller('customers')
 export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}

@@ -34,7 +34,6 @@ export class ExpenseService {
       const product = await this.postgresService.product.findFirst({
         where: { id: data?.productId, tenant_id },
       });
-      console.log({ product });
       if (!product) {
         throw new NotFoundException('Provided product not found');
       }

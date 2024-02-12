@@ -36,6 +36,8 @@ export class RecordExistsInDbConstraint
       where: queryConstraintDataBag,
     });
     await prisma.$disconnect();
+    if (!record) return true;
+
     const hasEmailVerifiedKey = 'email_verified' in record;
     if (hasEmailVerifiedKey) {
       if (record && record.email_verified) return false;
