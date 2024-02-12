@@ -6,3 +6,5 @@ export const PASSWORDMISMATCH =
 export const REGISTEROTP =
   'OTP sent to the provided email to continue your register process';
 export const SUCCESS = 'Success, everything looks good';
+export const USER_SIGNUP =
+  'Activation link sent to user email to continue register process';

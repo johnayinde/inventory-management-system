@@ -23,6 +23,7 @@ import { ProductModule } from './modules/product/product.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { ExpenseModule } from './modules/expense/expense.module';
 import { CustomerModule } from './modules/customer/customer.module';
+import { SaleModule } from './modules/sale/sale.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { CustomerModule } from './modules/customer/customer.module';
     ExpenseModule,
     InventoryModule,
     CustomerModule,
+    SaleModule,
   ],
   controllers: [AppController],
   providers: [
@@ -70,7 +72,6 @@ import { CustomerModule } from './modules/customer/customer.module';
       provide: APP_GUARD,
       useClass: RolesGuard,
     },
-
     AppService,
     // remove to test with auth module
     JwtService,

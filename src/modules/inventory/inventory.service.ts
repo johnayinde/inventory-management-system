@@ -35,9 +35,9 @@ export class InventoryService {
         await tx.product.updateMany({
           data: {
             quantity: createInventoryDto.quantity,
-            bulk_price: createInventoryDto.bulk_price,
+            cost_price: createInventoryDto.bulk_price,
+            expected_selling_price: createInventoryDto.expected_price,
             note: createInventoryDto.note,
-            price: createInventoryDto.cost_price,
           },
           where: {
             id: { in: products_ids },
@@ -49,7 +49,8 @@ export class InventoryService {
           await tx.product.update({
             data: {
               quantity: product.quantity,
-              price: product.selling_price,
+              cost_price: createInventoryDto.cost_price,
+              expected_selling_price: product.selling_price,
               serial_number: product.serial_number,
               attachments: product.attachment,
               note: product.notes,

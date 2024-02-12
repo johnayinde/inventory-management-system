@@ -17,12 +17,13 @@ import {
   CreateExpenseDto,
   EditExpenseDto,
 } from './dto/expense.dto';
-import { TenantInterceptor } from '@app/common';
+import { Role, Roles, TenantInterceptor } from '@app/common';
 import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { Request } from 'express';
 
 @ApiTags('Expense')
 @ApiBearerAuth()
+@Roles(Role.Expenses)
 @UseInterceptors(TenantInterceptor)
 @Controller('expenses')
 export class ExpenseController {

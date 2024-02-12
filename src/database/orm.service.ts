@@ -14,10 +14,10 @@ export class OrmService
 {
   private readonly logger = new Logger(OrmService.name);
   async onModuleInit() {
+    await this.useSoftDelete();
     await this.$connect().then(() => {
       this.logger.debug('Prisma ORM is CONNECTED');
     });
-    await this.useSoftDelete();
   }
   async onModuleDestroy() {
     await this.$disconnect();
