@@ -65,11 +65,13 @@ model Tenant {
   expenses           Expense[]
 
   //
-  deleted    Boolean     @default(false)
-  created_at DateTime    @default(now()) @db.Timestamptz(3)
-  updated_at DateTime?   @updatedAt
-  Inventory  Inventory[]
-  Customer   Customer[]
+  deleted     Boolean       @default(false)
+  created_at  DateTime      @default(now()) @db.Timestamptz(3)
+  updated_at  DateTime?     @updatedAt
+  Inventory   Inventory[]
+  Customer    Customer[]
+  Sale        Sale[]
+  SaleProduct SaleProduct[]
 }
 
 model Business {
@@ -163,20 +165,21 @@ model Product {
   tenant      Tenant     @relation(fields: [tenant_id], references: [id])
   Expense     Expense[]
 
-  quantity      Int?
-  price         String?
-  bulk_price    String?
-  note          String?
-  attachments   String[]
-  serial_number String?
-  status        ProductStatusType @default(in_stock)
+  quantity               Int?
+  cost_price             Float?
+  expected_selling_price Float?
+  note                   String?
+  attachments            String[]
+  serial_number          String?
+  status                 ProductStatusType @default(in_stock)
 
   //
-  deleted     Boolean    @default(false)
-  created_at  DateTime   @default(now()) @db.Timestamptz(3)
-  updated_at  DateTime?  @updatedAt
-  Inventory   Inventory? @relation(fields: [inventoryId], references: [id])
-  inventoryId Int?
+  deleted       Boolean       @default(false)
+  created_at    DateTime      @default(now()) @db.Timestamptz(3)
+  updated_at    DateTime?     @updatedAt
+  Inventory     Inventory?    @relation(fields: [inventoryId], references: [id])
+  inventoryId   Int?
+  sale_products SaleProduct[]
 }
 
 model ExpenseCategory {
@@ -223,12 +226,12 @@ model Inventory {
   shipping_name  String
   date           DateTime?
   attachments    String[]
-  cost_price     String
-  expected_price String
+  cost_price     Float?
+  expected_price Float?
   note           String?
   quantity       Int
   pricing_type   PricingType @default(individual)
-  bulk_price     String?
+  bulk_price     Float?
   tenant         Tenant      @relation(fields: [tenant_id], references: [id])
   tenant_id      Int
   products       Product[]
@@ -254,4 +257,49 @@ model Customer {
   deleted    Boolean   @default(false)
   created_at DateTime  @default(now()) @db.Timestamptz(3)
   updated_at DateTime? @updatedAt
+  Sale       Sale[]
+}
+
+model Sale {
+  id             Int           @id @default(autoincrement())
+  quantity       Int
+  expenses       Int
+  total_price    Int
+  sales_products SaleProduct[]
+
+  tenant_id  Int
+  tenant     Tenant   @relation(fields: [tenant_id], references: [id])
+  customer   Customer @relation(fields: [customerId], references: [id])
+  customerId Int
+
+  //
+  deleted    Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  @@map("sales")
+}
+
+model SaleProduct {
+  id              Int   @id @default(autoincrement())
+  saleId          Int
+  productId       Int
+  quantity        Int
+  expense         Float
+  unit_price      Float
+  total_price     Float
+  returned_counts Int   @default(0)
+  damaged_counts  Int   @default(0)
+
+  sale      Sale    @relation(fields: [saleId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+  tenant_id Int
+  tenant    Tenant  @relation(fields: [tenant_id], references: [id])
+
+  //
+  deleted    Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  @@map("sales_product")
 }

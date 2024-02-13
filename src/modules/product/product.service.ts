@@ -24,7 +24,7 @@ export class ProductService {
   async listProducts(tenant_id: number) {
     return await this.postgresService.product.findMany({
       where: { tenant_id },
-      include: { categories: true },
+      include: { categories: true, Expense: true },
     });
   }
 

@@ -2,6 +2,8 @@ import {
   IsArray,
   IsEnum,
   IsInt,
+  IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   ValidateNested,
@@ -10,14 +12,15 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PricingType } from '@prisma/client';
 import { Type } from 'class-transformer';
 
-export class ProductUpdateDto {
+class ProductUpdateDto {
   @ApiProperty()
   @IsInt()
   productId: number;
 
   @ApiProperty()
-  @IsString()
-  selling_price: string;
+  @IsNotEmpty()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  selling_price: number;
 
   @ApiProperty()
   @IsString()
@@ -47,7 +50,7 @@ export class CreateInventoryDto {
 
   @ApiPropertyOptional()
   @IsString()
-  date?: string;
+  date?: Date;
 
   @ApiPropertyOptional({ type: [String] })
   @IsArray()
@@ -56,12 +59,14 @@ export class CreateInventoryDto {
   attachments?: string[];
 
   @ApiProperty()
-  @IsString()
-  cost_price: string;
+  @IsNotEmpty()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  cost_price: number;
 
   @ApiProperty()
-  @IsString()
-  expected_price: string;
+  @IsNotEmpty()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  expected_price: number;
 
   @ApiPropertyOptional({ type: [Number] })
   @IsArray()
@@ -74,14 +79,15 @@ export class CreateInventoryDto {
   @IsEnum(PricingType)
   pricing_type?: PricingType;
 
-  // bulk
+  // bulk pricing
   @ApiPropertyOptional()
   @IsString()
   note?: string;
 
-  @ApiPropertyOptional()
-  @IsString()
-  bulk_price?: string;
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  bulk_price?: number;
 
   @ApiProperty()
   @IsInt()
@@ -92,6 +98,7 @@ export class CreateInventoryDto {
   @IsInt({ each: true })
   products_ids: number[];
 
+  //individual pricing
   @ApiProperty({ type: [ProductUpdateDto] })
   @IsArray()
   @Type(() => ProductUpdateDto)
@@ -109,7 +116,7 @@ export class EditInventoryDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  date?: string;
+  date?: Date;
 
   @ApiPropertyOptional({ type: [Number] })
   @IsArray()

@@ -11,7 +11,7 @@ import { CreateUserDto, EditUserDto } from './dto/user.dto';
 import { CacheService } from '../cache/cache.service';
 import { EmailService } from '../email/email.service';
 import { ResetPasswordDto, ValidateTokenDto } from '../auth/dto/auth.dto';
-import { decryption, encryptData } from '@app/common';
+import { USER_SIGNUP, decryption, encryptData } from '@app/common';
 import * as bcrypt from 'bcrypt';
 import { User } from '@prisma/client';
 
@@ -46,6 +46,7 @@ export class UserService {
         'user',
       );
       this.cache.setData(data.encryptedText, data);
+      return USER_SIGNUP;
     });
   }
 

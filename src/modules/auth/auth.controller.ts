@@ -17,8 +17,9 @@ import {
   ResetPasswordDto,
   ValidateTokenDto,
 } from './dto/auth.dto';
-import { ApiBody, ApiQuery } from '@nestjs/swagger';
+import { ApiBody, ApiQuery, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Auth')
 @Controller('auth')
 @Public()
 export class AuthController {

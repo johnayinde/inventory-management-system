@@ -5,9 +5,9 @@ import {
   CallHandler,
   UnauthorizedException,
 } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
 import { Observable } from 'rxjs';
 import { ReqUser } from '../intefaces';
+import { OrmService } from 'src/database/orm.service';
 
 declare global {
   namespace Express {
@@ -19,6 +19,8 @@ declare global {
 
 @Injectable()
 export class TenantInterceptor implements NestInterceptor {
+  constructor(private readonly ormService: OrmService) {}
+
   async intercept(
     context: ExecutionContext,
     next: CallHandler,
@@ -30,7 +32,7 @@ export class TenantInterceptor implements NestInterceptor {
     console.log('intercepting request***');
 
     if (user) {
-      const prisma = new PrismaClient();
+      const prisma = this.ormService;
 
       if (!user.isUser) {
         const tenantRecord = await prisma.tenant.findFirst({
@@ -47,7 +49,6 @@ export class TenantInterceptor implements NestInterceptor {
 
         request.tenant_id = userRec.tenant_id;
       }
-      await prisma.$disconnect();
       return next.handle();
     }
     throw new UnauthorizedException();

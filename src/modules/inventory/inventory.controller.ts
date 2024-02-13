@@ -11,13 +11,14 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
-import { TenantInterceptor } from '@app/common';
+import { Role, Roles, TenantInterceptor } from '@app/common';
 import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { CreateInventoryDto } from './dto/inventory.dto';
 import { Request } from 'express';
 
 @ApiTags('Inventory')
 @ApiBearerAuth()
+@Roles(Role.Inventory)
 @UseInterceptors(TenantInterceptor)
 @Controller('inventories')
 export class InventoryController {
