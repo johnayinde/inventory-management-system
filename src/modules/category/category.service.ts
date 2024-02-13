@@ -40,4 +40,10 @@ export class CategoryService {
     });
     return { categoryCount, subcategoryCount };
   }
+
+  async deleteCategory(tenant_id: number, id: number) {
+    return await this.postgresService.category.delete({
+      where: { tenant_id, id },
+    });
+  }
 }

@@ -7,6 +7,8 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  Delete,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { Role, Roles, TenantInterceptor } from '@app/common';
@@ -38,9 +40,18 @@ export class InventoryController {
   @Post('/:inventoryId/duplicate')
   @HttpCode(HttpStatus.CREATED)
   duplicateInventory(
-    @Param('inventoryId') inventoryId: number,
+    @Param('inventoryId', ParseIntPipe) inventoryId: number,
     @Req() { tenant_id }: Request,
   ) {
     return this.inventoryService.duplicateInventory(tenant_id, inventoryId);
+  }
+
+  @Delete('/:inventoryId')
+  @HttpCode(HttpStatus.OK)
+  deleteSales(
+    @Req() { tenant_id }: Request,
+    @Param('inventoryId', ParseIntPipe) inventoryId: number,
+  ) {
+    return this.inventoryService.deleteInventory(tenant_id, inventoryId);
   }
 }

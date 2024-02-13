@@ -84,15 +84,9 @@ export class ExpenseService {
     });
   }
 
-  async editExpense(
-    tenant_id: number,
-    expenseId: number,
-    data: EditExpenseDto,
-  ) {
-    console.log({ expenseId, data });
-
+  async editExpense(tenant_id: number, id: number, data: EditExpenseDto) {
     const expense = await this.postgresService.expense.findFirst({
-      where: { id: Number(expenseId), tenant_id },
+      where: { id, tenant_id },
     });
     if (!expense) {
       throw new NotFoundException('Expense not found');
@@ -100,7 +94,7 @@ export class ExpenseService {
     if (expense.type == ExpenseType.product) {
       const { categoryId, ...expenseData } = data;
       return await this.postgresService.expense.update({
-        where: { id: Number(expenseId), tenant_id },
+        where: { id, tenant_id },
         data: {
           ...expenseData,
         },
@@ -110,7 +104,7 @@ export class ExpenseService {
       const { productId, ...expenseData } = data;
 
       return await this.postgresService.expense.update({
-        where: { id: Number(expenseId), tenant_id },
+        where: { id, tenant_id },
         data: {
           ...expenseData,
         },
@@ -119,9 +113,9 @@ export class ExpenseService {
     }
   }
 
-  async getExpense(tenant_id: number, expenseId: number) {
+  async getExpense(tenant_id: number, id: number) {
     const expense = await this.postgresService.expense.findUnique({
-      where: { id: Number(expenseId), tenant_id },
+      where: { id, tenant_id },
       include: { category: true },
     });
     if (!expense) {
@@ -130,18 +124,19 @@ export class ExpenseService {
     return expense;
   }
 
-  async deleteExpense(tenant_id: number, expenseId: number) {
+  async deleteExpense(tenant_id: number, id: number) {
     const deletedExpense = await this.postgresService.expense.delete({
-      where: { id: Number(expenseId), tenant_id },
+      where: { id, tenant_id },
     });
     if (!deletedExpense) {
       throw new NotFoundException('Expense not found');
     }
+    return deletedExpense;
   }
 
   async duplicateExpense(tenant_id: number, expenseId: number) {
     const expenseToDuplicate = await this.postgresService.expense.findUnique({
-      where: { id: Number(expenseId), tenant_id },
+      where: { id: expenseId, tenant_id },
       include: { category: true, product: true },
     });
     if (!expenseToDuplicate) {

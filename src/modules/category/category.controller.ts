@@ -1,9 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseIntPipe,
   Post,
   Req,
   UseInterceptors,
@@ -43,5 +46,14 @@ export class CategoryController {
     return this.categoryService.getCategoryAndSubcategoryCountByTenantId(
       tenant_id,
     );
+  }
+
+  @Delete(':categoryId')
+  @HttpCode(HttpStatus.OK)
+  deleteSales(
+    @Req() { tenant_id }: Request,
+    @Param('categoryId', ParseIntPipe) categoryId: number,
+  ) {
+    return this.categoryService.deleteCategory(tenant_id, categoryId);
   }
 }

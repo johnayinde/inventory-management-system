@@ -155,4 +155,10 @@ export class InventoryService {
       return newInventory;
     });
   }
+
+  async deleteInventory(tenant_id: number, id: number) {
+    return await this.postgresService.inventory.delete({
+      where: { tenant_id, id },
+    });
+  }
 }

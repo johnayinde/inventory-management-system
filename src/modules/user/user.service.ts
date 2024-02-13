@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
@@ -23,7 +24,7 @@ export class UserService {
   ) {}
 
   async createUser(tenant_id: number, user: CreateUserDto) {
-    await this.postgresService.$transaction(async (tx) => {
+    return await this.postgresService.$transaction(async (tx) => {
       const user_acc = await tx.user.create({
         data: {
           email: user.email,
@@ -98,15 +99,33 @@ export class UserService {
     return 'New password saved!';
   }
 
-  async updateUserSuspensionStatus(
-    tenant_id: number,
-    id: number,
-    suspend: boolean,
-  ): Promise<User> {
-    return await this.postgresService.user.update({
-      where: { id: Number(id), tenant_id },
-      data: { is_suspended: suspend },
+  async suspendUser(tenant_id: number, id: number, suspend: boolean) {
+    await this.postgresService.user.update({
+      where: { id, tenant_id },
+      data: {
+        is_suspended: suspend,
+        permission: {
+          update: {
+            dashboard: false,
+            inventory: false,
+            sales: false,
+            expenses: false,
+            report: false,
+            customers: false,
+          },
+        },
+      },
     });
+    return 'Status Updated!';
+  }
+
+  async revokeUser(tenant_id: number, id: number, suspend: boolean) {
+    await this.postgresService.user.update({
+      where: { id, tenant_id },
+      data: { is_revoked: suspend, is_suspended: suspend },
+    });
+
+    return 'Status Updated!';
   }
 
   async getAllTenantUsers(tenant_id: number): Promise<User[]> {
@@ -117,19 +136,31 @@ export class UserService {
     return tenantAndUsers.users;
   }
 
-  async editUser(tenant_id: number, id: number, user: EditUserDto) {
+  async getUserById(tenant_id: number, userId: number): Promise<User> {
+    const user = await this.postgresService.user.findUnique({
+      where: { id: userId, tenant_id },
+      include: { permission: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
+
+  async editUser(tenant_id: number, id: number, data: EditUserDto) {
     await this.postgresService.$transaction(async (tx) => {
-      const user_acc = await tx.user.update({
-        where: { id: Number(id), tenant_id },
-        data: {
-          name: user.name,
-        },
+      const user = await tx.user.findUnique({
+        where: { id, tenant_id },
       });
-      await tx.permission.update({
-        where: { userId: user_acc.id },
-        data: {
-          ...user.permissions,
-        },
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+      await tx.user.update({
+        where: { id, tenant_id },
+        data: { ...data },
       });
     });
 

@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -59,18 +60,34 @@ export class UserController {
 
   @ApiBearerAuth()
   @UseInterceptors(TenantInterceptor)
-  @Patch(':userId/status')
+  @Patch(':userId/suspend')
   @ApiBody({
     description: 'set user suspension status',
     type: SuspendUserDto,
   })
   @HttpCode(HttpStatus.OK)
   async updateUserStatus(
-    @Param('userId') userId: number,
+    @Param('userId', ParseIntPipe) userId: number,
     @Body() { flag }: SuspendUserDto,
     @Req() { tenant_id }: Request,
   ) {
-    return this.userService.updateUserSuspensionStatus(tenant_id, userId, flag);
+    return this.userService.suspendUser(tenant_id, userId, flag);
+  }
+
+  @ApiBearerAuth()
+  @UseInterceptors(TenantInterceptor)
+  @Patch(':userId/revoke')
+  @ApiBody({
+    description: 'set user suspension status',
+    type: SuspendUserDto,
+  })
+  @HttpCode(HttpStatus.OK)
+  async revokeUser(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Body() { flag }: SuspendUserDto,
+    @Req() { tenant_id }: Request,
+  ) {
+    return this.userService.revokeUser(tenant_id, userId, flag);
   }
 
   @ApiBearerAuth()
@@ -82,7 +99,7 @@ export class UserController {
   })
   @HttpCode(HttpStatus.OK)
   async editUser(
-    @Param('userId') userId: number,
+    @Param('userId', ParseIntPipe) userId: number,
     @Body() body: EditUserDto,
     @Req() { tenant_id }: Request,
   ) {
@@ -95,5 +112,16 @@ export class UserController {
   @HttpCode(HttpStatus.OK)
   getAllUsers(@Req() { tenant_id }: Request) {
     return this.userService.getAllTenantUsers(tenant_id);
+  }
+
+  @ApiBearerAuth()
+  @UseInterceptors(TenantInterceptor)
+  @Get('/:userId')
+  @HttpCode(HttpStatus.OK)
+  getUserById(
+    @Req() { tenant_id }: Request,
+    @Param('userId', ParseIntPipe) userId: number,
+  ) {
+    return this.userService.getUserById(tenant_id, userId);
   }
 }

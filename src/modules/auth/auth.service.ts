@@ -15,7 +15,12 @@ import {
   ValidateTokenDto,
 } from './dto/auth.dto';
 import * as bcrypt from 'bcrypt';
-import { REGISTEROTP, decryption, encryptData } from '@app/common';
+import {
+  NOTACTIVATED,
+  REGISTEROTP,
+  decryption,
+  encryptData,
+} from '@app/common';
 import { EmailService } from '../email/email.service';
 import { CacheService } from '../cache/cache.service';
 import { JwtService } from '@nestjs/jwt';
@@ -131,7 +136,7 @@ export class AuthService {
     if (user.email_verified !== true) {
       const otp = await this.cache.setOTPValue(data.email);
       await this.emailService.sendOTP(otp, data.email);
-      return user;
+      return NOTACTIVATED;
     }
     let userId: number;
 
@@ -139,6 +144,9 @@ export class AuthService {
       const userRec = await this.postgresService.user.findFirst({
         where: { email: user.email },
       });
+      if (userRec.is_suspended) {
+        throw new UnauthorizedException('Account is Suspended!');
+      }
       userId = userRec.id;
     } else {
       userId = user.id;
