@@ -123,6 +123,7 @@ model User {
   last_login   DateTime?  @default(now())
   status       StatusType @default(offline)
   is_suspended Boolean    @default(false)
+  is_revoked   Boolean    @default(false)
 
   tenant_id  Int
   tenant     Tenant      @relation(fields: [tenant_id], references: [id])

@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Req,
@@ -69,7 +70,7 @@ export class ExpenseController {
   })
   @HttpCode(HttpStatus.OK)
   async editExpense(
-    @Param('expenseId') expenseId: number,
+    @Param('expenseId', ParseIntPipe) expenseId: number,
     @Body() body: EditExpenseDto,
     @Req() { tenant_id }: Request,
   ) {
@@ -80,7 +81,7 @@ export class ExpenseController {
   @HttpCode(HttpStatus.OK)
   getExpense(
     @Req() { tenant_id }: Request,
-    @Param('expenseId') expenseId: number,
+    @Param('expenseId', ParseIntPipe) expenseId: number,
   ) {
     return this.expenseService.getExpense(tenant_id, expenseId);
   }
@@ -89,7 +90,7 @@ export class ExpenseController {
   @HttpCode(HttpStatus.OK)
   deleteExpense(
     @Req() { tenant_id }: Request,
-    @Param('expenseId') expenseId: number,
+    @Param('expenseId', ParseIntPipe) expenseId: number,
   ) {
     return this.expenseService.deleteExpense(tenant_id, expenseId);
   }
@@ -97,7 +98,7 @@ export class ExpenseController {
   @Post('/:expenseId/duplicate')
   @HttpCode(HttpStatus.CREATED)
   duplicateExpense(
-    @Param('expenseId') expenseId: number,
+    @Param('expenseId', ParseIntPipe) expenseId: number,
     @Req() { tenant_id }: Request,
   ) {
     return this.expenseService.duplicateExpense(tenant_id, expenseId);

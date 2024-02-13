@@ -26,13 +26,13 @@ export class CustomerService {
 
   async editCustomer(tenant_id: number, id: number, data: EditCustomerDto) {
     const customer = await this.postgresService.customer.findUnique({
-      where: { id: Number(id), tenant_id },
+      where: { id, tenant_id },
     });
     if (!customer) {
       throw new NotFoundException('Customer not found');
     }
     await this.postgresService.customer.update({
-      where: { id: Number(id), tenant_id },
+      where: { id, tenant_id },
       data: {
         ...data,
       },
@@ -40,21 +40,20 @@ export class CustomerService {
     return 'Customer Updated!';
   }
 
-  async deleteCustomer(tenant_id: number, customerID: number) {
+  async deleteCustomer(tenant_id: number, id: number) {
     return await this.postgresService.customer.delete({
-      where: { tenant_id, id: Number(customerID) },
+      where: { tenant_id, id },
     });
   }
 
-  //   async getOrders(tenant_id: number, productId: number) {
-  //       const product = await this.postgresService.product.findUnique({
-  //         where: { id: Number(productId), tenant_id },
-  //         include: { categories: true },
-  //       });
-  //       if (!product) {
-  //         throw new NotFoundException('Product not found');
-  //       }
-  //       return product;
-  //
-  //   }
+  async getCustomerOrderHistories(tenant_id: number, customerId: number) {
+    const customerSales = await this.postgresService.customer.findMany({
+      where: { customerId, tenant_id },
+      include: { customer: true },
+    });
+    if (!customerSales) {
+      throw new NotFoundException('Customer Sales not found');
+    }
+    return customerSales;
+  }
 }

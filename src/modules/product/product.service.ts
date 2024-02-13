@@ -28,13 +28,9 @@ export class ProductService {
     });
   }
 
-  async editProduct(
-    tenant_id: number,
-    productId: number,
-    data: EditProductDto,
-  ) {
+  async editProduct(tenant_id: number, id: number, data: EditProductDto) {
     return await this.postgresService.product.update({
-      where: { id: Number(productId), tenant_id },
+      where: { id, tenant_id },
       data: {
         ...data,
         categories: {
@@ -45,9 +41,9 @@ export class ProductService {
     });
   }
 
-  async getProduct(tenant_id: number, productId: number) {
+  async getProduct(tenant_id: number, id: number) {
     const product = await this.postgresService.product.findUnique({
-      where: { id: Number(productId), tenant_id },
+      where: { id, tenant_id },
       include: { categories: true },
     });
     if (!product) {
@@ -56,19 +52,20 @@ export class ProductService {
     return product;
   }
 
-  async deleteProduct(tenant_id: number, productId: number) {
+  async deleteProduct(tenant_id: number, id: number) {
     const deletedProduct = await this.postgresService.product.delete({
-      where: { id: Number(productId), tenant_id },
+      where: { id, tenant_id },
     });
     if (!deletedProduct) {
       throw new NotFoundException('Product not found');
     }
+    return deletedProduct;
   }
 
   async duplicateProduct(tenant_id: number, productId: number) {
     const { id, ...productToDuplicate } =
       await this.postgresService.product.findUnique({
-        where: { id: Number(productId), tenant_id },
+        where: { id: productId, tenant_id },
         include: { categories: true },
       });
     if (!productToDuplicate) {

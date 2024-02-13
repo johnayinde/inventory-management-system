@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Req,
@@ -58,7 +59,7 @@ export class ProductController {
   @HttpCode(HttpStatus.OK)
   getProduct(
     @Req() { tenant_id }: Request,
-    @Param('productId') productId: number,
+    @Param('productId', ParseIntPipe) productId: number,
   ) {
     return this.productService.getProduct(tenant_id, productId);
   }
@@ -67,7 +68,7 @@ export class ProductController {
   @HttpCode(HttpStatus.OK)
   deleteProduct(
     @Req() { tenant_id }: Request,
-    @Param('productId') productId: number,
+    @Param('productId', ParseIntPipe) productId: number,
   ) {
     return this.productService.deleteProduct(tenant_id, productId);
   }
@@ -75,7 +76,7 @@ export class ProductController {
   @Post('/:productId/duplicate')
   @HttpCode(HttpStatus.CREATED)
   duplicateProduct(
-    @Param('productId') productId: number,
+    @Param('productId', ParseIntPipe) productId: number,
     @Req() { tenant_id }: Request,
   ) {
     return this.productService.duplicateProduct(tenant_id, productId);

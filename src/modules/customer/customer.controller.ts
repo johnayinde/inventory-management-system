@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Req,
@@ -40,6 +41,18 @@ export class CustomerController {
     return this.customerService.getAllCustomers(tenant_id);
   }
 
+  @Get('orders')
+  @HttpCode(HttpStatus.OK)
+  customerSales(
+    @Req() { tenant_id }: Request,
+    @Param('customerId', ParseIntPipe) customerId: number,
+  ) {
+    return this.customerService.getCustomerOrderHistories(
+      tenant_id,
+      customerId,
+    );
+  }
+
   @Patch(':customerId')
   @ApiBody({
     description: 'Edit Customer',
@@ -47,7 +60,7 @@ export class CustomerController {
   })
   @HttpCode(HttpStatus.OK)
   async editExpense(
-    @Param('customerId') customerId: number,
+    @Param('customerId', ParseIntPipe) customerId: number,
     @Body() body: EditCustomerDto,
     @Req() { tenant_id }: Request,
   ) {
@@ -58,7 +71,7 @@ export class CustomerController {
   @HttpCode(HttpStatus.OK)
   delete(
     @Req() { tenant_id }: Request,
-    @Param('customerId') customerId: number,
+    @Param('customerId', ParseIntPipe) customerId: number,
   ) {
     return this.customerService.deleteCustomer(tenant_id, customerId);
   }
