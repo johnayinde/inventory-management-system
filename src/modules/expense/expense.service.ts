@@ -6,6 +6,8 @@ import {
   EditExpenseDto,
 } from './dto/expense.dto';
 import { ExpenseType } from '@prisma/client';
+import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
+import { expenseFilters, page_generator } from '@app/common';
 
 @Injectable()
 export class ExpenseService {
@@ -77,11 +79,31 @@ export class ExpenseService {
     }
   }
 
-  async listExpenses(tenant_id: number) {
-    return await this.postgresService.expense.findMany({
-      where: { tenant_id },
+  async listExpenses(tenant_id: number, filters: PaginatorDTO) {
+    const { skip, take } = page_generator(
+      Number(filters.page),
+      Number(filters.pageSize),
+    );
+    const filter = expenseFilters(filters);
+    const whereCondition = filter ? { tenant_id, ...filter } : { tenant_id };
+
+    const all_expenses = await this.postgresService.expense.findMany({
+      where: whereCondition,
       include: { category: true, product: true },
+      skip,
+      take,
     });
+
+    return {
+      data: all_expenses,
+      totalCount: all_expenses.length,
+      pageInfo: {
+        currentPage: Number(filters.page),
+        perPage: Number(filters.pageSize),
+        hasNextPage:
+          all_expenses.length > Number(filters.page) * Number(filters.pageSize),
+      },
+    };
   }
 
   async editExpense(tenant_id: number, id: number, data: EditExpenseDto) {

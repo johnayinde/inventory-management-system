@@ -47,7 +47,7 @@ export class CustomerService {
   }
 
   async getCustomerOrderHistories(tenant_id: number, customerId: number) {
-    const customerSales = await this.postgresService.customer.findMany({
+    const customerSales = await this.postgresService.sale.findMany({
       where: { customerId, tenant_id },
       include: { customer: true },
     });

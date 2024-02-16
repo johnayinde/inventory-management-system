@@ -9,14 +9,16 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseInterceptors,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductoDto, EditProductDto } from './dto/product.dto';
-import { ApiTags, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBody, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Request } from 'express';
 import { TenantInterceptor } from '@app/common';
+import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
 @ApiTags('Products')
 @ApiBearerAuth()
@@ -37,8 +39,14 @@ export class ProductController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  listProducts(@Req() { tenant_id }: Request) {
-    return this.productService.listProducts(tenant_id);
+  listProducts(@Req() { tenant_id }: Request, @Query() filters: PaginatorDTO) {
+    return this.productService.listProducts(tenant_id, filters);
+  }
+
+  @Get('/dashboard-stats')
+  @HttpCode(HttpStatus.OK)
+  getStats(@Req() { tenant_id }: Request) {
+    return this.productService.getDashboardStats(tenant_id);
   }
 
   @Patch(':productId')

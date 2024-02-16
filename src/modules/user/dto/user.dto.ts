@@ -1,6 +1,7 @@
 import {
   IsBoolean,
   IsEmail,
+  IsEnum,
   IsOptional,
   IsString,
   ValidateNested,
@@ -8,6 +9,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { RecordExists } from '@app/common';
+import { StatusType } from '@prisma/client';
 
 export class UserPermissionDto {
   @IsOptional()
@@ -62,6 +64,7 @@ export class CreateUserDto {
 
 export class EditUserDto {
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   name?: string;
 
@@ -70,6 +73,12 @@ export class EditUserDto {
   @Type(() => UserPermissionDto)
   @IsOptional()
   permissions?: UserPermissionDto;
+
+  @ApiPropertyOptional({ enum: StatusType })
+  @IsOptional()
+  @IsString()
+  @IsEnum(StatusType)
+  status?: StatusType;
 }
 
 export class SuspendUserDto {

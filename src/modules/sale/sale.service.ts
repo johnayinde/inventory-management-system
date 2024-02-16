@@ -4,14 +4,23 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CreateSaleDto } from './dto/sales.dto';
-import { Product, ProductStatusType, SaleProduct } from '@prisma/client';
+import { ProductStatusType, SaleProduct } from '@prisma/client';
 import { OrmService } from 'src/database/orm.service';
 import {
   IN_STOCK_COUNT,
   SOLD_OUT_COUNT,
 } from '@app/common/constants/constants';
-import { QuantityUpdate, SalesStatsDto } from '@app/common';
-import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import {
+  QuantityUpdate,
+  SalesStatsDto,
+  page_generator,
+  salesFilters,
+} from '@app/common';
+import {
+  calculatePercentageChange,
+  getLastMonthDateRange,
+} from '@app/common/helpers';
+import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
 @Injectable()
 export class SaleService {
@@ -124,11 +133,32 @@ export class SaleService {
     return sales;
   }
 
-  async getAllSales(tenant_id: number) {
-    return await this.postgresService.sale.findMany({
-      where: { tenant_id },
-      include: { customer: true, _count: true },
+  async getAllSales(tenant_id: number, filters: PaginatorDTO) {
+    const { skip, take } = page_generator(
+      Number(filters.page),
+      Number(filters.pageSize),
+    );
+    const filter = salesFilters(filters);
+
+    const whereCondition = filter ? { tenant_id, ...filter } : { tenant_id };
+
+    const all_sales = await this.postgresService.sale.findMany({
+      where: whereCondition,
+      include: { customer: true },
+      skip,
+      take,
     });
+
+    return {
+      data: all_sales || [],
+      totalCount: all_sales.length || 0,
+      pageInfo: {
+        currentPage: Number(filters.page),
+        perPage: Number(filters.pageSize),
+        hasNextPage:
+          all_sales.length > Number(filters.page) * Number(filters.pageSize),
+      },
+    };
   }
 
   async returnProductItem(
@@ -254,10 +284,7 @@ export class SaleService {
 
     this.calculateBasicStats(sales, stats);
 
-    const currentDate = new Date();
-    const firstDayOfCurrentMonth = startOfMonth(currentDate);
-    const firstDayOfLastMonth = subMonths(firstDayOfCurrentMonth, 1);
-    const lastDayOfLastMonth = endOfMonth(subMonths(currentDate, 1));
+    const { firstDayOfLastMonth, lastDayOfLastMonth } = getLastMonthDateRange();
 
     console.log(firstDayOfLastMonth);
     console.log(lastDayOfLastMonth);
@@ -500,29 +527,27 @@ export class SaleService {
     statsLastMonth: SalesStatsDto,
   ) {
     stats.salesIncreasePercentage =
-      this.calculatePercentageIncrease(
-        stats.totalSales,
-        statsLastMonth.totalSales,
-      ) || 0;
+      calculatePercentageChange(stats.totalSales, statsLastMonth.totalSales) ||
+      0;
     console.log({ salesIncreasePercentage: stats.salesIncreasePercentage });
 
     stats.profitsIncreasePercentage =
-      this.calculatePercentageIncrease(
+      calculatePercentageChange(
         stats.totalProfits,
         statsLastMonth.totalProfits,
       ) || 0;
     stats.expensesIncreasePercentage =
-      this.calculatePercentageIncrease(
+      calculatePercentageChange(
         stats.totalExpenses,
         statsLastMonth.totalExpenses,
       ) || 0;
     stats.soldProductsIncreasePercentage =
-      this.calculatePercentageIncrease(
+      calculatePercentageChange(
         stats.numberOfSoldProducts,
         statsLastMonth.numberOfSoldProducts,
       ) || 0;
     stats.returnedProductsIncreasePercentage =
-      this.calculatePercentageIncrease(
+      calculatePercentageChange(
         stats.returnedProducts,
         statsLastMonth.returnedProducts,
       ) || 0;
@@ -541,13 +566,6 @@ export class SaleService {
         stats.returnedProducts += saleProduct.returned_counts;
       }
     }
-  }
-
-  private calculatePercentageIncrease(
-    currentValue: number,
-    previousValue: number,
-  ): number {
-    return ((currentValue - previousValue) / previousValue) * 100;
   }
 
   private async returnSalesItem(

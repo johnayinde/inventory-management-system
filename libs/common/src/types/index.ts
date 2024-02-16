@@ -20,6 +20,25 @@ export class SalesStatsDto {
   soldProductsIncreasePercentage?: number;
   returnedProductsIncreasePercentage?: number;
 }
+export class InventoryStatsDto {
+  totalGoods: number;
+  goodsPercentageChange: number;
+  totalCategories: number;
+  categoriesPercentageChange: number;
+  totalReturnedProducts: number;
+  returnPercentageChange: number;
+  totalLowStocks: number;
+}
+
+export class ProductStatsDto {
+  totalProducts: number;
+  productsPercentageChange: number;
+  totalCategories: number;
+  categoriesPercentageChange: number;
+  totalSubcategories: number;
+  subcategoriesPercentageChange: number;
+  totalLowStocks: number;
+}
 
 export type QuantityUpdate = {
   quantity: {
