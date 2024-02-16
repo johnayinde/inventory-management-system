@@ -9,14 +9,16 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseInterceptors,
 } from '@nestjs/common';
 import { SaleService } from './sale.service';
-import { Role, Roles, TenantInterceptor } from '@app/common';
+import { TenantInterceptor } from '@app/common';
 import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { CreateSaleDto } from './dto/sales.dto';
 import { Request } from 'express';
+import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
 @ApiTags('Sales')
 @ApiBearerAuth()
@@ -37,8 +39,8 @@ export class SaleController {
 
   @Get('')
   @HttpCode(HttpStatus.OK)
-  getAllSales(@Req() { tenant_id }: Request) {
-    return this.saleService.getAllSales(tenant_id);
+  getAllSales(@Req() { tenant_id }: Request, @Query() filters: PaginatorDTO) {
+    return this.saleService.getAllSales(tenant_id, filters);
   }
 
   @Get('/invoice/:salesId')

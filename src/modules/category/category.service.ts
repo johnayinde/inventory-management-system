@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
 import { CreateCategoryDto } from './dto/category.dto';
+import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
+import { page_generator, subCategoryFilters } from '@app/common';
 
 @Injectable()
 export class CategoryService {
@@ -45,5 +47,35 @@ export class CategoryService {
     return await this.postgresService.category.delete({
       where: { tenant_id, id },
     });
+  }
+
+  async getSubcategory(tenant_id: number, id: number, filters: PaginatorDTO) {
+    const { skip, take } = page_generator(
+      Number(filters.page),
+      Number(filters.pageSize),
+    );
+    const filter = subCategoryFilters(filters);
+    const whereCondition = filter
+      ? { tenant_id, id, ...filter }
+      : { tenant_id, id };
+
+    const all_subCategory = await this.postgresService.category.findFirst({
+      where: whereCondition,
+      include: { sub_categories: true, products: true },
+      skip,
+      take,
+    });
+
+    return {
+      data: all_subCategory.sub_categories || [],
+      totalCount: all_subCategory.sub_categories.length || 0,
+      pageInfo: {
+        currentPage: Number(filters.page),
+        perPage: Number(filters.pageSize),
+        hasNextPage:
+          all_subCategory.sub_categories.length >
+          Number(filters.page) * Number(filters.pageSize),
+      },
+    };
   }
 }

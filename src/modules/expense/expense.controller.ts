@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseInterceptors,
 } from '@nestjs/common';
@@ -21,6 +22,7 @@ import {
 import { Role, Roles, TenantInterceptor } from '@app/common';
 import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { Request } from 'express';
+import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
 @ApiTags('Expense')
 @ApiBearerAuth()
@@ -60,8 +62,8 @@ export class ExpenseController {
 
   @Get('')
   @HttpCode(HttpStatus.OK)
-  listExpenses(@Req() { tenant_id }: Request) {
-    return this.expenseService.listExpenses(tenant_id);
+  listExpenses(@Req() { tenant_id }: Request, @Query() filters: PaginatorDTO) {
+    return this.expenseService.listExpenses(tenant_id, filters);
   }
 
   @Patch(':expenseId')

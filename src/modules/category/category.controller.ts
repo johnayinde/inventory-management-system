@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Query,
   ParseIntPipe,
   Post,
   Req,
@@ -13,9 +14,10 @@ import {
 } from '@nestjs/common';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/category.dto';
-import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { TenantInterceptor } from '@app/common';
+import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
 @ApiTags('Category')
 @ApiBearerAuth()
@@ -38,6 +40,16 @@ export class CategoryController {
   @HttpCode(HttpStatus.OK)
   getAllCategories(@Req() { tenant_id }: Request) {
     return this.categoryService.getAllCategories(tenant_id);
+  }
+
+  @Get('/:categoryId')
+  @HttpCode(HttpStatus.OK)
+  getSubCategory(
+    @Req() { tenant_id }: Request,
+    @Param('categoryId', ParseIntPipe) categoryId: number,
+    @Query() filters: PaginatorDTO,
+  ) {
+    return this.categoryService.getSubcategory(tenant_id, categoryId, filters);
   }
 
   @Get('/counts')

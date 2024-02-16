@@ -37,15 +37,14 @@ enum ProductStatusType {
 }
 
 model Auth {
-  id           Int     @id @default(autoincrement())
-  first_name   String?
-  last_name    String?
-  email        String  @unique
-  phone_number String? @unique
-  password     String?
-  isOauthUser  Boolean @default(false)
-  isUser       Boolean @default(false)
-
+  id             Int       @id @default(autoincrement())
+  first_name     String?
+  last_name      String?
+  email          String    @unique
+  phone_number   String?   @unique
+  password       String?
+  isOauthUser    Boolean   @default(false)
+  isUser         Boolean   @default(false)
   //
   deleted        Boolean   @default(false)
   email_verified Boolean?  @default(false)

@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
@@ -26,6 +27,7 @@ import { CacheService } from '../cache/cache.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
+import { StatusType } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -147,6 +149,10 @@ export class AuthService {
       if (userRec.is_suspended) {
         throw new UnauthorizedException('Account is Suspended!');
       }
+      await this.postgresService.user.update({
+        where: { id: userRec.id },
+        data: { last_login: new Date(), status: StatusType.online },
+      });
       userId = userRec.id;
     } else {
       userId = user.id;

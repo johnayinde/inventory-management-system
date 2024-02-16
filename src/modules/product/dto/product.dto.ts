@@ -31,5 +31,5 @@ export class EditProductDto {
   @IsArray()
   @IsInt({ each: true })
   @IsOptional()
-  categories?: number[];
+  categoryIds?: number[];
 }
