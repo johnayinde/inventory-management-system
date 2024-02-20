@@ -63,7 +63,7 @@ export class SaleService {
         }
 
         totalProductExpenses = product.Expense.reduce(
-          (acc, expense) => acc + parseFloat(expense.amount) || 0,
+          (acc, expense) => acc + expense.amount || 0,
           0,
         );
 

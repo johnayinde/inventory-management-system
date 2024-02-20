@@ -203,7 +203,7 @@ model Expense {
   tenant_id          Int
   name               String
   description        String?
-  amount             String
+  amount             Float?
   date               DateTime
   type               ExpenseType      @default(general)
   attachment         String?
@@ -262,8 +262,8 @@ model Customer {
 model Sale {
   id             Int           @id @default(autoincrement())
   quantity       Int
-  expenses       Int
-  total_price    Int
+  expenses       Float
+  total_price    Float
   sales_products SaleProduct[]
 
   tenant_id  Int
