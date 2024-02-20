@@ -35,8 +35,8 @@ export class CreateExpenseDto {
   description?: string;
 
   @ApiProperty()
-  @IsString()
-  amount: string;
+  @IsNumber()
+  amount: number;
 
   @ApiProperty()
   @IsString()
@@ -76,9 +76,9 @@ export class EditExpenseDto {
   description?: string;
 
   @ApiPropertyOptional()
-  @IsString()
+  @IsNumber()
   @IsOptional()
-  amount?: string;
+  amount?: number;
 
   @ApiPropertyOptional()
   @IsString()
