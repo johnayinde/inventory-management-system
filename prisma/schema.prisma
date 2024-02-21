@@ -30,6 +30,16 @@ enum ExpenseType {
   general
 }
 
+enum ValueType {
+  fixed
+  percentage
+}
+
+enum FeeType {
+  all
+  product
+}
+
 enum ProductStatusType {
   in_stock
   running_low
@@ -71,6 +81,7 @@ model Tenant {
   Customer    Customer[]
   Sale        Sale[]
   SaleProduct SaleProduct[]
+  Fees        Fees[]
 }
 
 model Business {
@@ -179,6 +190,8 @@ model Product {
   Inventory     Inventory?    @relation(fields: [inventoryId], references: [id])
   inventoryId   Int?
   sale_products SaleProduct[]
+  Fees          Fees?         @relation(fields: [feesId], references: [id])
+  feesId        Int?
 }
 
 model ExpenseCategory {
@@ -301,4 +314,21 @@ model SaleProduct {
   updated_at DateTime? @updatedAt
 
   @@map("sales_product")
+}
+
+model Fees {
+  id         Int       @id @default(autoincrement())
+  name       String
+  value      Float
+  value_type ValueType @default(fixed)
+  fee_type   FeeType   @default(all)
+  products   Product[]
+
+  tenant_id Int
+  tenant    Tenant @relation(fields: [tenant_id], references: [id])
+
+  //
+  deleted    Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
 }
