@@ -25,6 +25,7 @@ import { ExpenseModule } from './modules/expense/expense.module';
 import { CustomerModule } from './modules/customer/customer.module';
 import { SaleModule } from './modules/sale/sale.module';
 import { ReportModule } from './modules/report/report.module';
+import { FeesModule } from './modules/fees/fees.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { ReportModule } from './modules/report/report.module';
     CustomerModule,
     SaleModule,
     ReportModule,
+    FeesModule,
   ],
   controllers: [AppController],
   providers: [
