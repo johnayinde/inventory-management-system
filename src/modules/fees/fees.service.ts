@@ -14,7 +14,7 @@ export class FeesService {
 
   async create(tenant_id: number, data: CreateFeeDto) {
     const { products_ids, ...restData } = data;
-    if (products_ids.length) {
+    if (products_ids?.length) {
       return await this.prismaService.fees.create({
         data: {
           ...restData,
@@ -23,6 +23,7 @@ export class FeesService {
           },
           tenant: { connect: { id: tenant_id } },
         },
+        include: { products: true },
       });
     }
     return await this.prismaService.fees.create({
@@ -30,6 +31,7 @@ export class FeesService {
         ...data,
         tenant: { connect: { id: tenant_id } },
       },
+      include: { products: true },
     });
   }
 

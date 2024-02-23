@@ -43,7 +43,7 @@ export class ReportController {
     );
   }
 
-  @Get('/customers-stats')
+  @Get('/customers-overview')
   @HttpCode(HttpStatus.OK)
   customerOverview(
     @Req() { tenant_id }: Request,

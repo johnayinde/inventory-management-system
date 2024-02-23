@@ -14,3 +14,41 @@ export function calculatePercentageChange(
 ): number {
   return prevValue !== 0 ? ((currValue - prevValue) / prevValue) * 100 : 0;
 }
+
+export function formatDate(start_date: Date, end_date: Date) {
+  // Format the date as needed (e.g., yyyy-mm-dd)
+  const startDate = new Date(start_date).toISOString();
+
+  // Adjust the end date to the last millisecond of the day
+  const end = new Date(end_date);
+  const EOD = new Date(end.getTime() + 86400000 - 1);
+  const endDate = EOD.toISOString();
+
+  console.log({ startDate, endDate });
+
+  return { startDate, endDate };
+}
+
+export function mappedData(data = [], type?, sub?) {
+  const dateCountMap = new Map<string, number>();
+
+  data.forEach((value) => {
+    const { _count, created_at, num } = value;
+    const dateKey = new Date(created_at).toISOString().split('T')[0];
+
+    if (dateCountMap.has(dateKey)) {
+      const to_update = num ? num : value[type][sub];
+      const new_value = dateCountMap.get(dateKey) + to_update;
+
+      dateCountMap.set(dateKey, new_value);
+    } else {
+      dateCountMap.set(dateKey, num ? num : value[type][sub]);
+    }
+  });
+
+  const result = Array.from(dateCountMap.entries()).map(([date, count]) => ({
+    timeStamp: date,
+    count,
+  }));
+  return result;
+}

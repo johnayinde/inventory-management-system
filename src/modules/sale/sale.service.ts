@@ -4,7 +4,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CreateSaleDto } from './dto/sales.dto';
-import { ProductStatusType, SaleProduct } from '@prisma/client';
+import {
+  FeeType,
+  ProductStatusType,
+  SaleProduct,
+  ValueType,
+} from '@prisma/client';
 import { OrmService } from 'src/database/orm.service';
 import {
   IN_STOCK_COUNT,
@@ -18,6 +23,7 @@ import {
 } from '@app/common';
 import {
   calculatePercentageChange,
+  formatDate,
   getLastMonthDateRange,
 } from '@app/common/helpers';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
@@ -71,7 +77,16 @@ export class SaleService {
         const productSellingPrice =
           (product.expected_selling_price || 0) * quantity;
 
-        OverAllSellingPrice += productSellingPrice;
+        let totalFee = await this.calculateProductFee(
+          tx,
+          tenant_id,
+          productId,
+          productSellingPrice,
+        );
+
+        //
+
+        OverAllSellingPrice += productSellingPrice + totalFee;
         OverAllTotalQty += quantity;
 
         saleProducts.push({
@@ -120,6 +135,40 @@ export class SaleService {
       }
       return created_sales;
     });
+  }
+
+  private async calculateProductFee(
+    tx,
+    tenant_id: number,
+    productId: number,
+    productSellingPrice: number,
+  ) {
+    let totalFee = 0;
+    // Calculate fees for the product
+    const fees = await tx.fees.findMany({
+      where: { tenant_id },
+      include: { products: true },
+    });
+    fees.forEach((fee) => {
+      let feeAmount = 0;
+
+      if (
+        (fee.fee_type === FeeType.all ||
+          fee.products.some((p) => p.id === productId)) &&
+        fee.value_type === ValueType.fixed
+      ) {
+        feeAmount = fee.value;
+      } else if (
+        (fee.fee_type === FeeType.all ||
+          fee.products.some((p) => p.id === productId)) &&
+        fee.value_type === ValueType.percentage
+      ) {
+        feeAmount = (fee.value / 100) * productSellingPrice;
+      }
+
+      totalFee += feeAmount;
+    });
+    return totalFee;
   }
 
   async getInvoice(tenant_id: number, salesId: number) {
@@ -254,10 +303,20 @@ export class SaleService {
     });
   }
 
-  async getSalesStats(tenant_id: number): Promise<SalesStatsDto> {
+  async getSalesStats(
+    tenant_id: number,
+    start_date: Date,
+    end_date: Date,
+  ): Promise<SalesStatsDto> {
+    const { endDate, startDate } = formatDate(start_date, end_date);
+
     const sales = await this.postgresService.sale.findMany({
       where: {
         tenant_id,
+        created_at: {
+          gte: startDate,
+          lte: endDate,
+        },
       },
       include: {
         sales_products: {
@@ -465,11 +524,24 @@ export class SaleService {
     });
   }
 
-  async getTopSellingProductsStats(tenant_id: number, limit: number = 5) {
+  async getTopSellingProductsStats(
+    tenant_id: number,
+    start_date: Date,
+    end_date: Date,
+    limit: number = 5,
+  ) {
+    const { endDate, startDate } = formatDate(start_date, end_date);
+
     const topSellingProducts = await this.postgresService.$transaction(
       async (tx) => {
         const allSaleProducts = await tx.saleProduct.findMany({
-          where: { tenant_id },
+          where: {
+            tenant_id,
+            created_at: {
+              gte: startDate,
+              lte: endDate,
+            },
+          },
           include: { product: true },
           orderBy: { quantity: 'desc' },
           take: limit,
@@ -486,11 +558,24 @@ export class SaleService {
     return topSellingProducts;
   }
 
-  async getLeastSellingProductStats(tenant_id: number, limit: number = 5) {
+  async getLeastSellingProductStats(
+    tenant_id: number,
+    start_date: Date,
+    end_date: Date,
+    limit: number = 5,
+  ) {
+    const { endDate, startDate } = formatDate(start_date, end_date);
+
     const leastSellingProducts = await this.postgresService.$transaction(
       async (tx) => {
         const allSaleProducts = await tx.saleProduct.findMany({
-          where: { tenant_id },
+          where: {
+            tenant_id,
+            created_at: {
+              gte: startDate,
+              lte: endDate,
+            },
+          },
           include: { product: true },
           orderBy: { quantity: 'asc' },
           take: limit,
@@ -499,7 +584,14 @@ export class SaleService {
         const leastSellingProductStats = await Promise.all(
           allSaleProducts.map(async (saleProduct) => {
             const totalSoldQuantity = await tx.saleProduct.aggregate({
-              where: { productId: saleProduct.productId, tenant_id },
+              where: {
+                productId: saleProduct.productId,
+                tenant_id,
+                created_at: {
+                  gte: startDate,
+                  lte: endDate,
+                },
+              },
               _sum: { quantity: true },
             });
 

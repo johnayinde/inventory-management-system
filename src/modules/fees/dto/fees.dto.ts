@@ -33,6 +33,7 @@ export class CreateFeeDto {
   @ApiPropertyOptional({ type: [Number] })
   @IsArray()
   @IsInt({ each: true })
+  @IsOptional()
   products_ids: number[];
 }
 

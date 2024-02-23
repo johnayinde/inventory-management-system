@@ -60,7 +60,54 @@ export class ExpenseController {
     return this.expenseService.createExpense(tenant_id, data);
   }
 
-  @Get('')
+  @Get('card-stats')
+  @HttpCode(HttpStatus.OK)
+  async getStats(
+    @Query('startDate') startDate: Date,
+    @Query('endDate') endDate: Date,
+    @Req() { tenant_id }: Request,
+  ) {
+    return this.expenseService.getExpenseDashboardStats(
+      tenant_id,
+      startDate,
+      endDate,
+    );
+  }
+
+  @Get('/expense-stats')
+  @HttpCode(HttpStatus.OK)
+  expenseStats(
+    @Req() { tenant_id }: Request,
+    @Query('startDate') startDate: Date,
+    @Query('endDate') endDate: Date,
+  ) {
+    return this.expenseService.calculateExpenseStats(
+      tenant_id,
+      startDate,
+      endDate,
+    );
+  }
+
+  @Get('/top-expense-stats')
+  @HttpCode(HttpStatus.OK)
+  topExpenseStats(
+    @Req() { tenant_id }: Request,
+    @Query('startDate') startDate: Date,
+    @Query('endDate') endDate: Date,
+  ) {
+    return this.expenseService.topExpenses(tenant_id, startDate, endDate);
+  }
+
+  @Get(':expenseId')
+  @HttpCode(HttpStatus.OK)
+  getExpense(
+    @Req() { tenant_id }: Request,
+    @Param('expenseId', ParseIntPipe) expenseId: number,
+  ) {
+    return this.expenseService.getExpense(tenant_id, expenseId);
+  }
+
+  @Get()
   @HttpCode(HttpStatus.OK)
   listExpenses(@Req() { tenant_id }: Request, @Query() filters: PaginatorDTO) {
     return this.expenseService.listExpenses(tenant_id, filters);
@@ -78,15 +125,6 @@ export class ExpenseController {
     @Req() { tenant_id }: Request,
   ) {
     return this.expenseService.editExpense(tenant_id, expenseId, body);
-  }
-
-  @Get(':expenseId')
-  @HttpCode(HttpStatus.OK)
-  getExpense(
-    @Req() { tenant_id }: Request,
-    @Param('expenseId', ParseIntPipe) expenseId: number,
-  ) {
-    return this.expenseService.getExpense(tenant_id, expenseId);
   }
 
   @Delete(':expenseId')
