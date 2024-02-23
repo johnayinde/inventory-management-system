@@ -1,16 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
 import { ReportDashboardStatsDto } from './dto/report.dto';
+import { formatDate, mappedData } from '@app/common/helpers';
 
 @Injectable()
 export class ReportService {
   constructor(private readonly prismaService: OrmService) {}
-  private formatDate(date: Date) {
-    // Format the date as needed (e.g., yyyy-mm-dd)
-    const datetime = new Date(date).toISOString();
-    console.log({ datetime });
-    return datetime;
-  }
+
   async getDashboardStats(
     tenant_id: number,
     startDate: Date,
@@ -33,208 +29,264 @@ export class ReportService {
     };
   }
 
-  async getCustomerStats(tenant_id: number, startDate: Date, endDate: Date) {
-    const customers = await this.prismaService.customer.findMany({
-      // orderBy: { created_at: 'desc' },
+  async getCustomerStats(tenant_id: number, start_date: Date, end_date: Date) {
+    const { endDate, startDate } = formatDate(start_date, end_date);
+    const customers = await this.prismaService.customer.groupBy({
+      by: ['created_at'],
+      _count: { id: true },
       where: {
         tenant_id,
-
         updated_at: {
-          gte: this.formatDate(startDate),
-          lte: this.formatDate(endDate),
+          gte: startDate,
+          lte: endDate,
         },
       },
     });
 
-    console.log({ customers });
-    return customers.map((customer) => ({
-      date: customer.created_at,
-      name: customer.name,
-    }));
+    const result = mappedData(customers, '_count', 'id');
+
+    return result;
   }
-
-  // private getDateFromType(date: Date, type: string, typeRange: number): Date {
-  //   const clonedDate = new Date(date);
-
-  //   switch (type) {
-  //     case 'year':
-  //       clonedDate.setFullYear(clonedDate.getFullYear() - typeRange);
-  //       break;
-  //     case 'month':
-  //       clonedDate.setMonth(clonedDate.getMonth() - typeRange);
-  //       break;
-  //     case 'week':
-  //       clonedDate.setDate(clonedDate.getDate() - typeRange * 7);
-  //       break;
-  //     case 'day':
-  //       clonedDate.setDate(clonedDate.getDate() - typeRange);
-  //       break;
-  //   }
-
-  //   return clonedDate;
-  // }
 
   async getTopSellingProductsStats(
     tenant_id: number,
-    startDate: Date,
-    endDate: Date,
+    start_date: Date,
+    end_date: Date,
     limit: number = 5,
   ) {
-    const topSellingProducts = await this.prismaService.$transaction(
-      async (tx) => {
-        const allSaleProducts = await tx.saleProduct.findMany({
-          where: {
-            tenant_id,
-            created_at: {
-              gte: startDate,
-              lte: endDate,
-            },
-          },
-          include: { product: true },
-          orderBy: { quantity: 'desc' },
-          take: limit,
-        });
+    const { endDate, startDate } = formatDate(start_date, end_date);
 
-        return allSaleProducts.map(async (saleProduct) => {
-          const product = await tx.product.findUnique({
-            where: { tenant_id, id: saleProduct.product.id },
-          });
-
-          return {
-            product: saleProduct.product.name,
-            purchased_quantity: saleProduct.quantity,
-            total_price: saleProduct.total_price,
-            remaining_quantity: product.quantity,
-          };
-        });
+    const allSaleProducts = await this.prismaService.saleProduct.findMany({
+      where: {
+        tenant_id,
+        created_at: {
+          gte: startDate,
+          lte: endDate,
+        },
       },
+      include: { product: true },
+      orderBy: { quantity: 'desc' },
+      take: limit,
+    });
+
+    const topSellingProducts = await Promise.all(
+      allSaleProducts.map(async (saleProduct) => {
+        const product = await this.prismaService.product.findFirst({
+          where: { tenant_id, id: saleProduct.product.id },
+        });
+
+        return {
+          product: saleProduct.product.name,
+          purchased_quantity: saleProduct.quantity,
+          remaining_quantity: product?.quantity || 0,
+        };
+      }),
     );
 
     return topSellingProducts;
   }
-
-  // ////
-
   async calculateProfitMargin(
     tenant_id: number,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<number> {
-    const { totalRevenue, totalExpenses, sales } =
-      await this.calculateRevenueAndExpenses(tenant_id, startDate, endDate);
+    start_date: Date,
+    end_date: Date,
+  ) {
+    const { endDate, startDate } = formatDate(start_date, end_date);
 
-    const totalCOGS = sales.reduce(
-      (sum, sale) =>
-        sum +
-        sale.sales_products.reduce(
-          (productSum, saleProduct) => productSum + saleProduct.expense,
-          0,
-        ),
-      0,
-    );
+    const sales = await this.prismaService.sale.findMany({
+      where: {
+        tenant_id,
+        created_at: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        sales_products: true,
+      },
+    });
+    console.log(sales);
 
-    const profit = totalRevenue - totalCOGS - totalExpenses;
+    const profitMarginStats: { created_at: Date; num: number }[] = [];
 
-    if (totalRevenue === 0) {
-      return 0;
+    for (const sale of sales) {
+      const totalRevenue = sale.total_price;
+      const totalExpenses = sale.expenses;
+      const totalCOGS = sale.sales_products.reduce(
+        (sum, saleProduct) => sum + saleProduct.expense,
+        0,
+      );
+
+      const profit = totalRevenue - totalCOGS - totalExpenses;
+      const profitMargin =
+        totalRevenue !== 0 ? (profit / totalRevenue) * 100 : 0;
+
+      profitMarginStats.push({
+        created_at: sale.created_at,
+        num: profitMargin,
+      });
     }
 
-    const profitMargin = (profit / totalRevenue) * 100;
+    const result = mappedData(profitMarginStats);
 
-    return profitMargin;
+    return result;
   }
 
   async calculateLossMargin(
     tenant_id: number,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<number> {
-    const { totalRevenue, totalExpenses } =
-      await this.calculateRevenueAndExpenses(tenant_id, startDate, endDate);
+    start_date: Date,
+    end_date: Date,
+  ) {
+    const { endDate, startDate } = formatDate(start_date, end_date);
 
-    const loss = totalExpenses - totalRevenue;
+    const sales = await this.prismaService.sale.findMany({
+      where: {
+        tenant_id,
+        created_at: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        sales_products: true,
+      },
+    });
+    console.log(sales);
 
-    if (totalExpenses === 0) {
-      return 0; // To avoid division by zero
+    const lossMarginStats: { created_at: Date; num: number }[] = [];
+
+    for (const sale of sales) {
+      const totalRevenue = sale.total_price;
+      const totalExpenses = sale.expenses;
+      const loss = totalExpenses - totalRevenue;
+
+      const lossMargin = (loss / totalExpenses) * 100;
+
+      lossMarginStats.push({
+        created_at: sale.created_at,
+        num: lossMargin,
+      });
     }
+    console.log(lossMarginStats.map((s) => s));
 
-    const lossMargin = (loss / totalExpenses) * 100;
+    const result = mappedData(lossMarginStats);
 
-    return lossMargin;
+    return result;
   }
 
   async calculateExpenseStats(
     tenant_id: number,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<number> {
-    const { totalExpenses } = await this.calculateRevenueAndExpenses(
-      tenant_id,
-      startDate,
-      endDate,
-    );
+    start_date: Date,
+    end_date: Date,
+  ) {
+    const { endDate, startDate } = formatDate(start_date, end_date);
 
-    return totalExpenses;
+    const expenses = await this.prismaService.expense.groupBy({
+      by: ['created_at'],
+      _sum: { amount: true },
+      where: {
+        tenant_id,
+        updated_at: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+
+    const result = mappedData(expenses, '_sum', 'amount');
+
+    return result;
   }
 
   async CustomerSalesStats(
     tenant_id: number,
-    startDate: Date,
-    endDate: Date,
+    start_date: Date,
+    end_date: Date,
     limit: number = 5,
   ) {
-    const topSellingProductsByCustomer = await this.prismaService.$transaction(
-      async (tx) => {
-        const allSale = await tx.sale.findMany({
+    const { endDate, startDate } = formatDate(start_date, end_date);
+
+    const customersWithSales = await this.prismaService.customer.findMany({
+      where: {
+        tenant_id,
+        updated_at: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        Sale: {
           where: {
-            tenant_id,
             created_at: {
               gte: startDate,
               lte: endDate,
             },
           },
-          include: { customer: true },
-          orderBy: { quantity: 'desc' },
-          take: limit,
-        });
-
-        return allSale.map(async (sale) => {
-          return {
-            customer: sale.customer.name,
-            amount: sale.total_price,
-          };
-        });
+        },
       },
-    );
+    });
 
-    return topSellingProductsByCustomer;
+    const customerAnalytics = customersWithSales
+      .map((customer) => ({
+        customerName: customer.name,
+        totalSalesAmount: customer.Sale.reduce(
+          (sum, sale) => sum + sale.total_price,
+          0,
+        ),
+      }))
+      .sort((a, b) => b.totalSalesAmount - a.totalSalesAmount)
+      .slice(0, limit);
+
+    return customerAnalytics; // return allSale.map((sale) => ({
+    //   customer: sale.customer.name,
+    //   amount: sale.total_price,
+    // }));
   }
 
-  async totalRevenue(
-    tenant_id: number,
-    startDate: Date,
-    endDate: Date,
-  ): Promise<number> {
-    const { totalRevenue } = await this.calculateRevenueAndExpenses(
-      tenant_id,
-      startDate,
-      endDate,
-    );
-
-    return totalRevenue;
-  }
-
-  private async calculateRevenueAndExpenses(
-    tenant_id: number,
-    startDate: Date,
-    endDate: Date,
-  ) {
+  async totalRevenue(tenant_id: number, start_date: Date, end_date: Date) {
+    const { endDate, startDate } = formatDate(start_date, end_date);
     const sales = await this.prismaService.sale.findMany({
       where: {
         tenant_id,
         created_at: {
-          gte: this.formatDate(startDate),
-          lte: this.formatDate(endDate),
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        sales_products: true,
+      },
+    });
+
+    const totalRevenue = sales.reduce((sum, sale) => sum + sale.total_price, 0);
+
+    const revenueStats: { created_at: Date; num: number }[] = [];
+
+    for (const sale of sales) {
+      const totalRevenue = sale.total_price;
+
+      revenueStats.push({
+        created_at: sale.created_at,
+        num: totalRevenue,
+      });
+    }
+
+    const result = mappedData(revenueStats);
+    return result;
+  }
+
+  private async calculateRevenueAndExpenses(
+    tenant_id: number,
+    start_date: Date,
+    end_date: Date,
+  ) {
+    const { endDate, startDate } = formatDate(start_date, end_date);
+
+    const sales = await this.prismaService.sale.findMany({
+      where: {
+        tenant_id,
+        created_at: {
+          gte: startDate,
+          lte: endDate,
         },
       },
       include: {
@@ -246,8 +298,8 @@ export class ReportService {
       where: {
         tenant_id,
         created_at: {
-          gte: this.formatDate(startDate),
-          lte: this.formatDate(endDate),
+          gte: startDate,
+          lte: endDate,
         },
       },
     });

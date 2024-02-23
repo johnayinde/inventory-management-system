@@ -5,9 +5,15 @@ import {
   CreateExpenseDto,
   EditExpenseDto,
 } from './dto/expense.dto';
-import { ExpenseType } from '@prisma/client';
+import { ExpenseType, ValueType } from '@prisma/client';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
-import { expenseFilters, page_generator } from '@app/common';
+import { ExpenseStatsDto, expenseFilters, page_generator } from '@app/common';
+import {
+  calculatePercentageChange,
+  formatDate,
+  getLastMonthDateRange,
+  mappedData,
+} from '@app/common/helpers';
 
 @Injectable()
 export class ExpenseService {
@@ -197,6 +203,154 @@ export class ExpenseService {
         },
         include: { category: true },
       });
+    }
+  }
+
+  async getExpenseDashboardStats(
+    tenant_id: number,
+    start_date: Date,
+    end_date: Date,
+  ) {
+    const { endDate, startDate } = formatDate(start_date, end_date);
+    const { firstDayOfLastMonth, lastDayOfLastMonth } = getLastMonthDateRange();
+
+    const expenses = await this.postgresService.expense.findMany({
+      where: {
+        tenant_id,
+        created_at: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+
+    const fees = await this.postgresService.fees.findMany({
+      where: {
+        tenant_id,
+        created_at: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+    console.log(fees);
+
+    const LastMonthExpenses = await this.postgresService.expense.findMany({
+      where: {
+        tenant_id,
+        created_at: {
+          gte: firstDayOfLastMonth,
+          lte: lastDayOfLastMonth,
+        },
+      },
+    });
+
+    const stats: ExpenseStatsDto = {
+      totalExpenses: 0,
+      totalShipping: 0,
+      totalFees: 0,
+      miscelleneous: 0,
+
+      totalExpensesChange: 0,
+      totalShippingChange: 0,
+      totalFeesChange: 0,
+      miscelleneousChange: 0,
+    };
+
+    const lastMonthStats = {
+      totalExpenses: 0,
+      totalShipping: 0,
+      totalFees: 0,
+      miscelleneous: 0,
+    };
+
+    this.calculateBasicStats(fees, stats, expenses);
+    this.calculateBasicStats(fees, lastMonthStats, LastMonthExpenses);
+    this.determinePercentages(stats, lastMonthStats);
+
+    return stats;
+  }
+
+  async calculateExpenseStats(
+    tenant_id: number,
+    start_date: Date,
+    end_date: Date,
+  ) {
+    const { endDate, startDate } = formatDate(start_date, end_date);
+
+    const expenses = await this.postgresService.expense.groupBy({
+      by: ['created_at'],
+      _sum: { amount: true },
+      where: {
+        tenant_id,
+        updated_at: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+
+    const result = mappedData(expenses, '_sum', 'amount');
+
+    return result;
+  }
+
+  async topExpenses(tenant_id: number, start_date: Date, end_date: Date) {
+    const { endDate, startDate } = formatDate(start_date, end_date);
+
+    const topExpenses = await this.postgresService.expense.findMany({
+      where: {
+        tenant_id,
+        created_at: {
+          gte: startDate,
+          lte: endDate,
+        },
+        type: 'product',
+      },
+      orderBy: {
+        amount: 'desc',
+      },
+      take: 5,
+      include: {
+        product: true,
+      },
+    });
+
+    return topExpenses.map((expense) => ({
+      product: expense.product.name,
+      amount: expense.amount,
+    }));
+  }
+
+  private determinePercentages(stats, statsLastMonth) {
+    stats.totalExpensesChange =
+      calculatePercentageChange(
+        stats.totalExpenses,
+        statsLastMonth.totalExpenses,
+      ) || 0;
+
+    stats.totalShippingChange =
+      calculatePercentageChange(
+        stats.totalShipping,
+        statsLastMonth.totalShipping,
+      ) || 0;
+    stats.totalFeesChange =
+      calculatePercentageChange(stats.totalFees, statsLastMonth.totalFees) || 0;
+    stats.miscelleneousChange =
+      calculatePercentageChange(
+        stats.miscelleneous,
+        statsLastMonth.miscelleneous,
+      ) || 0;
+  }
+
+  private calculateBasicStats(fees, stats, expenses) {
+    const totalFees = fees.reduce((sum, fee) => {
+      if (fee.value_type == ValueType.fixed) return sum + fee.value;
+    }, 0);
+    stats.totalFees = totalFees;
+    for (const expense of expenses) {
+      if (!expense.productId) stats.miscelleneous += expense.amount;
+      stats.totalExpenses += expense.amount;
     }
   }
 }

@@ -37,6 +37,44 @@ export class SaleController {
     return this.saleService.createCustomerSales(createSalesDto, tenant_id);
   }
 
+  @Get('/sales-stats')
+  @HttpCode(HttpStatus.OK)
+  getStats(
+    @Req() { tenant_id }: Request,
+    @Query('startDate') startDate: Date,
+    @Query('endDate') endDate: Date,
+  ) {
+    return this.saleService.getSalesStats(tenant_id, startDate, endDate);
+  }
+
+  @Get('/top-selling')
+  @HttpCode(HttpStatus.OK)
+  topSellingProductsSats(
+    @Req() { tenant_id }: Request,
+    @Query('startDate') startDate: Date,
+    @Query('endDate') endDate: Date,
+  ) {
+    return this.saleService.getTopSellingProductsStats(
+      tenant_id,
+      startDate,
+      endDate,
+    );
+  }
+
+  @Get('least-selling')
+  @HttpCode(HttpStatus.OK)
+  leastSellingProductsSats(
+    @Req() { tenant_id }: Request,
+    @Query('startDate') startDate: Date,
+    @Query('endDate') endDate: Date,
+  ) {
+    return this.saleService.getLeastSellingProductStats(
+      tenant_id,
+      startDate,
+      endDate,
+    );
+  }
+
   @Get('')
   @HttpCode(HttpStatus.OK)
   getAllSales(@Req() { tenant_id }: Request, @Query() filters: PaginatorDTO) {
@@ -50,24 +88,6 @@ export class SaleController {
     @Param('salesId', ParseIntPipe) salesId: number,
   ) {
     return this.saleService.getInvoice(tenant_id, salesId);
-  }
-
-  @Get('/sales-stats')
-  @HttpCode(HttpStatus.OK)
-  getStats(@Req() { tenant_id }: Request) {
-    return this.saleService.getSalesStats(tenant_id);
-  }
-
-  @Get('/top-selling')
-  @HttpCode(HttpStatus.OK)
-  topSellingProductsSats(@Req() { tenant_id }: Request) {
-    return this.saleService.getTopSellingProductsStats(tenant_id);
-  }
-
-  @Get('least-selling')
-  @HttpCode(HttpStatus.OK)
-  leastSellingProductsSats(@Req() { tenant_id }: Request) {
-    return this.saleService.getLeastSellingProductStats(tenant_id);
   }
 
   @Post('products/return/:saleId/:productId/:quantity')

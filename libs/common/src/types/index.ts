@@ -40,6 +40,18 @@ export class ProductStatsDto {
   totalLowStocks: number;
 }
 
+export class ExpenseStatsDto {
+  totalExpenses: number;
+  totalShipping: number;
+  totalFees: number;
+  miscelleneous: number;
+
+  totalExpensesChange: number;
+  totalShippingChange: number;
+  totalFeesChange: number;
+  miscelleneousChange: number;
+}
+
 export type QuantityUpdate = {
   quantity: {
     increment?: number;
