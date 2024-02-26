@@ -5,12 +5,15 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   ParseIntPipe,
   Patch,
   Post,
   Query,
   Req,
+  UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
@@ -20,6 +23,8 @@ import { Request } from 'express';
 import { TenantInterceptor } from '@app/common';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
+import { ApiFile } from '@app/common/decorators/swaggerUploadField';
+
 @ApiTags('Products')
 @ApiBearerAuth()
 @UseInterceptors(TenantInterceptor)
@@ -28,12 +33,22 @@ export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Post()
-  @ApiBody({
-    description: 'create Product',
-    type: CreateProductoDto,
-  })
+  @ApiFile(
+    { fieldName: 'files', limit: 10, destination: 'products' },
+    { type: CreateProductoDto },
+  )
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() data: CreateProductoDto, @Req() { tenant_id }: Request) {
+  create(
+    @Body() data: CreateProductoDto,
+    @UploadedFiles(
+      new ParseFilePipe({
+        validators: [new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 })],
+      }),
+    )
+    files: Array<Express.Multer.File>,
+    @Req()
+    { tenant_id }: Request,
+  ) {
     return this.productService.createProduct(tenant_id, data);
   }
 
