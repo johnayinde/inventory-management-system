@@ -12,7 +12,7 @@ export class CreateProductoDto {
 
   @ApiProperty({ type: [Number] })
   @IsArray()
-  @IsInt({ each: true })
+  // @IsInt({ each: true })
   categoryIds: number[];
 }
 
