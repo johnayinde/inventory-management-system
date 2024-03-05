@@ -34,6 +34,9 @@ export class PaginatorDTO {
   expenseId?: number;
 
   @ApiPropertyOptional()
+  shipmentId?: number;
+
+  @ApiPropertyOptional()
   amount?: number;
 
   @ApiPropertyOptional()

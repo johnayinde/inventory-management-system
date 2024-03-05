@@ -5,12 +5,8 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsUrl,
-  ValidateNested,
-  isURL,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 import { ExpenseType } from '@prisma/client';
 
 export class CreateExpenseCategoryDto {
@@ -47,19 +43,18 @@ export class CreateExpenseDto {
   @IsEnum(ExpenseType)
   type: ExpenseType;
 
-  @ApiProperty()
-  @IsString()
-  @IsUrl()
-  @IsOptional()
-  attachment?: string;
-
   @ApiProperty({ type: Number })
   @IsInt()
   @IsOptional()
   categoryId: number;
 
   @ApiProperty({ type: Number })
-  // @IsInt()
+  @IsInt()
+  @IsOptional()
+  shipmentId: number;
+
+  @ApiProperty({ type: Number })
+  @IsInt()
   @IsOptional()
   productId: number;
 }
@@ -90,12 +85,6 @@ export class EditExpenseDto {
   @IsOptional()
   @IsEnum(ExpenseType)
   type?: ExpenseType;
-
-  @ApiPropertyOptional()
-  @IsString()
-  @IsUrl()
-  @IsOptional()
-  attachment?: string;
 
   @ApiPropertyOptional({ type: Number })
   @IsInt()

@@ -45,7 +45,7 @@ export class ExpenseService {
       if (!product) {
         throw new NotFoundException('Provided product not found');
       }
-      const { productId, categoryId, ...expenseData } = data;
+      const { productId, categoryId, shipmentId, ...expenseData } = data;
       return await this.postgresService.expense.create({
         data: {
           ...expenseData,
@@ -66,22 +66,40 @@ export class ExpenseService {
         throw new NotFoundException('Expense Category not found');
       }
 
-      const { categoryId, productId, ...expenseData } = data;
+      const { categoryId, productId, shipmentId, ...expenseData } = data;
 
       return await this.postgresService.expense.create({
         data: {
           ...expenseData,
           tenant: { connect: { id: tenant_id } },
           category: {
-            connect: { id: category.id },
+            connect: category,
           },
         },
         include: {
           category: true,
         },
       });
+    } else if (data.type == ExpenseType.shipment) {
+      const { categoryId, productId, shipmentId, ...expenseData } = data;
+
+      const shipment = await this.postgresService.shipment.findUnique({
+        where: { id: shipmentId, tenant_id },
+      });
+
+      if (!shipment) {
+        throw new NotFoundException('Shipment ID not valid');
+      }
+
+      return await this.postgresService.expense.create({
+        data: {
+          ...expenseData,
+          // shipment: { connect: { id: shipment.id } },
+          tenant: { connect: { id: tenant_id } },
+        },
+      });
     } else {
-      throw new NotFoundException('ProductId or CategoryId not found');
+      throw new NotFoundException('Provided ID not found');
     }
   }
 
@@ -138,6 +156,15 @@ export class ExpenseService {
         },
         include: { category: true, product: true },
       });
+    } else if (expense.type == ExpenseType.shipment) {
+      const { productId, categoryId, ...expenseData } = data;
+
+      return await this.postgresService.expense.update({
+        where: { id, tenant_id },
+        data: {
+          ...expenseData,
+        },
+      });
     }
   }
 
@@ -178,7 +205,9 @@ export class ExpenseService {
       category,
       productId,
       product,
-      inventoryId,
+      shipmentId,
+      created_at,
+      updated_at,
 
       ...expenseData
     } = expenseToDuplicate;
@@ -200,6 +229,15 @@ export class ExpenseService {
           name: `Copy of ${expenseToDuplicate.name}`,
           tenant: { connect: { id: tenant_id } },
           category: { connect: { id: expense_categoryId } },
+        },
+        include: { category: true },
+      });
+    } else if (expenseToDuplicate.type == ExpenseType.shipment) {
+      return await this.postgresService.expense.create({
+        data: {
+          ...expenseData,
+          name: `Copy of ${expenseToDuplicate.name}`,
+          tenant: { connect: { id: tenant_id } },
         },
         include: { category: true },
       });
@@ -349,7 +387,9 @@ export class ExpenseService {
     }, 0);
     stats.totalFees = totalFees;
     for (const expense of expenses) {
-      if (!expense.productId) stats.miscelleneous += expense.amount;
+      if (!expense.productId && !ExpenseType.shipment && ExpenseType.general)
+        stats.miscelleneous += expense.amount;
+      if (ExpenseType.shipment) stats.totalShipping += expense.amount;
       stats.totalExpenses += expense.amount;
     }
   }

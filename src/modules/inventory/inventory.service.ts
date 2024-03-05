@@ -1,9 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
-import { CreateInventoryDto } from './dto/inventory.dto';
-import { Inventory, PricingType } from '@prisma/client';
+import { CreateInventoryDto, EditInventoryDto } from './dto/inventory.dto';
+import { PricingType, ProductStatusType } from '@prisma/client';
 import {
   calculatePercentageChange,
+  determineProductStatus,
   getLastMonthDateRange,
 } from '@app/common/helpers';
 import {
@@ -12,155 +17,188 @@ import {
   page_generator,
 } from '@app/common';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class InventoryService {
   constructor(private readonly postgresService: OrmService) {}
-  async create(createInventoryDto: CreateInventoryDto, tenant_id: number) {
-    return await this.postgresService.$transaction(async (tx) => {
-      const {
-        products_ids,
-        individual_products,
-        expenses,
-        pricing_type,
-        ...inventoryData
-      } = createInventoryDto;
 
-      const create_inventory = await tx.inventory.create({
-        data: {
-          ...inventoryData,
-          pricing_type,
-          tenant: { connect: { id: tenant_id } },
-          products: {
-            connect: products_ids.map((id) => ({ id })),
-          },
-          expenses: {
-            connect: expenses.map((id) => ({ id })),
-          },
-        },
-        include: { products: true },
+  async create(
+    createInventoryDto: CreateInventoryDto,
+    tenant_id: number,
+    shipmentId: number,
+  ) {
+    return await this.postgresService.$transaction(async (tx) => {
+      const { products } = createInventoryDto;
+      const shipment = await tx.shipment.findUnique({
+        where: { id: shipmentId, tenant_id },
+        include: { products: true, expenses: true },
       });
 
-      if (pricing_type === PricingType.bulk) {
-        await tx.product.updateMany({
-          data: {
-            quantity: createInventoryDto.quantity,
-            cost_price: createInventoryDto.bulk_price,
-            expected_selling_price: createInventoryDto.expected_price,
-            note: createInventoryDto.note,
-          },
-          where: {
-            id: { in: products_ids },
-            tenant_id,
-          },
-        });
-      } else if (pricing_type === PricingType.individual) {
-        for (const product of individual_products) {
-          await tx.product.update({
-            data: {
-              quantity: product.quantity,
-              cost_price: createInventoryDto.cost_price,
-              expected_selling_price: product.selling_price,
-              serial_number: product.serial_number,
-              attachments: product.attachment,
-              note: product.notes,
-            },
-            where: { id: product.productId, tenant_id },
-          });
+      console.log({ shipment });
+
+      if (!shipment) {
+        throw new NotFoundException('Shipment not found');
+      }
+
+      const shippedProductIds = shipment.products.map((i) => i.id);
+      const mappedProduct = shipment.products.reduce(
+        (i, j) => ({ ...i, [j.id]: j.name }),
+        {},
+      );
+
+      for (const [productId, productDetails] of Object.entries(products)) {
+        const { individual_pricing, pricing_type, quantity, bulk_pricing } =
+          productDetails;
+
+        const prodIdPrefix = `#PRD${shipment.id}${productId}${tenant_id}`;
+        const prodId = `${prodIdPrefix}-${uuidv4().split('-')[2]}`;
+
+        if (pricing_type === PricingType.bulk) {
+          if (shippedProductIds.includes(parseInt(productId))) {
+            console.log('init');
+
+            const created_inventory = await tx.inventory.create({
+              data: {
+                prod_id: prodId,
+                pricing_type: PricingType.bulk,
+                price: bulk_pricing.price,
+                note: bulk_pricing.note,
+                quantity_threshold: bulk_pricing.quantity_threshold,
+                quantity: quantity,
+                name: mappedProduct[productId],
+
+                tenant: { connect: { id: tenant_id } },
+                shipment: { connect: { id: shipmentId } },
+                product: { connect: { id: parseInt(productId) } },
+              },
+              include: { product: true },
+            });
+
+            console.log({ created_inventory });
+
+            const threshold = created_inventory.quantity_threshold;
+            const prod_qty = created_inventory.quantity;
+            console.log({ threshold, prod_qty });
+
+            await tx.inventory.update({
+              where: { id: created_inventory.id, tenant_id },
+              data: {
+                status: determineProductStatus(prod_qty, threshold),
+              },
+            });
+          } else {
+            throw new NotFoundException(
+              `Product with ID ${productId} not in shipped items`,
+            );
+          }
+        } else if (pricing_type === PricingType.individual) {
+          if (quantity !== individual_pricing.length) {
+            throw new BadRequestException(
+              `Expecting ${quantity} individual items for ${mappedProduct[productId]}`,
+            );
+          }
+
+          if (shippedProductIds.includes(parseInt(productId))) {
+            for (const item of individual_pricing) {
+              const prodIdPrefix = `#PRD$${productId}${tenant_id}`;
+              const prodId = `${prodIdPrefix}-${uuidv4().split('-')[2]}`;
+              await tx.inventory.create({
+                data: {
+                  prod_id: prodId,
+                  name: item.name,
+                  price: item.price,
+                  note: item.note,
+                  pricing_type: PricingType.individual,
+                  quantity_threshold: 1,
+                  quantity: 1,
+                  status: 'running_low',
+
+                  tenant: { connect: { id: tenant_id } },
+                  shipment: { connect: { id: shipmentId } },
+                  product: { connect: { id: parseInt(productId) } },
+                },
+                include: { product: true },
+              });
+            }
+          } else {
+            throw new NotFoundException(
+              `${mappedProduct[productId]} not in shipped items`,
+            );
+          }
         }
       }
-      return create_inventory;
     });
   }
 
-  // async updateInventory(
-  //   inventoryId: number,
-  //   data: EditInventoryDto,
-  //   tenant_id: number,
-  // ) {
-  //   return await this.postgresService.$transaction(async (tx) => {
-  //     const {
-  //       products_ids,
-  //       individual_products,
-  //       expenses,
-  //       pricing_type,
-  //       ...inventoryData
-  //     } = createInventoryDto;
+  async updateInventory(id: number, data: EditInventoryDto, tenant_id: number) {
+    await this.postgresService.inventory.update({
+      data,
+      where: { id, tenant_id },
+    });
+    const inventory = await this.postgresService.inventory.findFirst({
+      where: { id, tenant_id },
+    });
+    const threshold = inventory.quantity_threshold;
+    const prod_qty = inventory.quantity;
+    console.log({ threshold, prod_qty });
 
-  //     const create_inventory = await tx.inventory.create({
-  //       data: {
-  //         ...inventoryData,
-  //         pricing_type,
-  //         tenant: { connect: { id: tenant_id } },
-  //         products: {
-  //           connect: products_ids.map((id) => ({ id })),
-  //         },
-  //         expenses: {
-  //           connect: expenses.map((id) => ({ id })),
-  //         },
-  //       },
-  //       include: { products: true },
-  //     });
+    await this.postgresService.inventory.update({
+      where: { id: inventory.id, tenant_id },
+      data: {
+        status: determineProductStatus(prod_qty, threshold),
+      },
+    });
+  }
 
-  //     if (pricing_type === PricingType.bulk) {
-  //       await tx.product.updateMany({
-  //         data: {
-  //           quantity: createInventoryDto.quantity,
-  //           bulk_price: createInventoryDto.bulk_price,
-  //           note: createInventoryDto.note,
-  //           price: createInventoryDto.cost_price,
-  //         },
-  //         where: {
-  //           id: { in: products_ids },
-  //           tenant_id,
-  //         },
-  //       });
-  //     } else if (pricing_type === PricingType.individual) {
-  //       for (const product of individual_products) {
-  //         await tx.product.update({
-  //           data: {
-  //             quantity: product.quantity,
-  //             price: product.selling_price,
-  //             serial_number: product.serial_number,
-  //             attachments: product.attachment,
-  //             note: product.notes,
-  //           },
-  //           where: { id: product.productId, tenant_id },
-  //         });
-  //       }
-  //     }
-  //     return create_inventory;
-  //   });
-  // }
+  async getInventory(tenant_id: number, id: number) {
+    const inventory = await this.postgresService.inventory.findUnique({
+      where: { id, tenant_id },
+      include: { product: true },
+    });
+    if (!inventory) {
+      throw new NotFoundException('Inventory not found');
+    }
+    return inventory;
+  }
 
   async duplicateInventory(tenant_id: number, inventoryId: number) {
     return await this.postgresService.$transaction(async (tx) => {
       const existingInventory = await tx.inventory.findUnique({
-        where: { id: Number(inventoryId), tenant_id },
-        include: { products: true, expenses: true },
+        where: { id: inventoryId, tenant_id },
+        include: { product: true },
       });
 
       if (!existingInventory) {
         throw new Error(`Inventory with ID ${inventoryId} not found.`);
       }
-      const { id, shipping_name, ...inventory_data } = existingInventory;
+      const {
+        id,
+        created_at,
+        updated_at,
+        tenant_id: t,
+        product_id,
+        shipment_id,
+        product,
+        ...inventory_data
+      } = existingInventory;
+
+      const prodIdPrefix = `#PRD${shipment_id}${product_id}${tenant_id}`;
+      const prodId = `${prodIdPrefix}-${uuidv4().split('-')[2]}`;
+      console.log(existingInventory);
+
       const newInventory = await tx.inventory.create({
         data: {
-          shipping_name: `Copy of ${shipping_name}`,
           ...inventory_data,
-          products: {
-            connect: existingInventory.products.map((product) => ({
-              id: product.id,
-            })),
-          },
-          expenses: {
-            connect: existingInventory.expenses.map((expense) => ({
-              id: expense.id,
-            })),
-          },
+          prod_id: prodId,
+          name: `Duplicate ${existingInventory.name}`,
+          tenant: { connect: { id: tenant_id } },
+          shipment: { connect: { id: shipment_id } },
+          product: { connect: { id: product_id } },
         },
-        include: { expenses: true, products: true },
+        include: { product: true },
       });
+      console.log({ newInventory });
 
       return newInventory;
     });
@@ -181,7 +219,7 @@ export class InventoryService {
         tenant_id,
       },
       include: {
-        products: {
+        product: {
           include: {
             categories: true,
           },
@@ -199,7 +237,7 @@ export class InventoryService {
           },
         },
         include: {
-          products: {
+          product: {
             include: {
               categories: true,
             },
@@ -214,7 +252,7 @@ export class InventoryService {
       include: {
         sales_products: {
           include: {
-            product: true,
+            inventory_item: true,
           },
         },
       },
@@ -231,7 +269,7 @@ export class InventoryService {
       include: {
         sales_products: {
           include: {
-            product: true,
+            inventory_item: true,
           },
         },
       },
@@ -255,6 +293,9 @@ export class InventoryService {
       prevMonthTotalReturnedProducts: 0,
     };
     // const ff = inventoryStats.map((inv) => inv.products.map((q) => q.));
+    //
+
+    //
     this.calculateBasicStats(inventoryStats, sales, stats);
     this.calculateLastMonthStats(
       inventoryStatsLastMonth,
@@ -280,14 +321,12 @@ export class InventoryService {
   }
 
   private calculateBasicStats(inventoryStats, sales, stats: InventoryStatsDto) {
-    // Calculate inventory-related stats
-    for (const inventory of inventoryStats) {
-      for (const product of inventory.products) {
-        this.updateInventoryStats(product, stats);
-      }
+    stats.totalGoods = inventoryStats.length;
+
+    for (const inventory_item of inventoryStats) {
+      this.updateInventoryStats(inventory_item, stats);
     }
 
-    // Calculate sales-related stats
     for (const sale of sales) {
       for (const saleProduct of sale.sales_products) {
         this.updateSalesStats(saleProduct, stats);
@@ -295,14 +334,11 @@ export class InventoryService {
     }
   }
 
-  private updateInventoryStats(product, stats: InventoryStatsDto) {
-    stats.totalGoods += product.quantity;
-
-    if (product.categories) {
-      stats.totalCategories += product.categories.length;
+  private updateInventoryStats(inventory_item, stats: InventoryStatsDto) {
+    if (inventory_item.product.categories) {
+      stats.totalCategories += inventory_item.product.categories.length;
     }
-
-    if (product.quantity && product.quantity < 20) {
+    if (inventory_item.status === ProductStatusType.running_low) {
       stats.totalLowStocks++;
     }
   }
@@ -312,14 +348,12 @@ export class InventoryService {
   }
 
   private calculateLastMonthStats(inventoryStats, sales, stats) {
-    // Calculate inventory-related stats
-    for (const inventory of inventoryStats) {
-      for (const product of inventory.products) {
-        stats.prevMonthTotalGoods += product.quantity;
+    stats.prevMonthTotalGoods = inventoryStats.length;
 
-        if (product.categories) {
-          stats.prevMonthTotalCategories += product.categories.length;
-        }
+    for (const inventory_item of inventoryStats) {
+      if (inventory_item.product.categories) {
+        stats.prevMonthTotalCategories +=
+          inventory_item.product.categories.length;
       }
     }
 
@@ -339,9 +373,9 @@ export class InventoryService {
     const filter = inventoryFilters(filters);
     const whereCondition = filter ? { tenant_id, ...filter } : { tenant_id };
 
-    const all_inventories = await this.postgresService.product.findMany({
+    const all_inventories = await this.postgresService.inventory.findMany({
       where: whereCondition,
-      include: { categories: true, Expense: true },
+      include: { product: true },
       skip,
       take,
     });

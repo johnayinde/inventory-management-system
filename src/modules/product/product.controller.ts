@@ -34,20 +34,21 @@ export class ProductController {
 
   @Post()
   @ApiFile(
-    { fieldName: 'files', limit: 10, destination: 'products' },
+    { fieldName: '', limit: 10, destination: 'products' },
     { type: CreateProductoDto },
   )
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() data: CreateProductoDto,
+    @Req()
+    { tenant_id }: Request,
     @UploadedFiles(
       new ParseFilePipe({
+        fileIsRequired: false,
         validators: [new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 })],
       }),
     )
-    files: Array<Express.Multer.File>,
-    @Req()
-    { tenant_id }: Request,
+    files?: Array<Express.Multer.File>,
   ) {
     return this.productService.createProduct(tenant_id, data);
   }
@@ -70,8 +71,8 @@ export class ProductController {
     type: EditProductDto,
   })
   @HttpCode(HttpStatus.OK)
-  async editUser(
-    @Param('productId') productId: number,
+  async editProduct(
+    @Param('productId', ParseIntPipe) productId: number,
     @Body() body: EditProductDto,
     @Req() { tenant_id }: Request,
   ) {

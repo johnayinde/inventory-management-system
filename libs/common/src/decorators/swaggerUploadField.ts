@@ -23,7 +23,9 @@ export function ApiFile(
         }),
       }),
     ),
-    ApiConsumes('multipart/form-data'),
+    ApiConsumes(
+      fileConfig.fieldName ? 'multipart/form-data' : 'application/json',
+    ),
     ApiBody(body),
   );
 }

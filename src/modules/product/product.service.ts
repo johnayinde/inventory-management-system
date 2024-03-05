@@ -13,14 +13,14 @@ export class ProductService {
   constructor(readonly postgresService: OrmService) {}
 
   async createProduct(tenant_id: number, data: CreateProductoDto) {
-    const { categoryIds, ...product } = data;
+    const { categories, ...product } = data;
 
     return await this.postgresService.product.create({
       data: {
         ...product,
         tenant: { connect: { id: tenant_id } },
         categories: {
-          connect: categoryIds.map((categoryId) => ({ id: categoryId })),
+          connect: categories.map((id) => ({ id })),
         },
       },
       include: { categories: true },
@@ -36,7 +36,7 @@ export class ProductService {
     const whereCondition = filter ? { tenant_id, ...filter } : { tenant_id };
     const all_products = await this.postgresService.product.findMany({
       where: whereCondition,
-      include: { categories: true, Expense: true },
+      include: { categories: true, expenses: true },
       skip,
       take,
     });
@@ -54,15 +54,37 @@ export class ProductService {
   }
 
   async editProduct(tenant_id: number, id: number, data: EditProductDto) {
+    //  const updatedProduct = await this.postgresService.product.update({
+    //    where: { id, tenant_id },
+    //    data: {
+    //      name: data.name,
+    //      description: data.description,
+    //    },
+    //  });
+
+    //  await this.postgresService.productCategories.deleteMany({
+    //    where: { productId: id },
+    //  });
+
+    //  if (data.categoryIds?.length) {
+    //    await this.postgresService.productCategories.createMany({
+    //      data: data.categoryIds.map((categoryId) => ({
+    //        productId: id,
+    //        categoryId,
+    //      })),
+    //    });
+    //  }
     return await this.postgresService.product.update({
       where: { id, tenant_id },
       data: {
-        ...data,
-        categories: {
-          set: data.categoryIds.map((categoryId) => ({ id: categoryId })),
-        },
+        name: data.name,
+        description: data.description,
+
+        // categories: {
+        //   set: data.categoryIds?.map((categoryId) => ({ id: categoryId })),
+        // },
       },
-      include: { categories: true },
+      // include: { categories: true },
     });
   }
 
@@ -88,7 +110,7 @@ export class ProductService {
   }
 
   async duplicateProduct(tenant_id: number, productId: number) {
-    const { id, ...productToDuplicate } =
+    const { id, created_at, updated_at, ...productToDuplicate } =
       await this.postgresService.product.findUnique({
         where: { id: productId, tenant_id },
         include: { categories: true },
@@ -116,25 +138,21 @@ export class ProductService {
     const { firstDayOfLastMonth, lastDayOfLastMonth } = getLastMonthDateRange();
 
     // Fetch data from the database
-    const inventoryStats = await this.postgresService.inventory.findMany({
+    const inventoryStats = await this.postgresService.product.findMany({
       where: {
         tenant_id,
       },
       include: {
-        products: {
+        categories: {
           include: {
-            categories: {
-              include: {
-                sub_categories: true,
-              },
-            },
+            sub_categories: true,
           },
         },
       },
     });
 
-    const inventoryStatsLastMonth =
-      await this.postgresService.inventory.findMany({
+    const inventoryStatsLastMonth = await this.postgresService.product.findMany(
+      {
         where: {
           tenant_id,
           created_at: {
@@ -143,17 +161,14 @@ export class ProductService {
           },
         },
         include: {
-          products: {
+          categories: {
             include: {
-              categories: {
-                include: {
-                  sub_categories: true,
-                },
-              },
+              sub_categories: true,
             },
           },
         },
-      });
+      },
+    );
 
     // Calculate the statistics
     const stats: ProductStatsDto = {
@@ -163,7 +178,6 @@ export class ProductService {
       categoriesPercentageChange: 0,
       totalSubcategories: 0,
       subcategoriesPercentageChange: 0,
-      totalLowStocks: 0,
     };
 
     // Keep track of the previous month's counts
@@ -195,19 +209,13 @@ export class ProductService {
 
   private calculateBasicStats(inventoryStats, stats) {
     for (const inventory of inventoryStats) {
-      for (const product of inventory.products) {
-        stats.totalProducts++;
-        if (product.categories) {
-          stats.totalCategories += product.categories.length;
-          for (const category of product.categories) {
-            if (category.sub_categories) {
-              stats.totalSubcategories += category.sub_categories.length;
-            }
+      stats.totalProducts++;
+      if (inventory.categories) {
+        stats.totalCategories += inventory.categories.length;
+        for (const category of inventory.categories) {
+          if (category.sub_categories) {
+            stats.totalSubcategories += category.sub_categories.length;
           }
-        }
-
-        if (product.quantity && product.quantity < 20) {
-          stats.totalLowStocks++;
         }
       }
     }
@@ -215,15 +223,12 @@ export class ProductService {
 
   private calculateLastMonthStats(inventoryStats, stats) {
     for (const inventory of inventoryStats) {
-      for (const product of inventory.products) {
-        stats.prevMonthTotalProducts++;
-        if (product.categories) {
-          stats.prevMonthTotalCategories += product.categories.length;
-          for (const category of product.categories) {
-            if (category.sub_categories) {
-              stats.prevMonthTotalSubcategories +=
-                category.sub_categories.length;
-            }
+      stats.prevMonthTotalProducts++;
+      if (inventory.categories) {
+        stats.prevMonthTotalCategories += inventory.categories.length;
+        for (const category of inventory.categories) {
+          if (category.sub_categories) {
+            stats.prevMonthTotalSubcategories += category.sub_categories.length;
           }
         }
       }

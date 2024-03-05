@@ -64,19 +64,19 @@ export class ReportService {
           lte: endDate,
         },
       },
-      include: { product: true },
+      include: { inventory_item: { include: { product: true } } },
       orderBy: { quantity: 'desc' },
       take: limit,
     });
 
     const topSellingProducts = await Promise.all(
       allSaleProducts.map(async (saleProduct) => {
-        const product = await this.prismaService.product.findFirst({
-          where: { tenant_id, id: saleProduct.product.id },
+        const product = await this.prismaService.inventory.findFirst({
+          where: { tenant_id, id: saleProduct.inventory_item.id },
         });
 
         return {
-          product: saleProduct.product.name,
+          product: saleProduct.inventory_item.product.name,
           purchased_quantity: saleProduct.quantity,
           remaining_quantity: product?.quantity || 0,
         };
@@ -214,7 +214,7 @@ export class ReportService {
         },
       },
       include: {
-        Sale: {
+        sales: {
           where: {
             created_at: {
               gte: startDate,
@@ -228,7 +228,7 @@ export class ReportService {
     const customerAnalytics = customersWithSales
       .map((customer) => ({
         customerName: customer.name,
-        totalSalesAmount: customer.Sale.reduce(
+        totalSalesAmount: customer.sales.reduce(
           (sum, sale) => sum + sale.total_price,
           0,
         ),
