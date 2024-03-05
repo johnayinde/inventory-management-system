@@ -28,6 +28,7 @@ enum PricingType {
 enum ExpenseType {
   product
   general
+  shipment
 }
 
 enum ValueType {
@@ -74,14 +75,15 @@ model Tenant {
   expenses           Expense[]
 
   //
-  deleted     Boolean       @default(false)
-  created_at  DateTime      @default(now()) @db.Timestamptz(3)
-  updated_at  DateTime?     @updatedAt
-  Inventory   Inventory[]
-  Customer    Customer[]
-  Sale        Sale[]
-  SaleProduct SaleProduct[]
-  Fees        Fees[]
+  deleted      Boolean       @default(false)
+  created_at   DateTime      @default(now()) @db.Timestamptz(3)
+  updated_at   DateTime?     @updatedAt
+  inventory    Inventory[]
+  customers    Customer[]
+  sales        Sale[]
+  saleProducts SaleProduct[]
+  fees         Fees[]
+  shipments    Shipment[]
 }
 
 model Business {
@@ -171,27 +173,18 @@ model Product {
   name        String
   description String?
   categories  Category[]
+  attachments String[]
   tenant_id   Int
   tenant      Tenant     @relation(fields: [tenant_id], references: [id])
-  Expense     Expense[]
-
-  quantity               Int?
-  cost_price             Float?
-  expected_selling_price Float?
-  note                   String?
-  attachments            String[]
-  serial_number          String?
-  status                 ProductStatusType @default(in_stock)
+  expenses    Expense[]
+  fees        Fees[]
 
   //
-  deleted       Boolean       @default(false)
-  created_at    DateTime      @default(now()) @db.Timestamptz(3)
-  updated_at    DateTime?     @updatedAt
-  Inventory     Inventory?    @relation(fields: [inventoryId], references: [id])
-  inventoryId   Int?
-  sale_products SaleProduct[]
-  Fees          Fees?         @relation(fields: [feesId], references: [id])
-  feesId        Int?
+  deleted    Boolean     @default(false)
+  created_at DateTime    @default(now()) @db.Timestamptz(3)
+  updated_at DateTime?   @updatedAt
+  shipment   Shipment[]
+  inventory  Inventory[]
 }
 
 model ExpenseCategory {
@@ -226,33 +219,39 @@ model Expense {
   productId          Int?
 
   //
-  deleted     Boolean    @default(false)
-  created_at  DateTime   @default(now()) @db.Timestamptz(3)
-  updated_at  DateTime?  @updatedAt
-  Inventory   Inventory? @relation(fields: [inventoryId], references: [id])
-  inventoryId Int?
-}
-
-model Inventory {
-  id             Int         @id @default(autoincrement())
-  shipping_name  String
-  date           DateTime?
-  attachments    String[]
-  cost_price     Float?
-  expected_price Float?
-  note           String?
-  quantity       Int
-  pricing_type   PricingType @default(individual)
-  bulk_price     Float?
-  tenant         Tenant      @relation(fields: [tenant_id], references: [id])
-  tenant_id      Int
-  products       Product[]
-  expenses       Expense[]
-
-  //
   deleted    Boolean   @default(false)
   created_at DateTime  @default(now()) @db.Timestamptz(3)
   updated_at DateTime? @updatedAt
+  shipment   Shipment? @relation(fields: [shipmentId], references: [id])
+  shipmentId Int?
+}
+
+model Inventory {
+  id            Int     @id @default(autoincrement())
+  note          String?
+  prod_id       String
+  serial_number String?
+
+  name               String?
+  attachments        String[]
+  pricing_type       PricingType       @default(individual)
+  price              Float?
+  tenant             Tenant            @relation(fields: [tenant_id], references: [id])
+  product            Product           @relation(fields: [product_id], references: [id])
+  shipment           Shipment          @relation(fields: [shipment_id], references: [id])
+  //
+  quantity           Int?              @default(0)
+  status             ProductStatusType @default(sold_out)
+  quantity_threshold Int               @default(0)
+
+  //
+  tenant_id    Int
+  product_id   Int
+  shipment_id  Int
+  deleted      Boolean       @default(false)
+  created_at   DateTime      @default(now()) @db.Timestamptz(3)
+  updated_at   DateTime?     @updatedAt
+  sale_product SaleProduct[]
 }
 
 model Customer {
@@ -269,7 +268,7 @@ model Customer {
   deleted    Boolean   @default(false)
   created_at DateTime  @default(now()) @db.Timestamptz(3)
   updated_at DateTime? @updatedAt
-  Sale       Sale[]
+  sales      Sale[]
 }
 
 model Sale {
@@ -295,7 +294,7 @@ model Sale {
 model SaleProduct {
   id              Int   @id @default(autoincrement())
   saleId          Int
-  productId       Int
+  inventory_id    Int
   quantity        Int
   expense         Float
   unit_price      Float
@@ -303,10 +302,10 @@ model SaleProduct {
   returned_counts Int   @default(0)
   damaged_counts  Int   @default(0)
 
-  sale      Sale    @relation(fields: [saleId], references: [id])
-  product   Product @relation(fields: [productId], references: [id])
-  tenant_id Int
-  tenant    Tenant  @relation(fields: [tenant_id], references: [id])
+  sale           Sale      @relation(fields: [saleId], references: [id])
+  inventory_item Inventory @relation(fields: [inventory_id], references: [id])
+  tenant_id      Int
+  tenant         Tenant    @relation(fields: [tenant_id], references: [id])
 
   //
   deleted    Boolean   @default(false)
@@ -331,4 +330,25 @@ model Fees {
   deleted    Boolean   @default(false)
   created_at DateTime  @default(now()) @db.Timestamptz(3)
   updated_at DateTime? @updatedAt
+}
+
+model Shipment {
+  id            Int       @id @default(autoincrement())
+  shipping_name String
+  reference     String?
+  date          DateTime
+  attachments   String[]
+  price         Float?
+  note          String?
+  products      Product[]
+  expenses      Expense[]
+
+  tenant_id Int
+  tenant    Tenant @relation(fields: [tenant_id], references: [id])
+
+  //
+  deleted    Boolean     @default(false)
+  created_at DateTime    @default(now()) @db.Timestamptz(3)
+  updated_at DateTime?   @updatedAt
+  inventory  Inventory[]
 }

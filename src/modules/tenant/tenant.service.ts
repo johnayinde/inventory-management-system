@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import {
   EditPersonalBusinessDTO,
   TenantBusinessDTO,
@@ -23,19 +23,24 @@ export class TenantService {
   }
 
   async createTenantBusinessInfo(tenant_id: number, data: TenantBusinessDTO) {
-    await this.postgresService.tenant.update({
-      where: { id: tenant_id },
+    const tenant_business = await this.postgresService.business.findUnique({
+      where: { tenant_id },
+    });
+    if (tenant_business) {
+      throw new BadRequestException(
+        'Tenant Already created business infomation',
+      );
+    }
+    await this.postgresService.business.create({
       data: {
-        business: {
-          create: {
-            business_address: data.business_address,
-            business_name: data.business_name,
-            business_type: data.business_type,
-            country: data.country,
-          },
-        },
+        business_address: data.business_address,
+        business_name: data.business_name,
+        business_type: data.business_type,
+        country: data.country,
+        tenant: { connect: { id: tenant_id } },
       },
     });
+
     return 'Update successful';
   }
 
@@ -51,14 +56,10 @@ export class TenantService {
         },
       }),
 
-      this.postgresService.tenant.update({
+      this.postgresService.business.update({
         where: { id: tenant_id },
         data: {
-          business: {
-            update: {
-              ...data.business_info,
-            },
-          },
+          ...data.business_info,
         },
       }),
     ]);

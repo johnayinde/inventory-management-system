@@ -7,13 +7,13 @@ export class CreateProductoDto {
   name: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   description?: string;
 
   @ApiProperty({ type: [Number] })
   @IsArray()
-  // @IsInt({ each: true })
-  categoryIds: number[];
+  categories: number[];
 }
 
 export class EditProductDto {

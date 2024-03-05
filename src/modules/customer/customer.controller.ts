@@ -42,7 +42,7 @@ export class CustomerController {
     return this.customerService.getAllCustomers(tenant_id);
   }
 
-  @Get('orders')
+  @Get('/:customerId/orders')
   @HttpCode(HttpStatus.OK)
   customerSales(
     @Req() { tenant_id }: Request,

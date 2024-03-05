@@ -122,27 +122,30 @@ export class SaleController {
     );
   }
 
-  @Patch('/products/:saleItemId/:quantity/edit')
+  @Patch('/products/:saleId/:saleItemId/:quantity/edit')
   @HttpCode(HttpStatus.OK)
   async editSaleItem(
+    @Param('saleId', ParseIntPipe) saleId: number,
     @Param('saleItemId', ParseIntPipe) saleItemId: number,
     @Param('quantity', ParseIntPipe) quantity: number,
     @Req() { tenant_id }: Request,
   ) {
     return this.saleService.editSaleProductQuantity(
       tenant_id,
+      saleId,
       saleItemId,
       quantity,
     );
   }
 
-  @Post('products/:saleItemId/duplicate')
+  @Post('products/:saleId/:saleItemId/duplicate')
   @HttpCode(HttpStatus.CREATED)
   duplicateSalesItem(
+    @Param('saleId', ParseIntPipe) saleId: number,
     @Param('saleItemId', ParseIntPipe) saleItemId: number,
     @Req() { tenant_id }: Request,
   ) {
-    return this.saleService.duplicateSalesItem(tenant_id, saleItemId);
+    return this.saleService.duplicateSalesItem(tenant_id, saleId, saleItemId);
   }
 
   @Delete(':salesId')

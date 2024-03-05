@@ -5,19 +5,30 @@ import {
 } from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
 import { CreateFeeDto, EditFeeDto } from './dto/fees.dto';
-import { ExpenseType, FeeType } from '@prisma/client';
-import { EditExpenseDto } from '../expense/dto/expense.dto';
+import { FeeType } from '@prisma/client';
 
 @Injectable()
 export class FeesService {
   constructor(private readonly prismaService: OrmService) {}
 
   async create(tenant_id: number, data: CreateFeeDto) {
-    const { products_ids, ...restData } = data;
-    if (products_ids?.length) {
+    const { products_ids, fee_type, ...restData } = data;
+    if (products_ids?.length && fee_type === FeeType.product) {
+      for (const productId of products_ids) {
+        const product = await this.prismaService.product.findUnique({
+          where: { id: productId, tenant_id },
+        });
+
+        if (!product) {
+          throw new BadRequestException(
+            `Product with ID ${productId} not found`,
+          );
+        }
+      }
       return await this.prismaService.fees.create({
         data: {
           ...restData,
+          fee_type,
           products: {
             connect: products_ids.map((id) => ({ id })),
           },
@@ -25,14 +36,18 @@ export class FeesService {
         },
         include: { products: true },
       });
+    } else if (fee_type === FeeType.all) {
+      return await this.prismaService.fees.create({
+        data: {
+          ...restData,
+          fee_type,
+          tenant: { connect: { id: tenant_id } },
+        },
+        include: { products: true },
+      });
+    } else {
+      throw new BadRequestException('kindly select the appropriate field');
     }
-    return await this.prismaService.fees.create({
-      data: {
-        ...data,
-        tenant: { connect: { id: tenant_id } },
-      },
-      include: { products: true },
-    });
   }
 
   async edit(tenant_id: number, id: number, data: EditFeeDto) {
@@ -55,6 +70,17 @@ export class FeesService {
     } else if (fee.fee_type == FeeType.product) {
       if (!products_ids.length) {
         throw new BadRequestException('Select product(s)');
+      }
+      for (const productId of products_ids) {
+        const product = await this.prismaService.product.findUnique({
+          where: { id: productId, tenant_id },
+        });
+
+        if (!product) {
+          throw new BadRequestException(
+            `Product with ID ${productId} not found`,
+          );
+        }
       }
       return await this.prismaService.fees.update({
         where: { id, tenant_id },

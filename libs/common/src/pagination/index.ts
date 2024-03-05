@@ -174,3 +174,32 @@ export const subCategoryFilters = (data: PaginatorDTO) => {
 
   return hasOtherFilters;
 };
+
+export const shipmentFilters = (data: PaginatorDTO) => {
+  const filter = { OR: [], AND: [] };
+
+  if (data.shipmentId) {
+    filter.OR.push({
+      id: Number(data.shipmentId),
+    });
+  }
+
+  if (data.date) {
+    filter.OR.push({
+      created_at: data.date,
+    });
+  }
+
+  if (data.search) {
+    filter.OR.push({
+      shipping_name: {
+        contains: data.search,
+        mode: 'insensitive',
+      },
+    });
+  }
+  const hasOtherFilters =
+    filter.OR.length > 0 || filter.AND.length > 0 ? filter : null;
+
+  return hasOtherFilters;
+};

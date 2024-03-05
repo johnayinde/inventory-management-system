@@ -11,11 +11,12 @@ import {
   ParseIntPipe,
   Get,
   Query,
+  Patch,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { Role, Roles, TenantInterceptor } from '@app/common';
 import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
-import { CreateInventoryDto } from './dto/inventory.dto';
+import { CreateInventoryDto, EditInventoryDto } from './dto/inventory.dto';
 import { Request } from 'express';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
@@ -27,7 +28,7 @@ import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
-  @Post('')
+  @Post(':shipmentId')
   @ApiBody({
     description: 'Create Inventory',
     type: CreateInventoryDto,
@@ -35,9 +36,14 @@ export class InventoryController {
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() createInventoryDto: CreateInventoryDto,
+    @Param('shipmentId', ParseIntPipe) shipmentId: number,
     @Req() { tenant_id }: Request,
   ) {
-    return this.inventoryService.create(createInventoryDto, tenant_id);
+    return this.inventoryService.create(
+      createInventoryDto,
+      tenant_id,
+      shipmentId,
+    );
   }
 
   @Post('/:inventoryId/duplicate')
@@ -64,9 +70,19 @@ export class InventoryController {
     return this.inventoryService.getDashboardStats(tenant_id);
   }
 
+  @Patch('/:inventoryId')
+  @HttpCode(HttpStatus.OK)
+  editInventory(
+    @Req() { tenant_id }: Request,
+    @Param('inventoryId', ParseIntPipe) inventoryId: number,
+    @Body() data: EditInventoryDto,
+  ) {
+    return this.inventoryService.updateInventory(inventoryId, data, tenant_id);
+  }
+
   @Delete('/:inventoryId')
   @HttpCode(HttpStatus.OK)
-  deleteSales(
+  deleteInventory(
     @Req() { tenant_id }: Request,
     @Param('inventoryId', ParseIntPipe) inventoryId: number,
   ) {

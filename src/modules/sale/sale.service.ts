@@ -6,15 +6,11 @@ import {
 import { CreateSaleDto } from './dto/sales.dto';
 import {
   FeeType,
-  ProductStatusType,
-  SaleProduct,
+  PrismaClient,
   ValueType,
 } from '@prisma/client';
 import { OrmService } from 'src/database/orm.service';
-import {
-  IN_STOCK_COUNT,
-  SOLD_OUT_COUNT,
-} from '@app/common/constants/constants';
+
 import {
   QuantityUpdate,
   SalesStatsDto,
@@ -23,6 +19,7 @@ import {
 } from '@app/common';
 import {
   calculatePercentageChange,
+  determineProductStatus,
   formatDate,
   getLastMonthDateRange,
 } from '@app/common/helpers';
@@ -53,51 +50,60 @@ export class SaleService {
       for (const product_item of products) {
         const { productId, quantity } = product_item;
 
-        const product = await tx.product.findUnique({
+        const inventoryItem = await tx.inventory.findUnique({
           where: { id: productId, tenant_id },
-          include: { Expense: true },
+          include: { product: { include: { expenses: true } } },
         });
+        console.log({ inventoryItem });
 
-        if (!product) {
+        if (!inventoryItem) {
           throw new NotFoundException(`Product with ID ${productId} not found`);
         }
 
-        if (product.quantity < quantity) {
+        if (inventoryItem.quantity < quantity) {
           throw new BadRequestException(
-            `Insufficient quantity for product ID ${productId}`,
+            `Insufficient quantity for product ${inventoryItem.name}`,
           );
         }
 
-        totalProductExpenses = product.Expense.reduce(
+        totalProductExpenses = inventoryItem.product.expenses.reduce(
           (acc, expense) => acc + expense.amount || 0,
           0,
         );
+        console.log({ totalProductExpenses });
 
         OverAlltotalExpenses += totalProductExpenses;
-        const productSellingPrice =
-          (product.expected_selling_price || 0) * quantity;
+        const productSellingPrice = (inventoryItem.price || 0) * quantity;
+        console.log({ productSellingPrice });
 
         let totalFee = await this.calculateProductFee(
-          tx,
+          tx as PrismaClient,
           tenant_id,
-          productId,
+          inventoryItem.product_id,
           productSellingPrice,
         );
-
+        console.log({ totalFee });
         //
 
         OverAllSellingPrice += productSellingPrice + totalFee;
         OverAllTotalQty += quantity;
 
         saleProducts.push({
-          product: { connect: { id: productId } },
+          inventory_item: { connect: { id: productId } },
           quantity,
           expense: totalProductExpenses,
-          unit_price: product.cost_price,
+          unit_price: inventoryItem.price,
           total_price: productSellingPrice,
           tenant: { connect: { id: tenant_id } },
         });
       }
+      console.log({
+        OverAllSellingPrice,
+        OverAllTotalQty,
+        OverAlltotalExpenses,
+      });
+      console.log(saleProducts);
+
       const created_sales = await tx.sale.create({
         data: {
           customer: { connect: { id: customerId } },
@@ -107,38 +113,24 @@ export class SaleService {
           expenses: OverAlltotalExpenses,
           total_price: OverAllSellingPrice,
         },
-        include: { sales_products: true, customer: true },
+        include: {
+          sales_products: { include: { inventory_item: true } },
+        },
       });
+      //
 
-      for (const saleProduct of created_sales.sales_products) {
-        await tx.product.update({
-          where: { id: saleProduct.productId, tenant_id },
-          data: {
-            quantity: {
-              decrement: saleProduct.quantity,
-            },
-          },
-        });
+      await this.updateProductQtyAndStatus(
+        created_sales,
+        tx as PrismaClient,
+        tenant_id,
+      );
 
-        const product = await tx.product.findUnique({
-          where: { id: saleProduct.productId, tenant_id },
-        });
-
-        const remainingQuantity = product.quantity;
-
-        await tx.product.update({
-          where: { id: saleProduct.productId, tenant_id },
-          data: {
-            status: this.determineProductStatus(remainingQuantity),
-          },
-        });
-      }
       return created_sales;
     });
   }
 
   private async calculateProductFee(
-    tx,
+    tx: PrismaClient,
     tenant_id: number,
     productId: number,
     productSellingPrice: number,
@@ -158,12 +150,14 @@ export class SaleService {
         fee.value_type === ValueType.fixed
       ) {
         feeAmount = fee.value;
+        console.log(ValueType.fixed, fee.fee_type, fee.value, feeAmount);
       } else if (
         (fee.fee_type === FeeType.all ||
           fee.products.some((p) => p.id === productId)) &&
         fee.value_type === ValueType.percentage
       ) {
         feeAmount = (fee.value / 100) * productSellingPrice;
+        console.log(ValueType.percentage, fee.fee_type, fee.value, feeAmount);
       }
 
       totalFee += feeAmount;
@@ -171,10 +165,50 @@ export class SaleService {
     return totalFee;
   }
 
+  private async updateProductQtyAndStatus(
+    created_sales,
+    tx: PrismaClient,
+    tenant_id: number,
+  ) {
+    for (const saleProduct of created_sales.sales_products) {
+      await tx.inventory.update({
+        where: { id: saleProduct.inventory_item.id, tenant_id },
+        data: {
+          quantity: {
+            decrement: saleProduct.quantity,
+          },
+        },
+      });
+
+      const product = await tx.inventory.findUnique({
+        where: { id: saleProduct.inventory_item.id, tenant_id },
+      });
+      console.log('updateQTYStatus', { product });
+
+      const remainingQuantity = product.quantity;
+      const quantityThreshold = product.quantity_threshold;
+
+      await tx.inventory.update({
+        where: { id: saleProduct.inventory_item.id, tenant_id },
+        data: {
+          status: determineProductStatus(remainingQuantity, quantityThreshold),
+        },
+      });
+      const checkProd = await tx.inventory.findUnique({
+        where: { id: saleProduct.inventory_item.id, tenant_id },
+      });
+      console.log({ checkProd });
+    }
+  }
+
   async getInvoice(tenant_id: number, salesId: number) {
     const sales = await this.postgresService.sale.findUnique({
       where: { id: salesId, tenant_id },
-      include: { customer: true, sales_products: true, _count: true },
+      include: {
+        customer: true,
+        sales_products: { include: { inventory_item: true } },
+        _count: true,
+      },
     });
     if (!sales) {
       throw new NotFoundException('Sales Invoice not found');
@@ -218,7 +252,7 @@ export class SaleService {
   ) {
     return await this.postgresService.$transaction(async (tx) => {
       const { saleProduct, sale } = await this.returnSalesItem(
-        tx,
+        tx as PrismaClient,
         saleId,
         tenant_id,
         productId,
@@ -239,9 +273,6 @@ export class SaleService {
             increment: quantity,
           },
           total_price: newSelligPrice,
-          // quantity: {
-          //   decrement: quantity,
-          // },
         },
       });
 
@@ -255,24 +286,63 @@ export class SaleService {
         },
       });
 
-      const product = await tx.product.findUnique({
-        where: { id: productId, tenant_id },
+      const product = await tx.inventory.findUnique({
+        where: { id: saleProduct.inventory_item.id, tenant_id },
       });
 
       const remainingQuantity = product.quantity - quantity;
 
-      await tx.product.update({
-        where: { id: productId, tenant_id },
+      await tx.inventory.update({
+        where: { id: product.id, tenant_id },
+
         data: {
           quantity: {
             increment: quantity,
           },
-          status: this.determineProductStatus(remainingQuantity),
+          status: determineProductStatus(
+            remainingQuantity,
+            product.quantity_threshold,
+          ),
         },
       });
 
       return `Successfully returned ${quantity} items `;
     });
+  }
+
+  private async returnSalesItem(
+    tx: PrismaClient,
+    saleId: number,
+    tenant_id: number,
+    productId: number,
+    quantity: number,
+  ) {
+    const sale = await tx.sale.findUnique({
+      where: { id: saleId, tenant_id },
+      include: {
+        customer: true,
+        sales_products: { include: { inventory_item: true } },
+      },
+    });
+
+    if (!sale) {
+      throw new NotFoundException(`Sale with ID ${saleId} not found`);
+    }
+
+    const saleProduct = sale.sales_products[0];
+
+    if (!saleProduct) {
+      throw new NotFoundException(
+        `Product with ID ${productId} not found in the sale`,
+      );
+    }
+
+    if (quantity > saleProduct.quantity) {
+      throw new BadRequestException(
+        `Invalid quantity for product ID ${productId}`,
+      );
+    }
+    return { saleProduct, sale };
   }
 
   async markProductAsDamaged(
@@ -283,13 +353,12 @@ export class SaleService {
   ) {
     return await this.postgresService.$transaction(async (tx) => {
       const { saleProduct } = await this.returnSalesItem(
-        tx,
+        tx as PrismaClient,
         saleId,
         tenant_id,
         productId,
         quantity,
       );
-
       await tx.saleProduct.update({
         where: { id: saleProduct.id },
         data: {
@@ -321,7 +390,7 @@ export class SaleService {
       include: {
         sales_products: {
           include: {
-            product: true,
+            inventory_item: true,
           },
         },
       },
@@ -359,7 +428,7 @@ export class SaleService {
       include: {
         sales_products: {
           include: {
-            product: true,
+            inventory_item: true,
           },
         },
       },
@@ -396,19 +465,23 @@ export class SaleService {
     });
   }
 
-  async duplicateSalesItem(tenant_id: number, saleItemId: number) {
+  async duplicateSalesItem(
+    tenant_id: number,
+    saleId: number,
+    saleItemId: number,
+  ) {
     const existingSaleItem = await this.postgresService.saleProduct.findUnique({
-      where: { id: saleItemId, tenant_id },
+      where: { id: saleItemId, saleId, tenant_id },
       include: {},
     });
-    console.log({ existingSaleItem, tenant_id, saleItemId });
+    console.log({ existingSaleItem });
 
     if (!existingSaleItem) {
-      throw new NotFoundException(
-        `Sales item with ID ${saleItemId} not found.`,
-      );
+      throw new NotFoundException(`Sales item not found.`);
     }
-    const { id, ...saleitem_data } = existingSaleItem;
+    console.log({ existingSaleItem });
+
+    const { id, created_at, updated_at, ...saleitem_data } = existingSaleItem;
     return await this.postgresService.saleProduct.create({
       data: {
         ...saleitem_data,
@@ -422,46 +495,49 @@ export class SaleService {
 
   async editSaleProductQuantity(
     tenant_id: number,
+    saleId: number,
     saleProductId: number,
     quantity: number,
   ) {
     return await this.postgresService.$transaction(async (tx) => {
       const saleProduct = await tx.saleProduct.findUnique({
-        where: { id: saleProductId, tenant_id },
-        include: { product: true, sale: true },
+        where: { id: saleProductId, saleId, tenant_id },
+        include: { inventory_item: true, sale: true },
       });
 
       if (!saleProduct) {
         throw new NotFoundException('Sale product not found');
       }
 
-      const product = await tx.product.findUnique({
-        where: { id: saleProduct.productId, tenant_id },
+      const product = await tx.inventory.findUnique({
+        where: { id: saleProduct.inventory_item.id, tenant_id },
       });
       console.log(product.quantity < quantity);
 
       if (product.quantity < quantity) {
-        throw new BadRequestException(
-          `Invalid quantity for product ID ${saleProduct.productId}`,
-        );
+        throw new BadRequestException(`Invalid quantity for product`);
       }
 
       const totalSoldQuantity_beforeUpdate = await tx.saleProduct.aggregate({
         where: {
           saleId: saleProduct.saleId,
-          productId: saleProduct.productId,
+          inventory_id: saleProduct.inventory_id,
           tenant_id,
         },
         _sum: { quantity: true },
       });
-      const updatedSaleProduct = await tx.saleProduct.update({
+      console.log({ totalSoldQuantity_beforeUpdate });
+
+      await tx.saleProduct.update({
         where: { id: saleProductId, tenant_id, saleId: saleProduct.saleId },
         data: { quantity, total_price: quantity * saleProduct.unit_price },
       });
-      console.log({ updatedSaleProduct });
 
       const allSaleProducts = await tx.saleProduct.findMany({
-        where: { saleId: saleProduct.saleId, tenant_id },
+        where: {
+          saleId: saleProduct.saleId,
+          tenant_id,
+        },
       });
       const totalQuantity = allSaleProducts.reduce(
         (acc, product) => acc + product.quantity,
@@ -484,11 +560,12 @@ export class SaleService {
       const totalSoldQuantity = await tx.saleProduct.aggregate({
         where: {
           saleId: saleProduct.saleId,
-          productId: saleProduct.productId,
+          inventory_id: saleProduct.inventory_id,
           tenant_id,
         },
         _sum: { quantity: true },
       });
+
       const newQty = totalSoldQuantity._sum?.quantity; //all productId qty after update of saleproduct
       const prevQty = totalSoldQuantity_beforeUpdate._sum?.quantity; //all productId qty before update of saleproduct
       console.log({ newQty, prevQty });
@@ -497,30 +574,32 @@ export class SaleService {
       // ...
       console.log({ qty });
 
-      const data: QuantityUpdate = { quantity: { decrement: qty } }; // Always increment
+      const data: QuantityUpdate = { quantity: { decrement: qty } };
 
       if (prevQty > newQty) {
         data.quantity = { increment: qty }; // If previous quantity was greater, decrement
       }
       console.log({ data });
 
-      await tx.product.update({
-        where: { id: saleProduct.productId, tenant_id },
+      await tx.inventory.update({
+        where: { id: saleProduct.inventory_item.id, tenant_id },
         data,
       });
 
-      const get_product = await tx.product.findUnique({
-        where: { id: saleProduct.productId, tenant_id },
+      const get_product = await tx.inventory.findUnique({
+        where: { id: saleProduct.inventory_item.id, tenant_id },
       });
       console.log({ get_product });
 
-      await tx.product.update({
-        where: { id: saleProduct.productId, tenant_id },
+      await tx.inventory.update({
+        where: { id: get_product.id, tenant_id },
         data: {
-          status: this.determineProductStatus(get_product.quantity),
+          status: determineProductStatus(
+            get_product.quantity,
+            get_product.quantity_threshold,
+          ),
         },
       });
-      return updatedSaleProduct;
     });
   }
 
@@ -542,13 +621,13 @@ export class SaleService {
               lte: endDate,
             },
           },
-          include: { product: true },
+          include: { inventory_item: { include: { product: true } } },
           orderBy: { quantity: 'desc' },
           take: limit,
         });
 
         return allSaleProducts.map((saleProduct) => ({
-          product: saleProduct.product.name,
+          product: saleProduct.inventory_item.product.name,
           quantity: saleProduct.quantity,
           total_price: saleProduct.total_price,
         }));
@@ -576,32 +655,34 @@ export class SaleService {
               lte: endDate,
             },
           },
-          include: { product: true },
+          include: { inventory_item: { include: { product: true } } },
           orderBy: { quantity: 'asc' },
           take: limit,
         });
 
         const leastSellingProductStats = await Promise.all(
           allSaleProducts.map(async (saleProduct) => {
-            const totalSoldQuantity = await tx.saleProduct.aggregate({
+            const allSaleProducts = await tx.saleProduct.findMany({
               where: {
-                productId: saleProduct.productId,
                 tenant_id,
+                inventory_id: saleProduct.inventory_id,
                 created_at: {
                   gte: startDate,
                   lte: endDate,
                 },
               },
-              _sum: { quantity: true },
+              include: { inventory_item: { include: { product: true } } },
             });
 
+            const totalQty = allSaleProducts.reduce(
+              (acc, item) => acc + item.quantity,
+              0,
+            );
             const percentage =
-              ((totalSoldQuantity._sum?.quantity || 0) /
-                saleProduct.product.quantity) *
-              100;
+              (totalQty / saleProduct.inventory_item.quantity) * 100;
 
             return {
-              product: saleProduct.product.name,
+              product: saleProduct.inventory_item.product.name,
               percentage,
             };
           }),
@@ -651,70 +732,17 @@ export class SaleService {
       stats.totalExpenses += sale.expenses;
 
       for (const saleProduct of sale.sales_products) {
-        const unitCost = saleProduct.product.expected_selling_price || 0;
-        const profit = (saleProduct.product.cost_price || 0) - unitCost;
-        stats.totalProfits += profit * saleProduct.quantity;
+        const unitCost = saleProduct.inventory_item.price || 0;
+        const totalSellingPrice = saleProduct.total_price || 0;
+        const quantitySold = saleProduct.quantity;
+
+        const profitPerProduct = (totalSellingPrice - unitCost) * quantitySold;
+
+        stats.totalProfits += profitPerProduct;
+
         stats.numberOfSoldProducts += saleProduct.quantity;
         stats.returnedProducts += saleProduct.returned_counts;
       }
-    }
-  }
-
-  private async returnSalesItem(
-    tx,
-    saleId: number,
-    tenant_id: number,
-    productId: number,
-    quantity: number,
-  ) {
-    const sale = await tx.sale.findUnique({
-      where: { id: saleId, tenant_id },
-      include: {
-        customer: true,
-        sales_products: {
-          where: { productId },
-        },
-      },
-    });
-
-    if (!sale) {
-      throw new NotFoundException(`Sale with ID ${saleId} not found`);
-    }
-
-    const product = await tx.product.findUnique({
-      where: { id: productId, tenant_id },
-    });
-
-    if (!product) {
-      throw new NotFoundException(`Product with ID ${productId} not found`);
-    }
-    const saleProduct = sale.sales_products[0] as SaleProduct;
-
-    if (!saleProduct) {
-      throw new NotFoundException(
-        `Product with ID ${productId} not found in the sale`,
-      );
-    }
-
-    if (quantity > saleProduct.quantity) {
-      throw new BadRequestException(
-        `Invalid quantity for product ID ${productId}`,
-      );
-    }
-    return { saleProduct, product, sale };
-  }
-
-  private determineProductStatus(remainingQuantity: number): ProductStatusType {
-    console.log({ remainingQuantity });
-
-    if (remainingQuantity === SOLD_OUT_COUNT) {
-      return ProductStatusType.sold_out;
-    } else if (remainingQuantity >= IN_STOCK_COUNT) {
-      //10-...
-      return ProductStatusType.in_stock;
-    } else {
-      //1-9
-      return ProductStatusType.running_low;
     }
   }
 }

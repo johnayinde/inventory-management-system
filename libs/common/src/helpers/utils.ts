@@ -1,3 +1,5 @@
+import { ProductStatusType } from '@prisma/client';
+import { createHash } from 'crypto';
 import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
 export function getLastMonthDateRange() {
@@ -51,4 +53,19 @@ export function mappedData(data = [], type?, sub?) {
     count,
   }));
   return result;
+}
+
+export function determineProductStatus(
+  remainingQuantity: number,
+  threshold: number,
+) {
+  console.log({ remainingQuantity });
+
+  if (remainingQuantity === 0) {
+    return ProductStatusType.sold_out;
+  } else if (remainingQuantity > threshold) {
+    return ProductStatusType.in_stock;
+  } else if (remainingQuantity <= threshold) {
+    return ProductStatusType.running_low;
+  }
 }

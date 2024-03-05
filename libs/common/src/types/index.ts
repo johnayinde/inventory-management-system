@@ -37,7 +37,6 @@ export class ProductStatsDto {
   categoriesPercentageChange: number;
   totalSubcategories: number;
   subcategoriesPercentageChange: number;
-  totalLowStocks: number;
 }
 
 export class ExpenseStatsDto {
