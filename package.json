@@ -22,6 +22,7 @@
     "prisma:dbpush": "npx prisma db push --schema prisma/schema.prisma"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.525.0",
     "@nestjs/cache-manager": "^2.2.0",
     "@nestjs/common": "^9.0.0",
     "@nestjs/config": "^3.1.1",

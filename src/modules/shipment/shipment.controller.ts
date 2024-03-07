@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -30,10 +31,7 @@ export class ShipmentController {
   constructor(private readonly shipmentService: ShipmentService) {}
 
   @Post()
-  @ApiFile(
-    { fieldName: '', limit: 0, destination: 'products' },
-    { type: CreateShipmentDto },
-  )
+  @ApiFile('files', 10, { type: CreateShipmentDto })
   @HttpCode(HttpStatus.CREATED)
   createSgipment(
     @Body() data: CreateShipmentDto,
@@ -47,7 +45,7 @@ export class ShipmentController {
     )
     files?: Array<Express.Multer.File>,
   ) {
-    return this.shipmentService.createShipment(tenant_id, data);
+    return this.shipmentService.createShipment(tenant_id, data, files);
   }
 
   @Get(':shipmentId')
@@ -63,5 +61,17 @@ export class ShipmentController {
   @HttpCode(HttpStatus.OK)
   getAllSales(@Req() { tenant_id }: Request, @Query() filters: PaginatorDTO) {
     return this.shipmentService.getAllShipments(tenant_id, filters);
+  }
+
+  @Delete('/:shipmentId/files')
+  @HttpCode(HttpStatus.OK)
+  async deleteFile(
+    @Req() { tenant_id }: Request,
+
+    @Param('shipmentId', ParseIntPipe) shipmentId: number,
+    @Query('url') url: string,
+  ) {
+    await this.shipmentService.deleteFile(shipmentId, url, tenant_id);
+    return { message: 'File deleted successfully' };
   }
 }

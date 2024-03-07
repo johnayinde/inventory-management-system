@@ -14,7 +14,7 @@ import {
   Patch,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
-import { Role, Roles, TenantInterceptor } from '@app/common';
+import { ApiFile, Role, Roles, TenantInterceptor } from '@app/common';
 import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { CreateInventoryDto, EditInventoryDto } from './dto/inventory.dto';
 import { Request } from 'express';
@@ -29,10 +29,7 @@ export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
   @Post(':shipmentId')
-  @ApiBody({
-    description: 'Create Inventory',
-    type: CreateInventoryDto,
-  })
+  // @ApiFile('files', 10, { type: CreateInventoryDto })
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() createInventoryDto: CreateInventoryDto,

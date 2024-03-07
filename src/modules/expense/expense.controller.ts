@@ -5,12 +5,15 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   ParseIntPipe,
   Patch,
   Post,
   Query,
   Req,
+  UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
 import { ExpenseService } from './expense.service';
@@ -19,7 +22,7 @@ import {
   CreateExpenseDto,
   EditExpenseDto,
 } from './dto/expense.dto';
-import { Role, Roles, TenantInterceptor } from '@app/common';
+import { ApiFile, Role, Roles, TenantInterceptor } from '@app/common';
 import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { Request } from 'express';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
@@ -51,13 +54,20 @@ export class ExpenseController {
   }
 
   @Post('')
-  @ApiBody({
-    description: 'Create Expense',
-    type: CreateExpenseDto,
-  })
+  @ApiFile('files', 10, { type: CreateExpenseDto })
   @HttpCode(HttpStatus.CREATED)
-  createExpense(@Body() data: CreateExpenseDto, @Req() { tenant_id }: Request) {
-    return this.expenseService.createExpense(tenant_id, data);
+  createExpense(
+    @Body() data: CreateExpenseDto,
+    @Req() { tenant_id }: Request,
+    @UploadedFiles(
+      new ParseFilePipe({
+        fileIsRequired: false,
+        validators: [new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 })],
+      }),
+    )
+    files?: Array<Express.Multer.File>,
+  ) {
+    return this.expenseService.createExpense(tenant_id, data, files);
   }
 
   @Get('card-stats')
@@ -134,6 +144,18 @@ export class ExpenseController {
     @Param('expenseId', ParseIntPipe) expenseId: number,
   ) {
     return this.expenseService.deleteExpense(tenant_id, expenseId);
+  }
+
+  @Delete('/:expenseId/files')
+  @HttpCode(HttpStatus.OK)
+  async deleteFile(
+    @Req() { tenant_id }: Request,
+
+    @Param('expenseId', ParseIntPipe) expenseId: number,
+    @Query('url') url: string,
+  ) {
+    await this.expenseService.deleteFile(expenseId, url, tenant_id);
+    return { message: 'File deleted successfully' };
   }
 
   @Post('/:expenseId/duplicate')

@@ -4,7 +4,9 @@ import { CreateProductoDto, EditProductDto } from './dto/product.dto';
 import { ProductStatsDto, inventoryFilters, page_generator } from '@app/common';
 import {
   calculatePercentageChange,
+  deleteImage,
   getLastMonthDateRange,
+  uploadImages,
 } from '@app/common/helpers';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
@@ -12,12 +14,19 @@ import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 export class ProductService {
   constructor(readonly postgresService: OrmService) {}
 
-  async createProduct(tenant_id: number, data: CreateProductoDto) {
+  async createProduct(
+    tenant_id: number,
+    data: CreateProductoDto,
+    files: Array<Express.Multer.File>,
+  ) {
     const { categories, ...product } = data;
+    const folder = process.env.AWS_S3_FOLDER;
+    const image_urls = await uploadImages(files, folder);
 
     return await this.postgresService.product.create({
       data: {
         ...product,
+        attachments: image_urls,
         tenant: { connect: { id: tenant_id } },
         categories: {
           connect: categories.map((id) => ({ id })),
@@ -107,6 +116,37 @@ export class ProductService {
       throw new NotFoundException('Product not found');
     }
     return deletedProduct;
+  }
+
+  async deleteProductImage(id: number, imageId: string, tenant_id: number) {
+    const product = await this.postgresService.product.findUnique({
+      where: { id, tenant_id },
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product not found`);
+    }
+
+    const imageToDelete = product.attachments.find(
+      (image) => image === imageId,
+    );
+
+    if (!imageToDelete) {
+      throw new NotFoundException(`Image not found for product`);
+    }
+    const folder = process.env.AWS_S3_FOLDER;
+
+    const key = `${folder}${imageToDelete.split('/')[4]}`;
+
+    await deleteImage(key);
+    await this.postgresService.product.update({
+      where: { id, tenant_id },
+      data: {
+        attachments: {
+          set: product.attachments.filter((s) => s != imageToDelete),
+        },
+      },
+    });
   }
 
   async duplicateProduct(tenant_id: number, productId: number) {

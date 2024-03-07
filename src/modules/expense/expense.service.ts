@@ -10,9 +10,11 @@ import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 import { ExpenseStatsDto, expenseFilters, page_generator } from '@app/common';
 import {
   calculatePercentageChange,
+  deleteImage,
   formatDate,
   getLastMonthDateRange,
   mappedData,
+  uploadImages,
 } from '@app/common/helpers';
 
 @Injectable()
@@ -37,7 +39,17 @@ export class ExpenseService {
     });
   }
 
-  async createExpense(tenant_id: number, data: CreateExpenseDto) {
+  async createExpense(
+    tenant_id: number,
+    data: CreateExpenseDto,
+    files: Array<Express.Multer.File>,
+  ) {
+    let image_urls: string[] = [];
+
+    if (files.length) {
+      const folder = process.env.AWS_S3_FOLDER;
+      image_urls = await uploadImages(files, folder);
+    }
     if (data.type == ExpenseType.product && data.productId) {
       const product = await this.postgresService.product.findFirst({
         where: { id: data?.productId, tenant_id },
@@ -50,7 +62,7 @@ export class ExpenseService {
         data: {
           ...expenseData,
           tenant: { connect: { id: tenant_id } },
-
+          attachments: image_urls,
           product: {
             connect: { id: product.id },
           },
@@ -71,6 +83,7 @@ export class ExpenseService {
       return await this.postgresService.expense.create({
         data: {
           ...expenseData,
+          attachments: image_urls,
           tenant: { connect: { id: tenant_id } },
           category: {
             connect: category,
@@ -189,6 +202,36 @@ export class ExpenseService {
     return deletedExpense;
   }
 
+  async deleteFile(id: number, imageId: string, tenant_id: number) {
+    const expense = await this.postgresService.expense.findUnique({
+      where: { id, tenant_id },
+    });
+
+    if (!expense) {
+      throw new NotFoundException(`Expense not found`);
+    }
+
+    const imageToDelete = expense.attachments.find(
+      (image) => image === imageId,
+    );
+
+    if (!imageToDelete) {
+      throw new NotFoundException(`Image not found for the resource`);
+    }
+    const folder = process.env.AWS_S3_FOLDER;
+
+    const key = `${folder}${imageToDelete.split('/')[4]}`;
+
+    await deleteImage(key);
+    await this.postgresService.expense.update({
+      where: { id, tenant_id },
+      data: {
+        attachments: {
+          set: expense.attachments.filter((s) => s != imageToDelete),
+        },
+      },
+    });
+  }
   async duplicateExpense(tenant_id: number, expenseId: number) {
     const expenseToDuplicate = await this.postgresService.expense.findUnique({
       where: { id: expenseId, tenant_id },
