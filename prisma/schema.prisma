@@ -212,7 +212,7 @@ model Expense {
   amount             Float?
   date               DateTime
   type               ExpenseType      @default(general)
-  attachment         String?
+  attachments        String[]
   expense_categoryId Int?
   category           ExpenseCategory? @relation(fields: [expense_categoryId], references: [id])
   product            Product?         @relation(fields: [productId], references: [id])

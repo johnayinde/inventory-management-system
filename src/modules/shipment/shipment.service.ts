@@ -7,55 +7,68 @@ import { OrmService } from 'src/database/orm.service';
 import { CreateShipmentDto } from './dto/shipment.dto';
 import { page_generator, shipmentFilters } from '@app/common';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
+import { deleteImage, uploadImages } from '@app/common/helpers';
 
 @Injectable()
 export class ShipmentService {
   constructor(readonly postgresService: OrmService) {}
-  async createShipment(tenant_id: number, data: CreateShipmentDto) {
+  async createShipment(
+    tenant_id: number,
+    data: CreateShipmentDto,
+    files: Array<Express.Multer.File>,
+  ) {
     const { products, expenses, ...details } = data;
-    return await this.postgresService.$transaction(async (tx) => {
-      const createdExpenses = [];
-      if (expenses) {
-        // Create expenses one after the other
-        for (const expenseData of expenses) {
-          const createdExpense = await tx.expense.create({
-            data: {
-              ...expenseData,
-              type: 'shipment',
-              tenant: { connect: { id: tenant_id } },
-              date: new Date(),
-            },
+    return await this.postgresService.$transaction(
+      async (tx) => {
+        const createdExpenses = [];
+        if (expenses) {
+          // Create expenses one after the other
+          for (const expenseData of expenses) {
+            const createdExpense = await tx.expense.create({
+              data: {
+                ...expenseData,
+                type: 'shipment',
+                tenant: { connect: { id: tenant_id } },
+                date: new Date(),
+              },
+            });
+
+            createdExpenses.push(createdExpense);
+          }
+        }
+
+        for (const productId of products) {
+          const product = await tx.product.findUnique({
+            where: { id: productId, tenant_id },
           });
 
-          createdExpenses.push(createdExpense);
+          if (!product) {
+            throw new BadRequestException(
+              `Product with ID ${productId} not found`,
+            );
+          }
         }
-      }
-      console.log(createdExpenses);
+        let image_urls: string[] = [];
 
-      for (const productId of products) {
-        const product = await tx.product.findUnique({
-          where: { id: productId, tenant_id },
+        if (files.length) {
+          const folder = process.env.AWS_S3_FOLDER;
+          image_urls = await uploadImages(files, folder);
+        }
+        const createdShipment = await tx.shipment.create({
+          data: {
+            ...details,
+            attachments: image_urls,
+            tenant: { connect: { id: tenant_id } },
+            expenses: { connect: createdExpenses.map((e) => ({ id: e.id })) },
+            products: { connect: products.map((id) => ({ id: id })) },
+          },
+          include: { products: true, expenses: true },
         });
 
-        if (!product) {
-          throw new BadRequestException(
-            `Product with ID ${productId} not found`,
-          );
-        }
-      }
-
-      const createdShipment = await tx.shipment.create({
-        data: {
-          ...details,
-          tenant: { connect: { id: tenant_id } },
-          expenses: { connect: createdExpenses.map((e) => ({ id: e.id })) },
-          products: { connect: products.map((id) => ({ id })) },
-        },
-        include: { products: true, expenses: true },
-      });
-
-      return createdShipment;
-    });
+        return createdShipment;
+      },
+      { timeout: 10000 },
+    );
   }
 
   async getShipment(tenant_id: number, id: number) {
@@ -95,5 +108,36 @@ export class ShipmentService {
           all_sales.length > Number(filters.page) * Number(filters.pageSize),
       },
     };
+  }
+
+  async deleteFile(id: number, imageId: string, tenant_id: number) {
+    const shipment = await this.postgresService.shipment.findUnique({
+      where: { id, tenant_id },
+    });
+
+    if (!shipment) {
+      throw new NotFoundException(`Shipment not found`);
+    }
+
+    const imageToDelete = shipment.attachments.find(
+      (image) => image === imageId,
+    );
+
+    if (!imageToDelete) {
+      throw new NotFoundException(`Image not found for the resource`);
+    }
+    const folder = process.env.AWS_S3_FOLDER;
+
+    const key = `${folder}${imageToDelete.split('/')[4]}`;
+
+    await deleteImage(key);
+    await this.postgresService.shipment.update({
+      where: { id, tenant_id },
+      data: {
+        attachments: {
+          set: shipment.attachments.filter((s) => s != imageToDelete),
+        },
+      },
+    });
   }
 }

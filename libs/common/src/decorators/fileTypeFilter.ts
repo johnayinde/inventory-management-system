@@ -37,9 +37,9 @@ export const editFileName = (req, file, callback) => {
 };
 
 export const imageFileFilter = (req, file, callback) => {
-  if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+  if (!file.originalname.match(/\.(jpg|jpeg|png|gif|pdf)$/)) {
     return callback(
-      new UnsupportedMediaTypeException(`You can only upload image files`),
+      new UnsupportedMediaTypeException(`You can only upload image/pdf files`),
       false,
     );
   }

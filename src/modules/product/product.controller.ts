@@ -18,7 +18,7 @@ import {
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductoDto, EditProductDto } from './dto/product.dto';
-import { ApiTags, ApiBody, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
 import { TenantInterceptor } from '@app/common';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
@@ -33,10 +33,7 @@ export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Post()
-  @ApiFile(
-    { fieldName: '', limit: 10, destination: 'products' },
-    { type: CreateProductoDto },
-  )
+  @ApiFile('images', 10, { type: CreateProductoDto })
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() data: CreateProductoDto,
@@ -44,13 +41,13 @@ export class ProductController {
     { tenant_id }: Request,
     @UploadedFiles(
       new ParseFilePipe({
-        fileIsRequired: false,
+        fileIsRequired: true,
         validators: [new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 })],
       }),
     )
-    files?: Array<Express.Multer.File>,
+    files: Array<Express.Multer.File>,
   ) {
-    return this.productService.createProduct(tenant_id, data);
+    return this.productService.createProduct(tenant_id, data, files);
   }
 
   @Get()
@@ -86,6 +83,18 @@ export class ProductController {
     @Param('productId', ParseIntPipe) productId: number,
   ) {
     return this.productService.getProduct(tenant_id, productId);
+  }
+
+  @Delete('/:productId/images')
+  @HttpCode(HttpStatus.OK)
+  async deleteProductImage(
+    @Req() { tenant_id }: Request,
+
+    @Param('productId', ParseIntPipe) productId: number,
+    @Query('url') url: string,
+  ) {
+    await this.productService.deleteProductImage(productId, url, tenant_id);
+    return { message: 'Product image deleted successfully' };
   }
 
   @Delete(':productId')

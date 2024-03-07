@@ -6,26 +6,15 @@ import { diskStorage } from 'multer';
 import { imageFileFilter, editFileName } from './fileTypeFilter';
 
 export function ApiFile(
-  fileConfig: {
-    fieldName: string;
-    limit?: number;
-    destination: string;
-  },
+  fieldName: string,
+  limit?: number,
   body?: ApiBodyOptions,
 ) {
   return applyDecorators(
     UseInterceptors(
-      FilesInterceptor(fileConfig.fieldName, fileConfig.limit, {
-        fileFilter: imageFileFilter,
-        storage: diskStorage({
-          destination: `./images/${fileConfig.destination}`,
-          filename: editFileName,
-        }),
-      }),
+      FilesInterceptor(fieldName, limit, { fileFilter: imageFileFilter }),
     ),
-    ApiConsumes(
-      fileConfig.fieldName ? 'multipart/form-data' : 'application/json',
-    ),
+    ApiConsumes(fieldName ? 'multipart/form-data' : 'application/json'),
     ApiBody(body),
   );
 }
