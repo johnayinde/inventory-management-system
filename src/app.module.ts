@@ -27,6 +27,7 @@ import { SaleModule } from './modules/sale/sale.module';
 import { ReportModule } from './modules/report/report.module';
 import { FeesModule } from './modules/fees/fees.module';
 import { ShipmentModule } from './modules/shipment/shipment.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { ShipmentModule } from './modules/shipment/shipment.module';
     ReportModule,
     FeesModule,
     ShipmentModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

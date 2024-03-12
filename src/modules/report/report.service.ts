@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
 import { ReportDashboardStatsDto } from './dto/report.dto';
 import { formatDate, mappedData } from '@app/common/helpers';
+import { LossMarginData, ProfitMarginData } from '../dashboard/interface';
 
 @Injectable()
 export class ReportService {
@@ -85,11 +86,12 @@ export class ReportService {
 
     return topSellingProducts;
   }
+
   async calculateProfitMargin(
     tenant_id: number,
     start_date: Date,
     end_date: Date,
-  ) {
+  ): Promise<ProfitMarginData[]> {
     const { endDate, startDate } = formatDate(start_date, end_date);
 
     const sales = await this.prismaService.sale.findMany({
@@ -104,9 +106,8 @@ export class ReportService {
         sales_products: true,
       },
     });
-    console.log(sales);
 
-    const profitMarginStats: { created_at: Date; num: number }[] = [];
+    const profitMarginStats: { created_at: Date; profitMargin: number }[] = [];
 
     for (const sale of sales) {
       const totalRevenue = sale.total_price;
@@ -122,20 +123,37 @@ export class ReportService {
 
       profitMarginStats.push({
         created_at: sale.created_at,
-        num: profitMargin,
+        profitMargin,
       });
     }
 
-    const result = mappedData(profitMarginStats);
+    // Aggregate the profit margin data by date
+    const aggregatedProfitMargin = profitMarginStats.reduce((acc, item) => {
+      const dateKey = item.created_at.toISOString().split('T')[0];
 
-    return result;
+      if (acc[dateKey]) {
+        acc[dateKey].profitMargin += item.profitMargin || 0;
+      } else {
+        acc[dateKey] = {
+          created_at: new Date(dateKey),
+          profitMargin: item.profitMargin || 0,
+        };
+      }
+
+      return acc;
+    }, {} as Record<string, ProfitMarginData>);
+
+    // Convert the aggregated data back to an array
+    const resultArray = Object.values(aggregatedProfitMargin);
+
+    return resultArray;
   }
 
   async calculateLossMargin(
     tenant_id: number,
     start_date: Date,
     end_date: Date,
-  ) {
+  ): Promise<LossMarginData[]> {
     const { endDate, startDate } = formatDate(start_date, end_date);
 
     const sales = await this.prismaService.sale.findMany({
@@ -150,9 +168,8 @@ export class ReportService {
         sales_products: true,
       },
     });
-    console.log(sales);
 
-    const lossMarginStats: { created_at: Date; num: number }[] = [];
+    const lossMarginStats: { created_at: Date; lossMargin: number }[] = [];
 
     for (const sale of sales) {
       const totalRevenue = sale.total_price;
@@ -163,14 +180,28 @@ export class ReportService {
 
       lossMarginStats.push({
         created_at: sale.created_at,
-        num: lossMargin,
+        lossMargin: lossMargin,
       });
     }
-    console.log(lossMarginStats.map((s) => s));
+    const aggregatedLossMargin = lossMarginStats.reduce((acc, item) => {
+      const dateKey = item.created_at.toISOString().split('T')[0];
 
-    const result = mappedData(lossMarginStats);
+      if (acc[dateKey]) {
+        acc[dateKey].lossMargin += item.lossMargin || 0;
+      } else {
+        acc[dateKey] = {
+          created_at: new Date(dateKey),
+          lossMargin: item.lossMargin || 0,
+        };
+      }
 
-    return result;
+      return acc;
+    }, {} as Record<string, LossMarginData>);
+
+    // Convert the aggregated data back to an array
+    const resultArray = Object.values(aggregatedLossMargin);
+
+    return resultArray;
   }
 
   async calculateExpenseStats(
