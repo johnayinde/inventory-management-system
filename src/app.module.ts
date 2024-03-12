@@ -28,6 +28,7 @@ import { ReportModule } from './modules/report/report.module';
 import { FeesModule } from './modules/fees/fees.module';
 import { ShipmentModule } from './modules/shipment/shipment.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { MfaModule } from './mfa/mfa.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     FeesModule,
     ShipmentModule,
     DashboardModule,
+    MfaModule,
   ],
   controllers: [AppController],
   providers: [

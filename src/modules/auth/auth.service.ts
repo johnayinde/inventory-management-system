@@ -159,6 +159,7 @@ export class AuthService {
     }
 
     delete user.password;
+    delete user.mfa_secret;
     return {
       ...user,
       token: await this.generateAccessToken(userId, user.email, user.isUser),
