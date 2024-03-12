@@ -1,5 +1,4 @@
 import { ProductStatusType } from '@prisma/client';
-import { createHash } from 'crypto';
 import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
 export function getLastMonthDateRange() {

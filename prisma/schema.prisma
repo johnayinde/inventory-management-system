@@ -54,6 +54,8 @@ model Auth {
   email          String    @unique
   phone_number   String?   @unique
   password       String?
+  mfa_secret     String?
+  is_mfa         Boolean   @default(false)
   isOauthUser    Boolean   @default(false)
   isUser         Boolean   @default(false)
   //
