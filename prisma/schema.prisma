@@ -47,6 +47,12 @@ enum ProductStatusType {
   sold_out
 }
 
+enum NotifierType {
+  low_stock
+  sold_out
+  top_selling
+}
+
 model Auth {
   id             Int       @id @default(autoincrement())
   first_name     String?
@@ -66,9 +72,8 @@ model Auth {
 }
 
 model Tenant {
-  id    Int     @id @default(autoincrement())
-  email String?
-
+  id                 Int               @id @default(autoincrement())
+  email              String?
   business           Business?
   category           Category[]
   users              User[]
@@ -76,16 +81,21 @@ model Tenant {
   expense_categories ExpenseCategory[]
   expenses           Expense[]
 
+  low_stock_notifier   Boolean @default(false)
+  sold_out_notifier    Boolean @default(false)
+  top_selling_notifier Boolean @default(false)
+
   //
-  deleted      Boolean       @default(false)
-  created_at   DateTime      @default(now()) @db.Timestamptz(3)
-  updated_at   DateTime?     @updatedAt
-  inventory    Inventory[]
-  customers    Customer[]
-  sales        Sale[]
-  saleProducts SaleProduct[]
-  fees         Fees[]
-  shipments    Shipment[]
+  deleted          Boolean        @default(false)
+  created_at       DateTime       @default(now()) @db.Timestamptz(3)
+  updated_at       DateTime?      @updatedAt
+  inventory        Inventory[]
+  customers        Customer[]
+  sales            Sale[]
+  saleProducts     SaleProduct[]
+  fees             Fees[]
+  shipments        Shipment[]
+  Product_notifier Notification[]
 }
 
 model Business {
@@ -353,4 +363,18 @@ model Shipment {
   created_at DateTime    @default(now()) @db.Timestamptz(3)
   updated_at DateTime?   @updatedAt
   inventory  Inventory[]
+}
+
+model Notification {
+  id       Int          @id @default(autoincrement())
+  type     NotifierType @default(low_stock)
+  products Json
+
+  tenant_id Int
+  tenant    Tenant @relation(fields: [tenant_id], references: [id])
+
+  //
+  deleted    Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
 }

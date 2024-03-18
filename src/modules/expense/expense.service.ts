@@ -314,7 +314,6 @@ export class ExpenseService {
         },
       },
     });
-    console.log(fees);
 
     const LastMonthExpenses = await this.postgresService.expense.findMany({
       where: {

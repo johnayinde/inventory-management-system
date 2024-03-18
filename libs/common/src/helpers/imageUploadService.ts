@@ -3,7 +3,6 @@ import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client } from './aws-lib';
 import { randomStrings } from './randomString';
 
-
 export const uploadImages = async (
   files: Array<Express.Multer.File>,
   folder: string,
@@ -18,7 +17,6 @@ export const uploadImages = async (
     const uploadPromise = (async () => {
       try {
         const url = `${process.env.AWS_IMAGE_URL}${folder}${fileName}`;
-        console.log({ url });
         const response = await s3Client.send(
           new PutObjectCommand({
             Bucket: process.env.AWS_BUCKET_NAME,
@@ -29,7 +27,6 @@ export const uploadImages = async (
             ACL: 'public-read',
           }),
         );
-        console.log(response);
 
         if (response.$metadata.httpStatusCode === 200) {
           return url;
