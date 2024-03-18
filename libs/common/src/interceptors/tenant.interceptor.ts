@@ -26,10 +26,7 @@ export class TenantInterceptor implements NestInterceptor {
     next: CallHandler,
   ): Promise<Observable<any>> {
     const request = context.switchToHttp().getRequest();
-    // console.log(request);
-
     const user = request.user as ReqUser;
-    console.log('intercepting request***');
 
     if (user) {
       const prisma = this.ormService;

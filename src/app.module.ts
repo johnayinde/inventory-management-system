@@ -28,7 +28,9 @@ import { ReportModule } from './modules/report/report.module';
 import { FeesModule } from './modules/fees/fees.module';
 import { ShipmentModule } from './modules/shipment/shipment.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
-import { MfaModule } from './mfa/mfa.module';
+import { MfaModule } from './modules/mfa/mfa.module';
+import { NotificationModule } from './modules/notification/notification.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -46,6 +48,7 @@ import { MfaModule } from './mfa/mfa.module';
           store: redisStore,
         } as unknown as CacheStore),
     }),
+    ScheduleModule.forRoot(),
     AuthModule,
     DatabaseModule,
     EmailModule,
@@ -63,6 +66,7 @@ import { MfaModule } from './mfa/mfa.module';
     ShipmentModule,
     DashboardModule,
     MfaModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [

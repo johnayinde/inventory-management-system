@@ -35,8 +35,6 @@ export class InventoryService {
         include: { products: true, expenses: true },
       });
 
-      console.log({ shipment });
-
       if (!shipment) {
         throw new NotFoundException('Shipment not found');
       }
@@ -56,8 +54,6 @@ export class InventoryService {
 
         if (pricing_type === PricingType.bulk) {
           if (shippedProductIds.includes(parseInt(productId))) {
-            console.log('init');
-
             const created_inventory = await tx.inventory.create({
               data: {
                 prod_id: prodId,
@@ -141,7 +137,6 @@ export class InventoryService {
     });
     const threshold = inventory.quantity_threshold;
     const prod_qty = inventory.quantity;
-    console.log({ threshold, prod_qty });
 
     await this.postgresService.inventory.update({
       where: { id: inventory.id, tenant_id },
@@ -185,7 +180,6 @@ export class InventoryService {
 
       const prodIdPrefix = `#PRD${shipment_id}${product_id}${tenant_id}`;
       const prodId = `${prodIdPrefix}-${uuidv4().split('-')[2]}`;
-      console.log(existingInventory);
 
       const newInventory = await tx.inventory.create({
         data: {
@@ -198,7 +192,6 @@ export class InventoryService {
         },
         include: { product: true },
       });
-      console.log({ newInventory });
 
       return newInventory;
     });

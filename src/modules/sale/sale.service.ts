@@ -6,7 +6,10 @@ import {
 import { CreateSaleDto } from './dto/sales.dto';
 import {
   FeeType,
+  Inventory,
+  NotifierType,
   PrismaClient,
+  ProductStatusType,
   ValueType,
 } from '@prisma/client';
 import { OrmService } from 'src/database/orm.service';
@@ -188,16 +191,55 @@ export class SaleService {
       const remainingQuantity = product.quantity;
       const quantityThreshold = product.quantity_threshold;
 
+      const status = determineProductStatus(
+        remainingQuantity,
+        quantityThreshold,
+      );
+
+      await this.notifyProductStatus(
+        status,
+        tx as PrismaClient,
+        tenant_id,
+        product,
+        remainingQuantity,
+      );
+
       await tx.inventory.update({
         where: { id: saleProduct.inventory_item.id, tenant_id },
         data: {
-          status: determineProductStatus(remainingQuantity, quantityThreshold),
+          status: status,
         },
       });
       const checkProd = await tx.inventory.findUnique({
         where: { id: saleProduct.inventory_item.id, tenant_id },
       });
       console.log({ checkProd });
+    }
+  }
+
+  private async notifyProductStatus(
+    status: string,
+    tx: PrismaClient,
+    tenant_id: number,
+    product: Inventory,
+    qty: number,
+  ) {
+    if (status === ProductStatusType.running_low) {
+      await tx.notification.create({
+        data: {
+          tenant_id,
+          type: NotifierType.low_stock,
+          products: [{ product: product.name, quantity: qty }],
+        },
+      });
+    } else if (status === ProductStatusType.sold_out) {
+      await tx.notification.create({
+        data: {
+          tenant_id,
+          type: NotifierType.sold_out,
+          products: [{ product: product.name, quantity: qty }],
+        },
+      });
     }
   }
 

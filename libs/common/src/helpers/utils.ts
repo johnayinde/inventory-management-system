@@ -25,8 +25,6 @@ export function formatDate(start_date: Date, end_date: Date) {
   const EOD = new Date(end.getTime() + 86400000 - 1);
   const endDate = EOD.toISOString();
 
-  console.log({ startDate, endDate });
-
   return { startDate, endDate };
 }
 
@@ -67,4 +65,10 @@ export function determineProductStatus(
   } else if (remainingQuantity <= threshold) {
     return ProductStatusType.running_low;
   }
+}
+
+export function calculate_date_range(no_of_days) {
+  const end_date = Date.now();
+  const start_date = new Date(end_date - no_of_days * 24 * 60 * 60 * 1000);
+  return { start: start_date, end: new Date(end_date) };
 }

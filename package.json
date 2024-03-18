@@ -33,6 +33,7 @@
     "@nestjs/core": "^9.0.0",
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/platform-express": "^10.3.3",
+    "@nestjs/schedule": "^4.0.1",
     "@nestjs/swagger": "^7.1.17",
     "@prisma/client": "^5.8.0",
     "@types/cache-manager-redis-store": "^2.0.4",
