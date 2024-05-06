@@ -36,3 +36,10 @@ lerna-debug.log*
 
 .env
 /images
+
+.docker
+
+tmp/
+
+# Container Volumes
+.docker/
