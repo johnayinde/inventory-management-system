@@ -1,11 +1,39 @@
+# stage 1 building the code
+
+FROM node:18-alpine as builder
+
+WORKDIR /usr/app
+
+COPY package*.json ./
+COPY yarn.lock ./
+
+COPY ./prisma ./prisma
+
+RUN yarn install --frozen-lockfile
+
+COPY . .
+
+RUN yarn build
+
+
+
+# stage 2
+
 FROM node:18-alpine
 
-ENV APP_HOME /home/app/
+WORKDIR /usr/app
 
-WORKDIR $APP_HOME
+COPY . .
+
+COPY --from=builder /usr/app/dist ./dist
+
+COPY --from=builder /usr/app/node_modules ./node_modules
+
+COPY --from=builder /usr/app/package*.json ./
+
+COPY --from=builder  /usr/app/prisma ./prisma
+
+EXPOSE 8080
 
 
-
-COPY . $APP_HOME
-
-RUN yarn install
+CMD  node dist/main.js

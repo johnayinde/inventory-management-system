@@ -1,18 +1,28 @@
-version: '3.8'
-volumes:
-  migrations:
+version: '3.7'
 
 services:
-  invio-api:
-    # image: invio_image:latest
-    container_name: app_server
-    build: .
-    command: yarn run start:dev
-    ports:
-      - 9009:5000
-    env_file:
-      - .env
+  postgres:
+    image: postgres:13-alpine
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_PASSWORD: 'secret'
+
+      POSTGRES_USER: 'postgres'
+
+      POSTGRES_DB: 'postgres'
+
     volumes:
-      - ./.env:/home/app/.env
-      - migrations:/home/app/prisma/migrations
-    # network_mode: host
+      - ./.docker/volumes/pg_data:/var/lib/postgresql/data
+
+    ports:
+      - '5432:5432'
+
+  redis:
+    image: redis:7-alpine
+
+    ports:
+      - '6379:6379'
+
+    restart: unless-stopped
