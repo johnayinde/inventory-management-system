@@ -69,6 +69,8 @@ model Auth {
   email_verified Boolean?  @default(false)
   created_at     DateTime  @default(now()) @db.Timestamptz(3)
   updated_at     DateTime? @updatedAt
+
+  @@index(fields: [email])
 }
 
 model Tenant {
@@ -96,6 +98,8 @@ model Tenant {
   fees             Fees[]
   shipments        Shipment[]
   Product_notifier Notification[]
+
+  @@index(fields: [id, email])
 }
 
 model Business {
@@ -178,6 +182,8 @@ model Permission {
   deleted    Boolean   @default(false)
   created_at DateTime  @default(now()) @db.Timestamptz(3)
   updated_at DateTime? @updatedAt
+
+  @@index(fields: [id])
 }
 
 model Product {
@@ -197,6 +203,8 @@ model Product {
   updated_at DateTime?   @updatedAt
   shipment   Shipment[]
   inventory  Inventory[]
+
+  @@index(fields: [id, tenant_id])
 }
 
 model ExpenseCategory {
@@ -264,6 +272,8 @@ model Inventory {
   created_at   DateTime      @default(now()) @db.Timestamptz(3)
   updated_at   DateTime?     @updatedAt
   sale_product SaleProduct[]
+
+  @@index(fields: [id, tenant_id, product_id, shipment_id])
 }
 
 model Customer {
@@ -281,6 +291,8 @@ model Customer {
   created_at DateTime  @default(now()) @db.Timestamptz(3)
   updated_at DateTime? @updatedAt
   sales      Sale[]
+
+  @@index(fields: [id, tenant_id])
 }
 
 model Sale {
@@ -300,6 +312,7 @@ model Sale {
   created_at DateTime  @default(now()) @db.Timestamptz(3)
   updated_at DateTime? @updatedAt
 
+  @@index(fields: [id, tenant_id])
   @@map("sales")
 }
 
@@ -324,6 +337,7 @@ model SaleProduct {
   created_at DateTime  @default(now()) @db.Timestamptz(3)
   updated_at DateTime? @updatedAt
 
+  @@index(fields: [id, tenant_id, saleId])
   @@map("sales_product")
 }
 
@@ -363,6 +377,8 @@ model Shipment {
   created_at DateTime    @default(now()) @db.Timestamptz(3)
   updated_at DateTime?   @updatedAt
   inventory  Inventory[]
+
+  @@index(fields: [id, tenant_id])
 }
 
 model Notification {
@@ -377,4 +393,6 @@ model Notification {
   deleted    Boolean   @default(false)
   created_at DateTime  @default(now()) @db.Timestamptz(3)
   updated_at DateTime? @updatedAt
+
+  @@index(fields: [id, tenant_id])
 }
