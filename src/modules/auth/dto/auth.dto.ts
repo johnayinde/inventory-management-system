@@ -15,7 +15,6 @@ export class RegisterDto {
   @ApiProperty()
   @IsString()
   @IsEmail()
-  @RecordExists('auth.email')
   email: string;
 
   @ApiProperty()
