@@ -88,43 +88,49 @@ export class AuthService {
     return user;
   }
   async registerAccount(data: RegisterDto) {
-    const userNotVerified = await this.postgresService.auth.findFirst({
+    const user = await this.postgresService.auth.findUnique({
       where: {
         email: data.email,
-        email_verified: false,
       },
     });
 
-    if (userNotVerified) {
-      const otp = await this.cache.setOTPValue(data.email);
-      await this.emailService.sendOTP(otp, data.email);
-      return REGISTEROTP;
-    } else {
-      await this.comparePassword(data.password, data.confirm_password);
-
-      data.password = await this.hashPassword(data.password);
-      const new_account = await this.postgresService.auth.create({
-        data: {
-          email: data.email,
-          password: data.password,
-        },
-      });
-
-      if (!new_account) {
-        throw new HttpException(
-          'Something went wrong',
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
-
-      const otp = await this.cache.setOTPValue(data.email);
-      await this.emailService.sendOTP(otp, data.email);
+    if (user) {
+      throw new HttpException('User Already exist.', HttpStatus.BAD_REQUEST);
     }
+    await this.comparePassword(data.password, data.confirm_password);
+
+    data.password = await this.hashPassword(data.password);
+    const new_account = await this.postgresService.auth.create({
+      data: {
+        email: data.email,
+        password: data.password,
+      },
+    });
+
+    if (!new_account) {
+      throw new HttpException(
+        'Something went wrong',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    const otp = await this.cache.setOTPValue(data.email);
+    await this.emailService.sendOTP(otp, data.email);
     return REGISTEROTP;
   }
 
   async loginUser(data: LoginDto) {
-    const user = await this.getUserByEmail(data.email);
+    const user = await this.postgresService.auth.findUnique({
+      where: {
+        email: data.email,
+      },
+    });
+
+    if (user.email_verified !== true) {
+      const otp = await this.cache.setOTPValue(data.email);
+      await this.emailService.sendOTP(otp, data.email);
+      return NOTACTIVATED;
+    }
 
     const isMatch = await bcrypt.compare(data.password, user.password);
 
@@ -135,11 +141,6 @@ export class AuthService {
       );
     }
 
-    if (user.email_verified !== true) {
-      const otp = await this.cache.setOTPValue(data.email);
-      await this.emailService.sendOTP(otp, data.email);
-      return NOTACTIVATED;
-    }
     let userId: number;
 
     if (user.isUser) {
@@ -253,7 +254,7 @@ export class AuthService {
     ]);
     await this.cache.deleteOTPValue(data.email);
 
-    return 'Your email has been verified, please continue with your registration process';
+    return 'Your email has been verified, please continue with onbording process';
   }
 
   async resetPassword(email: string) {
@@ -262,7 +263,7 @@ export class AuthService {
     const data = await this.emailService.sendResetPasswordToEmail(user.email);
     this.cache.setData(data.encryptedText, data);
 
-    return `An OTP has been sent to your registered email address.`;
+    return `Reset Link sent to your registered email address.`;
   }
 
   async validateEmailForReset(token: ValidateTokenDto, body: ResetPasswordDto) {
