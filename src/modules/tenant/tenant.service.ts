@@ -28,7 +28,7 @@ export class TenantService {
     });
     if (tenant_business) {
       throw new BadRequestException(
-        'Tenant Already created business infomation',
+        'Tenant Already created business information',
       );
     }
     await this.postgresService.business.create({
@@ -66,20 +66,20 @@ export class TenantService {
     return 'Update successful';
   }
 
-  async getTenantPersonalBusnessInfo(tenant_id: number) {
+  async getTenantPersonalBusnessInfo(email: string) {
     const { password, isOauthUser, ...personal_data } =
-      await this.postgresService.auth.findUnique({
-        where: { id: tenant_id },
+      await this.postgresService.auth.findFirst({
+        where: { email },
       });
 
-    const business_info = await this.postgresService.tenant.findUnique({
-      where: { id: tenant_id },
+    const business_info = await this.postgresService.tenant.findFirst({
+      where: { email },
       include: { business: true },
     });
 
     return {
-      ...personal_data,
-      ...business_info,
+      personal: personal_data,
+      business: business_info,
     };
   }
 }
