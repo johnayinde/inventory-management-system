@@ -28,12 +28,14 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
 import { StatusType } from '@prisma/client';
+import { TenantService } from '../tenant/tenant.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     readonly postgresService: OrmService,
     readonly emailService: EmailService,
+    readonly tenantService: TenantService,
     private readonly cache: CacheService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
@@ -129,7 +131,7 @@ export class AuthService {
     if (user.email_verified !== true) {
       const otp = await this.cache.setOTPValue(data.email);
       await this.emailService.sendOTP(otp, data.email);
-      return NOTACTIVATED;
+      throw new HttpException(NOTACTIVATED, HttpStatus.BAD_REQUEST);
     }
 
     const isMatch = await bcrypt.compare(data.password, user.password);
@@ -159,10 +161,16 @@ export class AuthService {
       userId = user.id;
     }
 
+    const { personal, business } =
+      await this.tenantService.getTenantPersonalBusnessInfo(user.email);
+    const is_profile_complete =
+      !!business?.business.id && !!personal.first_name;
+
     delete user.password;
     delete user.mfa_secret;
     return {
       ...user,
+      is_profile_complete,
       token: await this.generateAccessToken(userId, user.email, user.isUser),
     };
   }

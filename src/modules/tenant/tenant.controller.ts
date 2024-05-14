@@ -8,14 +8,16 @@ import {
   Req,
   Patch,
   UseInterceptors,
+  Query,
 } from '@nestjs/common';
 import { TenantService } from './tenant.service';
 import {
   EditPersonalBusinessDTO,
   TenantBusinessDTO,
+  TenantEmailDTO,
   TenantPersonalInfoDto,
 } from './dto/tenant.dto';
-import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { TenantInterceptor } from '@app/common';
 
@@ -72,8 +74,13 @@ export class TenantController {
   }
 
   @Get('/personal-business-info')
+  @ApiQuery({
+    name: 'email',
+    required: true,
+    type: String,
+  })
   @HttpCode(HttpStatus.OK)
-  getTenantPersonalBusnessInfo(@Req() { tenant_id }: Request) {
-    return this.tenantService.getTenantPersonalBusnessInfo(tenant_id);
+  getTenantPersonalBusnessInfo(@Query() data: TenantEmailDTO) {
+    return this.tenantService.getTenantPersonalBusnessInfo(data.email);
   }
 }

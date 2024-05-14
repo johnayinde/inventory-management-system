@@ -61,3 +61,9 @@ export class EditPersonalBusinessDTO {
   // @IsNotEmpty()
   business_info: TenantBusinessDTO;
 }
+
+export class TenantEmailDTO {
+  @IsString()
+  @ApiProperty()
+  email: string;
+}
