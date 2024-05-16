@@ -163,8 +163,8 @@ export class AuthService {
 
     const { personal, business } =
       await this.tenantService.getTenantPersonalBusnessInfo(user.email);
-    const is_profile_complete =
-      !!business?.business.id && !!personal.first_name;
+
+    const is_profile_complete = !!business.business && !!personal.first_name;
 
     delete user.password;
     delete user.mfa_secret;
