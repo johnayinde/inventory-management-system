@@ -11,8 +11,14 @@ export class TenantService {
   constructor(readonly postgresService: OrmService) {}
 
   async createTenantInfo(tenant_id: number, data: TenantPersonalInfoDto) {
+    const tenant_data = await this.postgresService.tenant.findUnique({
+      where: {
+        id: tenant_id,
+      },
+    });
+
     await this.postgresService.auth.update({
-      where: { id: tenant_id },
+      where: { email: tenant_data.email },
       data: {
         first_name: data.first_name,
         last_name: data.last_name,
