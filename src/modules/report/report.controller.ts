@@ -10,7 +10,7 @@ import {
 import { ReportService } from './report.service';
 import { Request } from 'express';
 import { TenantInterceptor } from '@app/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 
 @ApiTags('Reports')
 @ApiBearerAuth()
@@ -21,6 +21,8 @@ export class ReportController {
 
   @Get('card-stats')
   @HttpCode(HttpStatus.OK)
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
   async getFinancialStats(
     @Query('startDate') startDate: Date,
     @Query('endDate') endDate: Date,
@@ -31,6 +33,8 @@ export class ReportController {
 
   @Get('/top-selling-stats')
   @HttpCode(HttpStatus.OK)
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
   topSellingProductsSats(
     @Req() { tenant_id }: Request,
     @Query('startDate') startDate: Date,
@@ -44,6 +48,8 @@ export class ReportController {
   }
 
   @Get('/customers-overview')
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
   @HttpCode(HttpStatus.OK)
   customerOverview(
     @Req() { tenant_id }: Request,
@@ -54,6 +60,8 @@ export class ReportController {
   }
 
   @Get('/profit-margin-stats')
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
   @HttpCode(HttpStatus.OK)
   profitMargin(
     @Req() { tenant_id }: Request,
@@ -68,6 +76,8 @@ export class ReportController {
   }
 
   @Get('/loss-margin-stats')
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
   @HttpCode(HttpStatus.OK)
   lossMargin(
     @Req() { tenant_id }: Request,
@@ -83,6 +93,8 @@ export class ReportController {
 
   @Get('/expense-stats')
   @HttpCode(HttpStatus.OK)
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
   expenseStats(
     @Req() { tenant_id }: Request,
     @Query('startDate') startDate: Date,
@@ -97,6 +109,8 @@ export class ReportController {
 
   @Get('/customer-stats')
   @HttpCode(HttpStatus.OK)
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
   expensCustomerSalesStatseStats(
     @Req() { tenant_id }: Request,
     @Query('startDate') startDate: Date,
@@ -107,6 +121,8 @@ export class ReportController {
 
   @Get('/revenue-stats')
   @HttpCode(HttpStatus.OK)
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
   revenueStats(
     @Req() { tenant_id }: Request,
     @Query('startDate') startDate: Date,
