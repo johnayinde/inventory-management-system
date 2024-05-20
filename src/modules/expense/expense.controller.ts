@@ -23,7 +23,7 @@ import {
   EditExpenseDto,
 } from './dto/expense.dto';
 import { ApiFile, Role, Roles, TenantInterceptor } from '@app/common';
-import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { Request } from 'express';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
@@ -72,6 +72,8 @@ export class ExpenseController {
 
   @Get('card-stats')
   @HttpCode(HttpStatus.OK)
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
   async getStats(
     @Query('startDate') startDate: Date,
     @Query('endDate') endDate: Date,
@@ -86,6 +88,8 @@ export class ExpenseController {
 
   @Get('/expense-stats')
   @HttpCode(HttpStatus.OK)
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
   expenseStats(
     @Req() { tenant_id }: Request,
     @Query('startDate') startDate: Date,
@@ -100,6 +104,8 @@ export class ExpenseController {
 
   @Get('/top-expense-stats')
   @HttpCode(HttpStatus.OK)
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
   topExpenseStats(
     @Req() { tenant_id }: Request,
     @Query('startDate') startDate: Date,

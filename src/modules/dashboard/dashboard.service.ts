@@ -14,28 +14,29 @@ export class DashboardService {
 
   async calculateAnalytics(
     tenant_id: number,
-    start_date: Date,
-    end_date: Date,
+    start_date?: Date,
+    end_date?: Date,
   ): Promise<AnalyticsResult> {
-    const { endDate, startDate } = formatDate(start_date, end_date);
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
 
     const totalSales = await this.postgresService.sale.count({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
     });
 
     const totalRevenue = await this.postgresService.sale.aggregate({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
       _sum: {
         total_price: true,
@@ -45,10 +46,7 @@ export class DashboardService {
     const totalProfit = await this.postgresService.sale.aggregate({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
       _sum: {
         total_price: true,
@@ -59,22 +57,22 @@ export class DashboardService {
     const totalInventory = await this.postgresService.inventory.count({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
     });
 
     const { firstDayOfLastMonth, lastDayOfLastMonth } = getLastMonthDateRange();
 
+    const previousDateCondition = {
+      created_at: {
+        gte: firstDayOfLastMonth,
+        lte: lastDayOfLastMonth,
+      },
+    };
     const previousTotalSales = await this.postgresService.sale.count({
       where: {
         tenant_id,
-        created_at: {
-          gte: firstDayOfLastMonth,
-          lte: lastDayOfLastMonth,
-        },
+        ...previousDateCondition,
       },
     });
 
@@ -84,10 +82,7 @@ export class DashboardService {
       },
       where: {
         tenant_id,
-        created_at: {
-          gte: firstDayOfLastMonth,
-          lte: lastDayOfLastMonth,
-        },
+        ...previousDateCondition,
       },
     });
 
@@ -98,20 +93,14 @@ export class DashboardService {
       },
       where: {
         tenant_id,
-        created_at: {
-          gte: firstDayOfLastMonth,
-          lte: lastDayOfLastMonth,
-        },
+        ...previousDateCondition,
       },
     });
 
     const previousTotalInventory = await this.postgresService.inventory.count({
       where: {
         tenant_id,
-        created_at: {
-          gte: firstDayOfLastMonth,
-          lte: lastDayOfLastMonth,
-        },
+        ...previousDateCondition,
       },
     });
 
@@ -119,7 +108,7 @@ export class DashboardService {
       current: number,
       previous: number,
     ): number => {
-      if (previous === 0) return 0;
+      if (previous === 0 || previous === null) return 0;
       return ((current - previous) / previous) * 100;
     };
 
@@ -127,6 +116,11 @@ export class DashboardService {
       totalSales,
       previousTotalSales,
     );
+    console.log(
+      totalRevenue._sum.total_price,
+      previousTotalRevenue._sum.total_price,
+    );
+
     const revenueChangePercentage = calculateChangePercentage(
       totalRevenue._sum.total_price,
       previousTotalRevenue._sum.total_price,
@@ -160,15 +154,21 @@ export class DashboardService {
     end_date: Date,
     limit: number = 5,
   ): Promise<TopSellingProduct[]> {
-    const { endDate, startDate } = formatDate(start_date, end_date);
+    const dateCondition: any = {};
+
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
 
     const allSaleProducts = await this.postgresService.saleProduct.findMany({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
+
         sale: { tenant_id },
       },
       include: { inventory_item: { include: { product: true } } },
@@ -194,15 +194,18 @@ export class DashboardService {
     end_date: Date,
     limit: number = 5,
   ) {
-    const { endDate, startDate } = formatDate(start_date, end_date);
-
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
     const allSaleProducts = await this.postgresService.saleProduct.findMany({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
       include: { inventory_item: { include: { product: true } } },
       orderBy: { quantity: 'desc' },
@@ -231,19 +234,22 @@ export class DashboardService {
     start_date: Date,
     end_date: Date,
   ): Promise<SalesOverviewData[]> {
-    const { endDate, startDate } = formatDate(start_date, end_date);
-
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
     const sales = await this.postgresService.sale.findMany({
       select: {
         created_at: true,
         total_price: true,
       },
       where: {
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
         tenant_id,
+        ...dateCondition,
       },
       orderBy: {
         created_at: 'asc',
@@ -277,15 +283,18 @@ export class DashboardService {
     start_date: Date,
     end_date: Date,
   ): Promise<ProfitMarginData[]> {
-    const { endDate, startDate } = formatDate(start_date, end_date);
-
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
     const sales = await this.postgresService.sale.findMany({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
       include: {
         sales_products: true,

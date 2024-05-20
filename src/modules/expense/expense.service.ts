@@ -292,36 +292,40 @@ export class ExpenseService {
     start_date: Date,
     end_date: Date,
   ) {
-    const { endDate, startDate } = formatDate(start_date, end_date);
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
     const { firstDayOfLastMonth, lastDayOfLastMonth } = getLastMonthDateRange();
 
+    const previousDateCondition = {
+      created_at: {
+        gte: firstDayOfLastMonth,
+        lte: lastDayOfLastMonth,
+      },
+    };
     const expenses = await this.postgresService.expense.findMany({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
     });
 
     const fees = await this.postgresService.fees.findMany({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
     });
 
     const LastMonthExpenses = await this.postgresService.expense.findMany({
       where: {
         tenant_id,
-        created_at: {
-          gte: firstDayOfLastMonth,
-          lte: lastDayOfLastMonth,
-        },
+        ...previousDateCondition,
       },
     });
 
@@ -356,17 +360,21 @@ export class ExpenseService {
     start_date: Date,
     end_date: Date,
   ) {
-    const { endDate, startDate } = formatDate(start_date, end_date);
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
 
     const expenses = await this.postgresService.expense.groupBy({
       by: ['created_at'],
       _sum: { amount: true },
       where: {
         tenant_id,
-        updated_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
     });
 
@@ -376,15 +384,20 @@ export class ExpenseService {
   }
 
   async topExpenses(tenant_id: number, start_date: Date, end_date: Date) {
-    const { endDate, startDate } = formatDate(start_date, end_date);
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
 
     const topExpenses = await this.postgresService.expense.findMany({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
+
         type: 'product',
       },
       orderBy: {

@@ -31,16 +31,20 @@ export class ReportService {
   }
 
   async getCustomerStats(tenant_id: number, start_date: Date, end_date: Date) {
-    const { endDate, startDate } = formatDate(start_date, end_date);
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
     const customers = await this.prismaService.customer.groupBy({
       by: ['created_at'],
       _count: { id: true },
       where: {
         tenant_id,
-        updated_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
     });
 
@@ -55,15 +59,19 @@ export class ReportService {
     end_date: Date,
     limit: number = 5,
   ) {
-    const { endDate, startDate } = formatDate(start_date, end_date);
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
 
     const allSaleProducts = await this.prismaService.saleProduct.findMany({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
       include: { inventory_item: { include: { product: true } } },
       orderBy: { quantity: 'desc' },
@@ -92,15 +100,18 @@ export class ReportService {
     start_date: Date,
     end_date: Date,
   ): Promise<ProfitMarginData[]> {
-    const { endDate, startDate } = formatDate(start_date, end_date);
-
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
     const sales = await this.prismaService.sale.findMany({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
       include: {
         sales_products: true,
@@ -154,15 +165,19 @@ export class ReportService {
     start_date: Date,
     end_date: Date,
   ): Promise<LossMarginData[]> {
-    const { endDate, startDate } = formatDate(start_date, end_date);
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
 
     const sales = await this.prismaService.sale.findMany({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
       include: {
         sales_products: true,
@@ -209,17 +224,20 @@ export class ReportService {
     start_date: Date,
     end_date: Date,
   ) {
-    const { endDate, startDate } = formatDate(start_date, end_date);
-
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
     const expenses = await this.prismaService.expense.groupBy({
       by: ['created_at'],
       _sum: { amount: true },
       where: {
         tenant_id,
-        updated_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
     });
 
@@ -234,23 +252,23 @@ export class ReportService {
     end_date: Date,
     limit: number = 5,
   ) {
-    const { endDate, startDate } = formatDate(start_date, end_date);
-
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
     const customersWithSales = await this.prismaService.customer.findMany({
       where: {
         tenant_id,
-        updated_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
       include: {
         sales: {
           where: {
-            created_at: {
-              gte: startDate,
-              lte: endDate,
-            },
+            ...dateCondition,
           },
         },
       },
@@ -268,27 +286,29 @@ export class ReportService {
       .slice(0, limit);
 
     return customerAnalytics; // return allSale.map((sale) => ({
-    //   customer: sale.customer.name,
-    //   amount: sale.total_price,
-    // }));
   }
 
   async totalRevenue(tenant_id: number, start_date: Date, end_date: Date) {
-    const { endDate, startDate } = formatDate(start_date, end_date);
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
+
     const sales = await this.prismaService.sale.findMany({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
       include: {
         sales_products: true,
       },
     });
 
-    const totalRevenue = sales.reduce((sum, sale) => sum + sale.total_price, 0);
+    // const totalRevenue = sales.reduce((sum, sale) => sum + sale.total_price, 0);
 
     const revenueStats: { created_at: Date; num: number }[] = [];
 
@@ -310,15 +330,18 @@ export class ReportService {
     start_date: Date,
     end_date: Date,
   ) {
-    const { endDate, startDate } = formatDate(start_date, end_date);
-
+    const dateCondition: any = {};
+    if (start_date && end_date) {
+      const { startDate, endDate } = formatDate(start_date, end_date);
+      dateCondition.created_at = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
     const sales = await this.prismaService.sale.findMany({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
       include: {
         sales_products: true,
@@ -328,10 +351,7 @@ export class ReportService {
     const expenses = await this.prismaService.expense.findMany({
       where: {
         tenant_id,
-        created_at: {
-          gte: startDate,
-          lte: endDate,
-        },
+        ...dateCondition,
       },
     });
 
