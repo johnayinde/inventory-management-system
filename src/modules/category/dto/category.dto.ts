@@ -9,6 +9,7 @@ export class CreateSubCategoryDto {
 
   @ApiPropertyOptional()
   @IsString()
+  @IsOptional()
   description?: string;
 }
 
@@ -18,6 +19,7 @@ export class CreateCategoryDto {
   name: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   description?: string;
 

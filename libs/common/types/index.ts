@@ -32,11 +32,11 @@ export class InventoryStatsDto {
 
 export class ProductStatsDto {
   totalProducts: number;
-  productsPercentageChange: number;
+  // productsPercentageChange: number;
   totalCategories: number;
-  categoriesPercentageChange: number;
+  // categoriesPercentageChange: number;
   totalSubcategories: number;
-  subcategoriesPercentageChange: number;
+  // subcategoriesPercentageChange: number;
 }
 
 export class ExpenseStatsDto {

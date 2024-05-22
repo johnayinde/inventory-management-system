@@ -63,17 +63,25 @@ export class ProductController {
   }
 
   @Patch(':productId')
-  @ApiBody({
-    description: 'Edit Product',
-    type: EditProductDto,
-  })
+  // @ApiBody({
+  //   description: 'Edit Product',
+  //   type: EditProductDto,
+  // })
+  @ApiFile('images', 10, { type: EditProductDto })
   @HttpCode(HttpStatus.OK)
   async editProduct(
     @Param('productId', ParseIntPipe) productId: number,
     @Body() body: EditProductDto,
     @Req() { tenant_id }: Request,
+    @UploadedFiles(
+      new ParseFilePipe({
+        fileIsRequired: false,
+        validators: [new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 })],
+      }),
+    )
+    files: Array<Express.Multer.File>,
   ) {
-    return this.productService.editProduct(tenant_id, productId, body);
+    return this.productService.editProduct(tenant_id, productId, files, body);
   }
 
   @Get(':productId')
