@@ -41,7 +41,7 @@ export class ProductController {
     { tenant_id }: Request,
     @UploadedFiles(
       new ParseFilePipe({
-        fileIsRequired: true,
+        fileIsRequired: false,
         validators: [new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 })],
       }),
     )
