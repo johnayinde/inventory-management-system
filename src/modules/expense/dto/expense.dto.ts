@@ -23,8 +23,7 @@ export class CreateExpenseDto {
   @IsOptional()
   description?: string;
 
-  @ApiProperty()
-  @IsNumber()
+  @ApiProperty({ type: Number })
   amount: number;
 
   @ApiProperty()
@@ -36,18 +35,15 @@ export class CreateExpenseDto {
   @IsEnum(ExpenseType)
   type: ExpenseType;
 
-  @ApiProperty({ type: Number })
-  @IsInt()
+  @ApiPropertyOptional({ type: Number })
   @IsOptional()
   categoryId: number;
 
-  @ApiProperty({ type: Number })
-  @IsInt()
+  @ApiPropertyOptional({ type: Number })
   @IsOptional()
   shipmentId: number;
 
-  @ApiProperty({ type: Number })
-  @IsInt()
+  @ApiPropertyOptional({ type: Number })
   @IsOptional()
   productId: number;
 }
@@ -80,12 +76,10 @@ export class EditExpenseDto {
   type?: ExpenseType;
 
   @ApiPropertyOptional({ type: Number })
-  @IsInt()
   @IsOptional()
   categoryId?: number;
 
   @ApiProperty({ type: Number })
-  @IsInt()
   @IsOptional()
   productId: number;
 }

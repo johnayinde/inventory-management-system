@@ -35,7 +35,7 @@ export class ExpenseService {
 
   async getAllExpenseCategories(tenant_id: number) {
     return await this.postgresService.expenseCategory.findMany({
-      where: { tenant_id: tenant_id },
+      where: { tenant_id },
     });
   }
 
@@ -50,47 +50,48 @@ export class ExpenseService {
       const folder = process.env.AWS_S3_FOLDER;
       image_urls = await uploadImages(files, folder);
     }
+
     if (data.type == ExpenseType.product && data.productId) {
       const product = await this.postgresService.product.findFirst({
-        where: { id: data?.productId, tenant_id },
+        where: { id: Number(data?.productId), tenant_id },
       });
       if (!product) {
         throw new NotFoundException('Provided product not found');
       }
-      const { productId, categoryId, shipmentId, ...expenseData } = data;
+      const { productId, categoryId, shipmentId, amount, ...expenseData } =
+        data;
       return await this.postgresService.expense.create({
         data: {
           ...expenseData,
+          amount: Number(amount),
           tenant: { connect: { id: tenant_id } },
           attachments: image_urls,
           product: {
             connect: { id: product.id },
           },
         },
-        include: { product: true },
       });
     } else if (data.type == ExpenseType.general && data.categoryId) {
       const category = await this.postgresService.expenseCategory.findUnique({
-        where: { id: data.categoryId, tenant_id },
+        where: { id: Number(data.categoryId), tenant_id },
       });
 
       if (!category) {
         throw new NotFoundException('Expense Category not found');
       }
 
-      const { categoryId, productId, shipmentId, ...expenseData } = data;
+      const { categoryId, productId, shipmentId, amount, ...expenseData } =
+        data;
 
       return await this.postgresService.expense.create({
         data: {
           ...expenseData,
+          amount: Number(amount),
           attachments: image_urls,
           tenant: { connect: { id: tenant_id } },
           category: {
             connect: category,
           },
-        },
-        include: {
-          category: true,
         },
       });
     } else if (data.type == ExpenseType.shipment) {
@@ -126,7 +127,7 @@ export class ExpenseService {
 
     const all_expenses = await this.postgresService.expense.findMany({
       where: whereCondition,
-      include: { category: true, product: true },
+      include: { category: true },
       skip,
       take,
     });
@@ -143,31 +144,44 @@ export class ExpenseService {
     };
   }
 
-  async editExpense(tenant_id: number, id: number, data: EditExpenseDto) {
+  async editExpense(
+    tenant_id: number,
+    id: number,
+    files: Array<Express.Multer.File>,
+    data: EditExpenseDto,
+  ) {
     const expense = await this.postgresService.expense.findFirst({
       where: { id, tenant_id },
     });
     if (!expense) {
       throw new NotFoundException('Expense not found');
     }
+
+    let image_urls = expense.attachments;
+    if (files && files.length > 0) {
+      const folder = process.env.AWS_S3_FOLDER;
+      image_urls = await uploadImages(files, folder);
+    }
+
     if (expense.type == ExpenseType.product) {
       const { categoryId, ...expenseData } = data;
       return await this.postgresService.expense.update({
         where: { id, tenant_id },
         data: {
           ...expenseData,
+          attachments: image_urls,
         },
-        include: { category: true, product: true },
       });
     } else if (expense.type == ExpenseType.general) {
-      const { productId, ...expenseData } = data;
+      const { productId, categoryId, ...expenseData } = data;
 
       return await this.postgresService.expense.update({
         where: { id, tenant_id },
         data: {
           ...expenseData,
+          expense_categoryId: categoryId,
+          attachments: image_urls,
         },
-        include: { category: true, product: true },
       });
     } else if (expense.type == ExpenseType.shipment) {
       const { productId, categoryId, ...expenseData } = data;
@@ -176,6 +190,7 @@ export class ExpenseService {
         where: { id, tenant_id },
         data: {
           ...expenseData,
+          attachments: image_urls,
         },
       });
     }
@@ -232,6 +247,7 @@ export class ExpenseService {
       },
     });
   }
+
   async duplicateExpense(tenant_id: number, expenseId: number) {
     const expenseToDuplicate = await this.postgresService.expense.findUnique({
       where: { id: expenseId, tenant_id },
@@ -263,7 +279,6 @@ export class ExpenseService {
           tenant: { connect: { id: tenant_id } },
           product: { connect: { id: productId } },
         },
-        include: { product: true },
       });
     } else if (expenseToDuplicate.type == ExpenseType.general) {
       return await this.postgresService.expense.create({
@@ -273,7 +288,6 @@ export class ExpenseService {
           tenant: { connect: { id: tenant_id } },
           category: { connect: { id: expense_categoryId } },
         },
-        include: { category: true },
       });
     } else if (expenseToDuplicate.type == ExpenseType.shipment) {
       return await this.postgresService.expense.create({
@@ -282,7 +296,6 @@ export class ExpenseService {
           name: `Copy of ${expenseToDuplicate.name}`,
           tenant: { connect: { id: tenant_id } },
         },
-        include: { category: true },
       });
     }
   }
@@ -397,20 +410,15 @@ export class ExpenseService {
       where: {
         tenant_id,
         ...dateCondition,
-
-        type: 'product',
       },
       orderBy: {
         amount: 'desc',
       },
       take: 5,
-      include: {
-        product: true,
-      },
     });
 
     return topExpenses.map((expense) => ({
-      product: expense.product.name,
+      name: expense.name,
       amount: expense.amount,
     }));
   }
@@ -441,6 +449,10 @@ export class ExpenseService {
       if (fee.value_type == ValueType.fixed) return sum + fee.value;
     }, 0);
     stats.totalFees = totalFees;
+    /**
+     * Miscelleneous: all expenses that is not product& shipping
+     *
+     */
     for (const expense of expenses) {
       if (!expense.productId && !ExpenseType.shipment && ExpenseType.general)
         stats.miscelleneous += expense.amount;

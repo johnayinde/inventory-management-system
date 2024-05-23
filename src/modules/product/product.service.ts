@@ -33,11 +33,9 @@ export class ProductService {
       const folder = process.env.AWS_S3_FOLDER;
       image_urls = await uploadImages(files, folder);
     }
-    console.log(image_urls);
 
     const category = await this.postgresService.category.findUnique({
       where: { id: Number(category_id), tenant_id },
-      //  include: { categories: true },
     });
     if (!category) {
       throw new NotFoundException('Category not found');

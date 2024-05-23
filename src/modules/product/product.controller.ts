@@ -18,7 +18,7 @@ import {
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductoDto, EditProductDto } from './dto/product.dto';
-import { ApiTags, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
 import { TenantInterceptor } from '@app/common';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
@@ -33,7 +33,7 @@ export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Post()
-  @ApiFile('images', 10, { type: CreateProductoDto })
+  @ApiFile('files', 10, { type: CreateProductoDto })
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() data: CreateProductoDto,
@@ -63,11 +63,7 @@ export class ProductController {
   }
 
   @Patch(':productId')
-  // @ApiBody({
-  //   description: 'Edit Product',
-  //   type: EditProductDto,
-  // })
-  @ApiFile('images', 10, { type: EditProductDto })
+  @ApiFile('files', 10, { type: EditProductDto })
   @HttpCode(HttpStatus.OK)
   async editProduct(
     @Param('productId', ParseIntPipe) productId: number,
