@@ -36,4 +36,15 @@ lerna-debug.log*
 
 .env
 /images
+<<<<<<< Updated upstream
 .docker
+=======
+
+.docker
+
+tmp/
+
+# Container Volumes
+.docker/
+seed.ts
+>>>>>>> Stashed changes

@@ -214,7 +214,7 @@ export class InventoryService {
       include: {
         product: {
           include: {
-            categories: true,
+            category: true,
           },
         },
       },
@@ -232,7 +232,7 @@ export class InventoryService {
         include: {
           product: {
             include: {
-              categories: true,
+              category: true,
             },
           },
         },
