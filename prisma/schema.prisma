@@ -137,13 +137,14 @@ model Subcategory {
   name        String
   description String?
 
-  categoryId Int
-  category   Category @relation(fields: [categoryId], references: [id])
+  category_id Int
+  category    Category @relation(fields: [category_id], references: [id])
 
   //
   deleted    Boolean   @default(false)
   created_at DateTime  @default(now()) @db.Timestamptz(3)
   updated_at DateTime? @updatedAt
+  Product    Product[]
 }
 
 model User {
@@ -187,15 +188,18 @@ model Permission {
 }
 
 model Product {
-  id          Int        @id @default(autoincrement())
-  name        String
-  description String?
-  categories  Category[]
-  attachments String[]
-  tenant_id   Int
-  tenant      Tenant     @relation(fields: [tenant_id], references: [id])
-  expenses    Expense[]
-  fees        Fees[]
+  id              Int          @id @default(autoincrement())
+  name            String
+  description     String?
+  category        Category     @relation(fields: [category_id], references: [id])
+  category_id     Int
+  sub_category    Subcategory? @relation(fields: [sub_category_id], references: [id])
+  sub_category_id Int?
+  attachments     String[]
+  tenant_id       Int
+  tenant          Tenant       @relation(fields: [tenant_id], references: [id])
+  expenses        Expense[]
+  fees            Fees[]
 
   //
   deleted    Boolean     @default(false)

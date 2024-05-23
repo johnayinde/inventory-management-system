@@ -11,9 +11,12 @@ export class CreateProductoDto {
   @IsString()
   description?: string;
 
-  @ApiProperty({ type: [Number] })
-  @IsArray()
-  categories: number[];
+  @ApiProperty({ type: Number, required: true })
+  category_id: number;
+
+  @ApiProperty({ type: Number, required: false })
+  @IsOptional()
+  sub_category_id: number;
 }
 
 export class EditProductDto {
@@ -27,9 +30,11 @@ export class EditProductDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ type: [Number] })
-  @IsArray()
-  @IsInt({ each: true })
+  @ApiPropertyOptional()
   @IsOptional()
-  categoryIds?: number[];
+  category_id?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  sub_category_id?: number;
 }

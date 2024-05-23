@@ -1,11 +1,15 @@
 import { PaginatorDTO } from './pagination.dto';
 
 export function page_generator(page: number, pageSize: number) {
-  const skip = (Number(page) - 1) * Number(pageSize);
-  const take = Number(pageSize);
+  const hasPagination = page && pageSize;
+  if (hasPagination) {
+    const skip = (Number(page) - 1) * Number(pageSize);
+    const take = Number(pageSize);
+    return { skip, take };
+  }
+  return { skip: undefined, take: undefined };
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
-  return { skip, take };
 }
 
 export const inventoryFilters = (data: PaginatorDTO) => {

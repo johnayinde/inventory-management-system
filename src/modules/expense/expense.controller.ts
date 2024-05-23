@@ -130,17 +130,21 @@ export class ExpenseController {
   }
 
   @Patch(':expenseId')
-  @ApiBody({
-    description: 'Edit Expense',
-    type: EditExpenseDto,
-  })
+  @ApiFile('files', 10, { type: EditExpenseDto })
   @HttpCode(HttpStatus.OK)
   async editExpense(
     @Param('expenseId', ParseIntPipe) expenseId: number,
     @Body() body: EditExpenseDto,
     @Req() { tenant_id }: Request,
+    @UploadedFiles(
+      new ParseFilePipe({
+        fileIsRequired: false,
+        validators: [new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 })],
+      }),
+    )
+    files: Array<Express.Multer.File>,
   ) {
-    return this.expenseService.editExpense(tenant_id, expenseId, body);
+    return this.expenseService.editExpense(tenant_id, expenseId, files, body);
   }
 
   @Delete(':expenseId')

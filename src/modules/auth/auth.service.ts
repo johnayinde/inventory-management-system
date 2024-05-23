@@ -131,7 +131,7 @@ export class AuthService {
     if (user.email_verified !== true) {
       const otp = await this.cache.setOTPValue(data.email);
       await this.emailService.sendOTP(otp, data.email);
-      throw new HttpException(NOTACTIVATED, HttpStatus.BAD_REQUEST);
+      throw new HttpException(NOTACTIVATED, HttpStatus.FORBIDDEN);
     }
 
     const isMatch = await bcrypt.compare(data.password, user.password);

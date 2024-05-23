@@ -42,6 +42,14 @@ export class CategoryController {
     return this.categoryService.getAllCategories(tenant_id);
   }
 
+  @Get('/counts')
+  @HttpCode(HttpStatus.OK)
+  categoryAndSubCounts(@Req() { tenant_id }: Request) {
+    return this.categoryService.getCategoryAndSubcategoryCountByTenantId(
+      tenant_id,
+    );
+  }
+
   @Get('/:categoryId')
   @HttpCode(HttpStatus.OK)
   getSubCategory(
@@ -50,14 +58,6 @@ export class CategoryController {
     @Query() filters: PaginatorDTO,
   ) {
     return this.categoryService.getSubcategory(tenant_id, categoryId, filters);
-  }
-
-  @Get('/counts')
-  @HttpCode(HttpStatus.OK)
-  categoryAndSubCounts(@Req() { tenant_id }: Request) {
-    return this.categoryService.getCategoryAndSubcategoryCountByTenantId(
-      tenant_id,
-    );
   }
 
   @Delete(':categoryId')

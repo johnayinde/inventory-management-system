@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
 import { CreateProductoDto, EditProductDto } from './dto/product.dto';
 import { ProductStatsDto, inventoryFilters, page_generator } from '@app/common';
@@ -19,20 +23,49 @@ export class ProductService {
     data: CreateProductoDto,
     files: Array<Express.Multer.File>,
   ) {
-    const { categories, ...product } = data;
-    const folder = process.env.AWS_S3_FOLDER;
-    const image_urls = await uploadImages(files, folder);
+    const { category_id, sub_category_id, ...product } = data;
+    if (!category_id) {
+      throw new NotFoundException('Category is required');
+    }
+
+    let image_urls = [];
+    if (files && files.length > 0) {
+      const folder = process.env.AWS_S3_FOLDER;
+      image_urls = await uploadImages(files, folder);
+    }
+
+    const category = await this.postgresService.category.findUnique({
+      where: { id: Number(category_id), tenant_id },
+    });
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    let sub_category = null;
+    if (sub_category_id) {
+      sub_category = await this.postgresService.subcategory.findFirst({
+        where: {
+          id: Number(sub_category_id),
+          category_id: Number(category_id),
+        },
+      });
+
+      if (!sub_category) {
+        throw new NotFoundException('Subcategory not found');
+      }
+    }
 
     return await this.postgresService.product.create({
       data: {
         ...product,
         attachments: image_urls,
         tenant: { connect: { id: tenant_id } },
-        categories: {
-          connect: categories.map((id) => ({ id })),
-        },
+        category: { connect: { id: category.id } },
+        ...(sub_category && {
+          sub_category: { connect: { id: sub_category.id } },
+        }),
       },
-      include: { categories: true },
+      include: { category: true },
     });
   }
 
@@ -45,7 +78,7 @@ export class ProductService {
     const whereCondition = filter ? { tenant_id, ...filter } : { tenant_id };
     const all_products = await this.postgresService.product.findMany({
       where: whereCondition,
-      include: { categories: true, expenses: true },
+      include: { category: true, expenses: true },
       skip,
       take,
     });
@@ -62,45 +95,70 @@ export class ProductService {
     };
   }
 
-  async editProduct(tenant_id: number, id: number, data: EditProductDto) {
-    //  const updatedProduct = await this.postgresService.product.update({
-    //    where: { id, tenant_id },
-    //    data: {
-    //      name: data.name,
-    //      description: data.description,
-    //    },
-    //  });
+  async editProduct(
+    tenant_id: number,
+    id: number,
+    files: Array<Express.Multer.File>,
+    data: EditProductDto,
+  ) {
+    const product = await this.postgresService.product.findUnique({
+      where: { id, tenant_id },
+      include: { category: true, sub_category: true },
+    });
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
 
-    //  await this.postgresService.productCategories.deleteMany({
-    //    where: { productId: id },
-    //  });
+    let image_urls = product.attachments;
+    if (files && files.length > 0) {
+      const folder = process.env.AWS_S3_FOLDER;
+      image_urls = await uploadImages(files, folder);
+    }
+    // Update category and subcategory if provided
+    let category = product.category;
+    if (data.category_id && data.category_id !== category.id) {
+      category = await this.postgresService.category.findUnique({
+        where: { id: Number(data.category_id), tenant_id },
+      });
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
+    }
 
-    //  if (data.categoryIds?.length) {
-    //    await this.postgresService.productCategories.createMany({
-    //      data: data.categoryIds.map((categoryId) => ({
-    //        productId: id,
-    //        categoryId,
-    //      })),
-    //    });
-    //  }
+    let sub_category = product.sub_category;
+    if (
+      data.sub_category_id &&
+      (!sub_category || data.sub_category_id !== sub_category.id)
+    ) {
+      sub_category = await this.postgresService.subcategory.findFirst({
+        where: {
+          id: Number(data.sub_category_id),
+          category_id: Number(data.category_id || category.id),
+        },
+      });
+      if (!sub_category) {
+        throw new NotFoundException('Subcategory not found');
+      }
+    }
+
     return await this.postgresService.product.update({
       where: { id, tenant_id },
       data: {
-        name: data.name,
-        description: data.description,
-
-        // categories: {
-        //   set: data.categoryIds?.map((categoryId) => ({ id: categoryId })),
-        // },
+        ...(data.name && { name: data.name }),
+        ...(data.description && { description: data.description }),
+        attachments: image_urls,
+        category_id: category.id,
+        ...(sub_category && {
+          sub_category_id: sub_category.id,
+        }),
       },
-      // include: { categories: true },
     });
   }
 
   async getProduct(tenant_id: number, id: number) {
     const product = await this.postgresService.product.findUnique({
       where: { id, tenant_id },
-      include: { categories: true },
+      include: { category: true },
     });
     if (!product) {
       throw new NotFoundException('Product not found');
@@ -150,11 +208,19 @@ export class ProductService {
   }
 
   async duplicateProduct(tenant_id: number, productId: number) {
-    const { id, created_at, updated_at, ...productToDuplicate } =
-      await this.postgresService.product.findUnique({
-        where: { id: productId, tenant_id },
-        include: { categories: true },
-      });
+    const {
+      id,
+      created_at,
+      updated_at,
+      category_id,
+      sub_category_id,
+      tenant_id: t_id,
+      ...productToDuplicate
+    } = await this.postgresService.product.findUnique({
+      where: { id: productId, tenant_id },
+      include: { category: true },
+    });
+
     if (!productToDuplicate) {
       throw new NotFoundException('Product not found');
     }
@@ -162,116 +228,49 @@ export class ProductService {
     const duplicatedProduct = await this.postgresService.product.create({
       data: {
         ...productToDuplicate,
+        tenant: { connect: { id: tenant_id } },
         name: `Copy of ${productToDuplicate.name}`,
-        categories: {
-          connect: productToDuplicate.categories.map((categoryId) => ({
-            id: categoryId.id,
-          })),
-        },
+        category: { connect: { id: productToDuplicate.category.id } },
       },
-      include: { categories: true },
+      include: { category: true },
     });
     return duplicatedProduct;
   }
 
   async getDashboardStats(tenant_id: number): Promise<ProductStatsDto> {
-    const { firstDayOfLastMonth, lastDayOfLastMonth } = getLastMonthDateRange();
+    const allProducts = await this.postgresService.product.findMany({
+      where: {
+        tenant_id,
+      },
+    });
 
-    // Fetch data from the database
-    const inventoryStats = await this.postgresService.product.findMany({
+    const allcategoroes = await this.postgresService.category.findMany({
       where: {
         tenant_id,
       },
       include: {
-        categories: {
-          include: {
-            sub_categories: true,
-          },
-        },
+        sub_categories: true,
       },
     });
 
-    const inventoryStatsLastMonth = await this.postgresService.product.findMany(
-      {
-        where: {
-          tenant_id,
-          created_at: {
-            gte: firstDayOfLastMonth,
-            lte: lastDayOfLastMonth,
-          },
-        },
-        include: {
-          categories: {
-            include: {
-              sub_categories: true,
-            },
-          },
-        },
-      },
-    );
-
-    // Calculate the statistics
     const stats: ProductStatsDto = {
       totalProducts: 0,
-      productsPercentageChange: 0,
       totalCategories: 0,
-      categoriesPercentageChange: 0,
       totalSubcategories: 0,
-      subcategoriesPercentageChange: 0,
     };
 
-    // Keep track of the previous month's counts
-    const lastMonthStats = {
-      prevMonthTotalProducts: 0,
-      prevMonthTotalCategories: 0,
-      prevMonthTotalSubcategories: 0,
-    };
-
-    this.calculateBasicStats(inventoryStats, stats);
-    this.calculateLastMonthStats(inventoryStatsLastMonth, lastMonthStats);
-
-    // Calculate the percentage increase/decrease for each category
-    stats.productsPercentageChange = calculatePercentageChange(
-      stats.totalProducts,
-      lastMonthStats.prevMonthTotalProducts,
-    );
-    stats.categoriesPercentageChange = calculatePercentageChange(
-      stats.totalCategories,
-      lastMonthStats.prevMonthTotalCategories,
-    );
-    stats.subcategoriesPercentageChange = calculatePercentageChange(
-      stats.totalSubcategories,
-      lastMonthStats.prevMonthTotalSubcategories,
-    );
+    this.calculateBasicStats(allProducts, allcategoroes, stats);
 
     return stats;
   }
 
-  private calculateBasicStats(inventoryStats, stats) {
-    for (const inventory of inventoryStats) {
-      stats.totalProducts++;
-      if (inventory.categories) {
-        stats.totalCategories += inventory.categories.length;
-        for (const category of inventory.categories) {
-          if (category.sub_categories) {
-            stats.totalSubcategories += category.sub_categories.length;
-          }
-        }
+  private calculateBasicStats(allProducts, allcategoroes, stats) {
+    stats.totalProducts = allProducts.length;
+    stats.totalCategories = allcategoroes.length;
+    allcategoroes.map((category) => {
+      if (category.sub_categories.length) {
+        stats.totalSubcategories += category.sub_categories.length;
       }
-    }
-  }
-
-  private calculateLastMonthStats(inventoryStats, stats) {
-    for (const inventory of inventoryStats) {
-      stats.prevMonthTotalProducts++;
-      if (inventory.categories) {
-        stats.prevMonthTotalCategories += inventory.categories.length;
-        for (const category of inventory.categories) {
-          if (category.sub_categories) {
-            stats.prevMonthTotalSubcategories += category.sub_categories.length;
-          }
-        }
-      }
-    }
+    });
   }
 }

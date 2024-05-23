@@ -17,15 +17,17 @@ export class CategoryService {
         tenant: { connect: { id: tenant_id } },
         sub_categories: { create: sub_categories || [] },
       },
+      include: { sub_categories: true },
     });
   }
 
   async getAllCategories(tenant_id: number) {
     return await this.postgresService.category.findMany({
-      where: { tenant_id: tenant_id },
+      where: { tenant_id },
       include: { sub_categories: true },
     });
   }
+
   async getCategoryAndSubcategoryCountByTenantId(tenant_id: number) {
     const categoryCount = await this.postgresService.category.count({
       where: {
@@ -54,7 +56,9 @@ export class CategoryService {
       Number(filters.page),
       Number(filters.pageSize),
     );
+
     const filter = subCategoryFilters(filters);
+
     const whereCondition = filter
       ? { tenant_id, id, ...filter }
       : { tenant_id, id };

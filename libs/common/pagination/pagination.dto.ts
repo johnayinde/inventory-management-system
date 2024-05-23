@@ -1,10 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class PaginatorDTO {
-  @ApiProperty()
+  @ApiPropertyOptional()
   page: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   pageSize: number;
 
   filter: {};
