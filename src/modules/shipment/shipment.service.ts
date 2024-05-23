@@ -21,6 +21,7 @@ export class ShipmentService {
     return await this.postgresService.$transaction(
       async (tx) => {
         const createdExpenses = [];
+
         if (expenses) {
           // Create expenses one after the other
           for (const expenseData of expenses) {
@@ -50,7 +51,7 @@ export class ShipmentService {
         }
         let image_urls: string[] = [];
 
-        if (files.length) {
+        if (files && files.length) {
           const folder = process.env.AWS_S3_FOLDER;
           image_urls = await uploadImages(files, folder);
         }

@@ -20,30 +20,23 @@ class ExpenseDto {
   description?: string;
 
   @ApiProperty()
-  @IsString()
-  @IsOptional()
-  reference: string;
-
-  @ApiProperty()
-  @IsNumber()
   amount: number;
 }
 export class CreateShipmentDto {
   @ApiProperty()
-  @IsString()
+  @IsString({ message: 'Shippment name is required' })
   shipping_name: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsString()
   @IsOptional()
   reference: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ default: new Date() })
   @IsString()
   date: Date;
 
   @ApiPropertyOptional()
-  @IsNotEmpty()
   @IsNumber({ allowNaN: false, allowInfinity: false })
   @IsOptional()
   price?: number;
@@ -52,16 +45,12 @@ export class CreateShipmentDto {
   @IsOptional()
   @IsString()
   note?: string;
-  //
 
   @ApiPropertyOptional({ type: [ExpenseDto] })
-  @IsArray()
-  @ValidateNested({ each: true })
   @IsOptional()
   expenses?: ExpenseDto[];
 
-  @ApiPropertyOptional({ type: [Number] })
-  @IsArray()
-  @IsInt({ each: true })
+  @ApiProperty({ type: [Number], isArray: true })
+  @IsArray({ message: 'Products are required' })
   products: number[];
 }

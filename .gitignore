@@ -36,6 +36,8 @@ lerna-debug.log*
 
 .env
 /images
+.docker
+
 
 .docker
 
@@ -43,3 +45,6 @@ tmp/
 
 # Container Volumes
 .docker/
+
+seed.ts
+
