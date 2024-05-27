@@ -57,7 +57,6 @@ export class SaleService {
           where: { id: productId, tenant_id },
           include: { product: { include: { expenses: true } } },
         });
-        console.log({ inventoryItem });
 
         if (!inventoryItem) {
           throw new NotFoundException(`Product with ID ${productId} not found`);

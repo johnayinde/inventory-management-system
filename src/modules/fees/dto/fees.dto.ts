@@ -20,19 +20,17 @@ export class CreateFeeDto {
   @IsNumber({ allowNaN: false, allowInfinity: false })
   value: number;
 
-  @ApiProperty({ enum: ValueType })
+  @ApiProperty({ enum: ValueType, example: 'fixed | percentage' })
   @IsString()
   @IsEnum(ValueType)
   value_type: ValueType;
 
-  @ApiProperty({ enum: FeeType })
+  @ApiProperty({ enum: FeeType, example: 'all | product' })
   @IsString()
   @IsEnum(FeeType)
   fee_type: FeeType;
 
   @ApiPropertyOptional({ type: [Number] })
-  @IsArray()
-  @IsInt({ each: true })
   @IsOptional()
   products_ids: number[];
 }
@@ -48,15 +46,13 @@ export class EditFeeDto {
   @IsNumber({ allowNaN: false, allowInfinity: false })
   value: number;
 
-  @ApiProperty({ enum: ValueType })
+  @ApiProperty({ enum: ValueType, example: 'fixed | percentage' })
   @IsString()
   @IsEnum(ValueType)
   @IsOptional()
   value_type: ValueType;
 
   @ApiPropertyOptional({ type: [Number] })
-  @IsArray()
   @IsOptional()
-  @IsInt({ each: true })
   products_ids: number[];
 }

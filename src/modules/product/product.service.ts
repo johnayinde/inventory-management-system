@@ -158,7 +158,7 @@ export class ProductService {
   async getProduct(tenant_id: number, id: number) {
     const product = await this.postgresService.product.findUnique({
       where: { id, tenant_id },
-      include: { category: true },
+      include: { category: true, fees: true },
     });
     if (!product) {
       throw new NotFoundException('Product not found');

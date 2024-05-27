@@ -377,10 +377,11 @@ model Shipment {
   tenant    Tenant @relation(fields: [tenant_id], references: [id])
 
   //
-  deleted    Boolean     @default(false)
-  created_at DateTime    @default(now()) @db.Timestamptz(3)
-  updated_at DateTime?   @updatedAt
-  inventory  Inventory[]
+  deleted         Boolean     @default(false)
+  is_in_inventory Boolean     @default(false)
+  created_at      DateTime    @default(now()) @db.Timestamptz(3)
+  updated_at      DateTime?   @updatedAt
+  inventory       Inventory[]
 
   @@index(fields: [id, tenant_id])
 }
