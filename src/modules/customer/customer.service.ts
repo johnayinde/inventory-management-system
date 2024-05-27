@@ -37,7 +37,10 @@ export class CustomerService {
         ...data,
       },
     });
-    return 'Customer Updated!';
+
+    return await this.postgresService.customer.findUnique({
+      where: { id, tenant_id },
+    });
   }
 
   async deleteCustomer(tenant_id: number, id: number) {
@@ -46,14 +49,14 @@ export class CustomerService {
     });
   }
 
-  async getCustomerOrderHistories(tenant_id: number, customerId: number) {
-    const customerSales = await this.postgresService.sale.findMany({
-      where: { customerId, tenant_id },
-      include: { customer: true },
+  async getCustomerOrderHistories(tenant_id: number, id: number) {
+    const customerSales = await this.postgresService.customer.findFirst({
+      where: { id, tenant_id },
+      include: { sales: true },
     });
     if (!customerSales) {
       throw new NotFoundException('Customer Sales not found');
     }
-    return customerSales;
+    return customerSales.sales;
   }
 }

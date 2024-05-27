@@ -38,6 +38,9 @@ export class InventoryService {
       if (!shipment) {
         throw new NotFoundException('Shipment not found');
       }
+      if (shipment.is_in_inventory) {
+        throw new NotFoundException('Shipment items already in Inventory.');
+      }
 
       const shippedProductIds = shipment.products.map((i) => i.id);
       const mappedProduct = shipment.products.reduce(
@@ -49,7 +52,7 @@ export class InventoryService {
         const { individual_pricing, pricing_type, quantity, bulk_pricing } =
           productDetails;
 
-        const prodIdPrefix = `#PRD${shipment.id}${productId}${tenant_id}`;
+        const prodIdPrefix = `PRD${shipment.id}${productId}${tenant_id}`;
         const prodId = `${prodIdPrefix}-${uuidv4().split('-')[2]}`;
 
         if (pricing_type === PricingType.bulk) {
@@ -97,7 +100,7 @@ export class InventoryService {
 
           if (shippedProductIds.includes(parseInt(productId))) {
             for (const item of individual_pricing) {
-              const prodIdPrefix = `#PRD$${productId}${tenant_id}`;
+              const prodIdPrefix = `PRD${shipment.id}${productId}${tenant_id}`;
               const prodId = `${prodIdPrefix}-${uuidv4().split('-')[2]}`;
               await tx.inventory.create({
                 data: {
@@ -135,10 +138,11 @@ export class InventoryService {
     const inventory = await this.postgresService.inventory.findFirst({
       where: { id, tenant_id },
     });
+
     const threshold = inventory.quantity_threshold;
     const prod_qty = inventory.quantity;
 
-    await this.postgresService.inventory.update({
+    return await this.postgresService.inventory.update({
       where: { id: inventory.id, tenant_id },
       data: {
         status: determineProductStatus(prod_qty, threshold),
@@ -268,6 +272,15 @@ export class InventoryService {
       },
     });
 
+    const allcategoroes = await this.postgresService.category.findMany({
+      where: {
+        tenant_id,
+      },
+      include: {
+        sub_categories: true,
+      },
+    });
+
     // Calculate the statistics
     const stats: InventoryStatsDto = {
       totalGoods: 0,
@@ -289,7 +302,7 @@ export class InventoryService {
     //
 
     //
-    this.calculateBasicStats(inventoryStats, sales, stats);
+    this.calculateBasicStats(inventoryStats, allcategoroes, sales, stats);
     this.calculateLastMonthStats(
       inventoryStatsLastMonth,
       salesLastMonth,
@@ -313,31 +326,26 @@ export class InventoryService {
     return stats;
   }
 
-  private calculateBasicStats(inventoryStats, sales, stats: InventoryStatsDto) {
+  private calculateBasicStats(
+    inventoryStats,
+    allcategoroes,
+    sales,
+    stats: InventoryStatsDto,
+  ) {
     stats.totalGoods = inventoryStats.length;
+    stats.totalCategories = allcategoroes.length;
 
     for (const inventory_item of inventoryStats) {
-      this.updateInventoryStats(inventory_item, stats);
+      if (inventory_item.status === ProductStatusType.running_low) {
+        stats.totalLowStocks++;
+      }
     }
 
     for (const sale of sales) {
       for (const saleProduct of sale.sales_products) {
-        this.updateSalesStats(saleProduct, stats);
+        stats.totalReturnedProducts += saleProduct.returned_counts;
       }
     }
-  }
-
-  private updateInventoryStats(inventory_item, stats: InventoryStatsDto) {
-    if (inventory_item.product.categories) {
-      stats.totalCategories += inventory_item.product.categories.length;
-    }
-    if (inventory_item.status === ProductStatusType.running_low) {
-      stats.totalLowStocks++;
-    }
-  }
-
-  private updateSalesStats(saleProduct, stats: InventoryStatsDto) {
-    stats.totalReturnedProducts += saleProduct.returned_counts;
   }
 
   private calculateLastMonthStats(inventoryStats, sales, stats) {

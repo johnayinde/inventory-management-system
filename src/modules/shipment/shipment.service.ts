@@ -22,12 +22,13 @@ export class ShipmentService {
       async (tx) => {
         const createdExpenses = [];
 
-        if (expenses) {
+        if (expenses.length) {
           // Create expenses one after the other
           for (const expenseData of expenses) {
             const createdExpense = await tx.expense.create({
               data: {
                 ...expenseData,
+                amount: Number(expenseData.amount),
                 type: 'shipment',
                 tenant: { connect: { id: tenant_id } },
                 date: new Date(),
@@ -40,7 +41,7 @@ export class ShipmentService {
 
         for (const productId of products) {
           const product = await tx.product.findUnique({
-            where: { id: productId, tenant_id },
+            where: { id: Number(productId), tenant_id },
           });
 
           if (!product) {
@@ -61,7 +62,7 @@ export class ShipmentService {
             attachments: image_urls,
             tenant: { connect: { id: tenant_id } },
             expenses: { connect: createdExpenses.map((e) => ({ id: e.id })) },
-            products: { connect: products.map((id) => ({ id: id })) },
+            products: { connect: products.map((id) => ({ id: Number(id) })) },
           },
           include: { products: true, expenses: true },
         });

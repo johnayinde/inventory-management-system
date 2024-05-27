@@ -65,7 +65,32 @@ export class OrmService
           params.args['where'] = { deleted: false };
         }
       }
-      return next(params);
+      // Handle relations for soft delete
+      const result = await next(params);
+
+      if (params.args.include) {
+        for (const relation of Object.keys(params.args.include)) {
+          if (Array.isArray(result)) {
+            result.forEach((item) => {
+              if (item[relation] && Array.isArray(item[relation])) {
+                item[relation] = item[relation].filter(
+                  (relatedItem) => !relatedItem.deleted,
+                );
+              }
+            });
+          } else if (
+            result &&
+            result[relation] &&
+            Array.isArray(result[relation])
+          ) {
+            result[relation] = result[relation].filter(
+              (relatedItem) => !relatedItem.deleted,
+            );
+          }
+        }
+      }
+
+      return result;
     });
 
     this.$use(async (params, next) => {

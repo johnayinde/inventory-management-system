@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -52,5 +53,14 @@ export class FeesController {
     @Req() { tenant_id }: Request,
   ) {
     return this.feesService.edit(tenant_id, feeId, body);
+  }
+
+  @Delete(':feeId')
+  @HttpCode(HttpStatus.OK)
+  deleteFee(
+    @Req() { tenant_id }: Request,
+    @Param('feeId', ParseIntPipe) feeId: number,
+  ) {
+    return this.feesService.deleteFee(tenant_id, feeId);
   }
 }

@@ -100,4 +100,14 @@ export class FeesService {
       include: { products: true },
     });
   }
+
+  async deleteFee(tenant_id: number, id: number) {
+    const deletedFee = await this.prismaService.fees.delete({
+      where: { id, tenant_id },
+    });
+    if (!deletedFee) {
+      throw new NotFoundException('Fee not found');
+    }
+    return deletedFee;
+  }
 }

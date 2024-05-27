@@ -90,17 +90,14 @@ export class EditInventoryDto {
   note?: string;
 
   @ApiPropertyOptional()
-  @IsInt()
   @IsOptional()
   price?: number;
 
-  @ApiProperty()
-  @IsInt()
+  @ApiPropertyOptional()
   @IsOptional()
   quantity?: number;
 
-  @ApiProperty()
-  @IsInt()
+  @ApiPropertyOptional()
   @IsOptional()
   quantity_threshold?: number;
 }
