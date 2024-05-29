@@ -182,38 +182,69 @@ export class SaleService {
         },
       });
 
-      const product = await tx.inventory.findUnique({
+      const inventory = await tx.inventory.findUnique({
         where: { id: saleProduct.inventory_item.id, tenant_id },
+        include: { product: true },
       });
-      console.log('updateQTYStatus', { product });
 
-      const remainingQuantity = product.quantity;
-      const quantityThreshold = product.quantity_threshold;
-
-      const status = determineProductStatus(
-        remainingQuantity,
-        quantityThreshold,
+      const { status } = await this.getTotalQuantityByProduct(
+        tx as PrismaClient,
+        tenant_id,
+        inventory,
       );
 
       await this.notifyProductStatus(
         status,
         tx as PrismaClient,
         tenant_id,
-        product,
-        remainingQuantity,
+        inventory,
+        inventory.quantity,
       );
-
-      await tx.inventory.update({
-        where: { id: saleProduct.inventory_item.id, tenant_id },
-        data: {
-          status: status,
-        },
-      });
-      const checkProd = await tx.inventory.findUnique({
-        where: { id: saleProduct.inventory_item.id, tenant_id },
-      });
-      console.log({ checkProd });
     }
+  }
+
+  private async getTotalQuantityByProduct(
+    tx: PrismaClient,
+    tenant_id: number,
+    inventory,
+  ) {
+    const threshold = inventory.product.threshold;
+    const pid = inventory.product.id;
+
+    const inventorySummary = await tx.inventory.groupBy({
+      by: 'product_id',
+      where: {
+        product_id: Number(pid),
+        tenant_id,
+      },
+      _sum: {
+        quantity: true,
+      },
+      _min: {
+        price: true,
+      },
+      _max: {
+        price: true,
+      },
+    });
+
+    console.log(inventorySummary);
+
+    const total_qty = inventorySummary?.[0]?._sum?.quantity ?? 0;
+    const min_price = inventorySummary?.[0]?._min?.price ?? 0;
+    const max_price = inventorySummary?.[0]?._max?.price ?? 0;
+
+    const status = determineProductStatus(total_qty, threshold);
+
+    await tx.product.update({
+      where: { id: Number(pid), tenant_id },
+      data: {
+        status,
+        prices: `${min_price}-${max_price}`,
+      },
+    });
+
+    return { total_qty, status };
   }
 
   private async notifyProductStatus(
@@ -326,26 +357,25 @@ export class SaleService {
           total_price: sale.total_price - refundAmount,
         },
       });
-
-      const product = await tx.inventory.findUnique({
+      const inventory = await tx.inventory.findUnique({
         where: { id: saleProduct.inventory_item.id, tenant_id },
+        include: { product: true },
       });
 
-      const remainingQuantity = product.quantity - quantity;
-
       await tx.inventory.update({
-        where: { id: product.id, tenant_id },
-
+        where: { id: inventory.id, tenant_id },
         data: {
           quantity: {
             increment: quantity,
           },
-          status: determineProductStatus(
-            remainingQuantity,
-            product.quantity_threshold,
-          ),
         },
       });
+
+      await this.getTotalQuantityByProduct(
+        tx as PrismaClient,
+        tenant_id,
+        inventory,
+      );
 
       return `Successfully returned ${quantity} items `;
     });
@@ -614,7 +644,6 @@ export class SaleService {
       console.log({ newQty, prevQty });
       const qty = Math.abs(prevQty - newQty);
 
-      // ...
       console.log({ qty });
 
       const data: QuantityUpdate = { quantity: { decrement: qty } };
@@ -632,16 +661,15 @@ export class SaleService {
       const get_product = await tx.inventory.findUnique({
         where: { id: saleProduct.inventory_item.id, tenant_id },
       });
-      console.log({ get_product });
 
-      await tx.inventory.update({
-        where: { id: get_product.id, tenant_id },
-        data: {
-          status: determineProductStatus(
-            get_product.quantity,
-            get_product.quantity_threshold,
-          ),
-        },
+      await this.getTotalQuantityByProduct(
+        tx as PrismaClient,
+        tenant_id,
+        get_product,
+      );
+
+      return await tx.saleProduct.findFirst({
+        where: { id: saleProductId, tenant_id, saleId: saleProduct.saleId },
       });
     });
   }

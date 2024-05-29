@@ -30,52 +30,44 @@ class IndividualPricing {
   name: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
   @IsString()
   serial_number?: string;
 }
 
-class BulkPricing {
+export class InventoryPayload {
   @ApiProperty()
-  @IsNotEmpty()
-  @IsNumber({ allowNaN: false, allowInfinity: false })
-  price: number;
+  @IsString()
+  pid: string;
 
-  @ApiPropertyOptional({ type: 'integer' })
+  @ApiProperty({
+    enum: PricingType,
+    default: PricingType.bulk,
+    example: 'bulk | individual',
+  })
+  @IsString()
+  @IsEnum(PricingType)
+  pricing_type: PricingType;
+
+  @ApiProperty()
   @IsInt()
-  quantity_threshold: number;
+  // @IsOptional()
+  quantity: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  price?: number;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
   note?: string;
-}
-
-export class InventoryPayload {
-  @ApiProperty({ enum: PricingType, default: PricingType.bulk })
-  @IsString()
-  @IsEnum(PricingType)
-  @IsOptional()
-  pricing_type: PricingType;
-
-  @ApiProperty()
-  @IsInt()
-  @IsOptional()
-  quantity: number;
-
-  //individual pricing
-  @ApiProperty({ type: BulkPricing })
-  @Type(() => BulkPricing)
-  @ValidateNested({ each: true })
-  @IsOptional()
-  bulk_pricing?: BulkPricing;
 
   @ApiProperty({ type: [IndividualPricing] })
   @IsArray()
   @Type(() => IndividualPricing)
   @ValidateNested({ each: true })
   @IsOptional()
-  individual_pricing?: IndividualPricing[];
+  individual_items?: IndividualPricing[];
 }
 
 export class EditInventoryDto {
@@ -96,20 +88,15 @@ export class EditInventoryDto {
   @ApiPropertyOptional()
   @IsOptional()
   quantity?: number;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  quantity_threshold?: number;
 }
 
 export class CreateInventoryDto {
   @ApiProperty({
-    type: () => InventoryPayload,
-    description: 'Product details by ID',
+    type: [InventoryPayload],
     example: exampleCreateInventoryDto,
   })
-  @IsObject()
+  @IsArray()
   @ValidateNested({ each: true })
   @Type(() => InventoryPayload)
-  products: Record<string, InventoryPayload>;
+  inventories: InventoryPayload[];
 }

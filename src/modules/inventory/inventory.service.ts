@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
 import { CreateInventoryDto, EditInventoryDto } from './dto/inventory.dto';
-import { PricingType, ProductStatusType } from '@prisma/client';
+import { PricingType, PrismaClient } from '@prisma/client';
 import {
   calculatePercentageChange,
   determineProductStatus,
@@ -29,7 +29,7 @@ export class InventoryService {
     shipmentId: number,
   ) {
     return await this.postgresService.$transaction(async (tx) => {
-      const { products } = createInventoryDto;
+      const { inventories } = createInventoryDto;
       const shipment = await tx.shipment.findUnique({
         where: { id: shipmentId, tenant_id },
         include: { products: true, expenses: true },
@@ -44,112 +44,167 @@ export class InventoryService {
 
       const shippedProductIds = shipment.products.map((i) => i.id);
       const mappedProduct = shipment.products.reduce(
-        (i, j) => ({ ...i, [j.id]: j.name }),
+        (i, item) => ({ ...i, [item.id]: item }),
         {},
       );
 
-      for (const [productId, productDetails] of Object.entries(products)) {
-        const { individual_pricing, pricing_type, quantity, bulk_pricing } =
-          productDetails;
+      for (const item of inventories) {
+        const { pid, pricing_type, quantity } = item;
 
-        const prodIdPrefix = `PRD${shipment.id}${productId}${tenant_id}`;
+        const prodIdPrefix = `PRD${shipment.id}${pid}${tenant_id}`;
         const prodId = `${prodIdPrefix}-${uuidv4().split('-')[2]}`;
 
         if (pricing_type === PricingType.bulk) {
-          if (shippedProductIds.includes(parseInt(productId))) {
-            const created_inventory = await tx.inventory.create({
+          if (shippedProductIds.includes(parseInt(pid))) {
+            const inventory = await tx.inventory.create({
               data: {
                 prod_id: prodId,
                 pricing_type: PricingType.bulk,
-                price: bulk_pricing.price,
-                note: bulk_pricing.note,
-                quantity_threshold: bulk_pricing.quantity_threshold,
-                quantity: quantity,
-                name: mappedProduct[productId],
+                price: item.price,
+                note: item.note,
+                quantity: Number(quantity),
+                name: mappedProduct[pid].name,
 
                 tenant: { connect: { id: tenant_id } },
                 shipment: { connect: { id: shipmentId } },
-                product: { connect: { id: parseInt(productId) } },
+                product: { connect: { id: parseInt(pid) } },
               },
               include: { product: true },
             });
 
-            console.log({ created_inventory });
-
-            const threshold = created_inventory.quantity_threshold;
-            const prod_qty = created_inventory.quantity;
-            console.log({ threshold, prod_qty });
-
-            await tx.inventory.update({
-              where: { id: created_inventory.id, tenant_id },
-              data: {
-                status: determineProductStatus(prod_qty, threshold),
-              },
-            });
+            await this.getTotalQuantityByProduct(
+              tx as PrismaClient,
+              tenant_id,
+              inventory,
+            );
           } else {
             throw new NotFoundException(
-              `Product with ID ${productId} not in shipped items`,
+              `Product with ID ${pid} not in shipped items`,
             );
           }
         } else if (pricing_type === PricingType.individual) {
-          if (quantity !== individual_pricing.length) {
+          if (quantity !== item.individual_items.length) {
             throw new BadRequestException(
-              `Expecting ${quantity} individual items for ${mappedProduct[productId]}`,
+              `Expecting ${quantity} individual items for ${mappedProduct[pid].name}`,
             );
           }
 
-          if (shippedProductIds.includes(parseInt(productId))) {
-            for (const item of individual_pricing) {
-              const prodIdPrefix = `PRD${shipment.id}${productId}${tenant_id}`;
+          if (shippedProductIds.includes(parseInt(pid))) {
+            for (const individual_item of item.individual_items) {
+              const prodIdPrefix = `PRD${shipment.id}${pid}${tenant_id}`;
               const prodId = `${prodIdPrefix}-${uuidv4().split('-')[2]}`;
-              await tx.inventory.create({
+              const inventory = await tx.inventory.create({
                 data: {
                   prod_id: prodId,
-                  name: item.name,
-                  price: item.price,
-                  note: item.note,
+                  name: individual_item.name,
+                  price: individual_item.price,
+                  note: individual_item.note,
                   pricing_type: PricingType.individual,
-                  quantity_threshold: 1,
+                  // quantity_threshold: 1,
                   quantity: 1,
-                  status: 'running_low',
+                  // status: 'running_low',
 
                   tenant: { connect: { id: tenant_id } },
                   shipment: { connect: { id: shipmentId } },
-                  product: { connect: { id: parseInt(productId) } },
+                  product: { connect: { id: parseInt(pid) } },
                 },
                 include: { product: true },
               });
+
+              await this.getTotalQuantityByProduct(
+                tx as PrismaClient,
+                tenant_id,
+                inventory,
+              );
             }
           } else {
             throw new NotFoundException(
-              `${mappedProduct[productId]} not in shipped items`,
+              `${mappedProduct[pid].name} not in shipped items`,
             );
           }
         }
       }
+      await tx.shipment.update({
+        where: { id: shipmentId, tenant_id },
+        data: { is_in_inventory: true },
+      });
+      return 'Inventories creaded successfully';
     });
+  }
+
+  private async getTotalQuantityByProduct(
+    tx: PrismaClient,
+    tenant_id: number,
+    inventory,
+  ) {
+    const threshold = inventory.product.threshold;
+    const pid = inventory.product.id;
+
+    const inventorySummary = await tx.inventory.groupBy({
+      by: 'product_id',
+      where: {
+        product_id: Number(pid),
+        tenant_id,
+      },
+      _sum: {
+        quantity: true,
+      },
+      _min: {
+        price: true,
+      },
+      _max: {
+        price: true,
+      },
+    });
+
+    console.log(inventorySummary);
+
+    const total_qty = inventorySummary?.[0]?._sum?.quantity ?? 0;
+    const min_price = inventorySummary?.[0]?._min?.price ?? 0;
+    const max_price = inventorySummary?.[0]?._max?.price ?? 0;
+
+    const status = determineProductStatus(total_qty, threshold);
+
+    await tx.product.update({
+      where: { id: Number(pid), tenant_id },
+      data: {
+        status,
+        prices: `${min_price}-${max_price}`,
+      },
+    });
+
+    return { total_qty, status };
   }
 
   async updateInventory(id: number, data: EditInventoryDto, tenant_id: number) {
-    await this.postgresService.inventory.update({
-      data,
-      where: { id, tenant_id },
-    });
-    const inventory = await this.postgresService.inventory.findFirst({
-      where: { id, tenant_id },
-    });
+    return await this.postgresService.$transaction(async (tx) => {
+      await tx.inventory.update({
+        data,
+        where: { id, tenant_id },
+      });
 
-    const threshold = inventory.quantity_threshold;
-    const prod_qty = inventory.quantity;
+      const inventory = await tx.inventory.findFirst({
+        where: { id, tenant_id },
+        include: { product: true },
+      });
 
-    return await this.postgresService.inventory.update({
-      where: { id: inventory.id, tenant_id },
-      data: {
-        status: determineProductStatus(prod_qty, threshold),
-      },
+      if (data?.quantity != undefined || data?.price) {
+
+        await this.getTotalQuantityByProduct(
+          tx as PrismaClient,
+          tenant_id,
+          inventory,
+        );
+      }
+
+      return await tx.inventory.findFirst({
+        where: { id, tenant_id },
+        include: { product: true },
+      });
     });
   }
 
+  // NO Endpoint yet
   async getInventory(tenant_id: number, id: number) {
     const inventory = await this.postgresService.inventory.findUnique({
       where: { id, tenant_id },
@@ -161,6 +216,7 @@ export class InventoryService {
     return inventory;
   }
 
+  // out of Endpoint for now
   async duplicateInventory(tenant_id: number, inventoryId: number) {
     return await this.postgresService.$transaction(async (tx) => {
       const existingInventory = await tx.inventory.findUnique({
@@ -202,8 +258,23 @@ export class InventoryService {
   }
 
   async deleteInventory(tenant_id: number, id: number) {
-    return await this.postgresService.inventory.delete({
-      where: { tenant_id, id },
+    return await this.postgresService.$transaction(async (tx) => {
+      const inventory = await tx.inventory.findUnique({
+        where: { id, tenant_id },
+        include: { product: true },
+      });
+      if (!inventory) {
+        throw new NotFoundException('Inventory not found');
+      }
+      await this.getTotalQuantityByProduct(
+        tx as PrismaClient,
+        tenant_id,
+        inventory,
+      );
+
+      await tx.inventory.delete({
+        where: { tenant_id, id },
+      });
     });
   }
 
@@ -211,16 +282,15 @@ export class InventoryService {
     const { firstDayOfLastMonth, lastDayOfLastMonth } = getLastMonthDateRange();
 
     // Fetch data from the database
+    const productStats = await this.postgresService.product.findMany({
+      where: {
+        tenant_id,
+        status: 'running_low',
+      },
+    });
     const inventoryStats = await this.postgresService.inventory.findMany({
       where: {
         tenant_id,
-      },
-      include: {
-        product: {
-          include: {
-            category: true,
-          },
-        },
       },
     });
 
@@ -295,14 +365,18 @@ export class InventoryService {
     // Keep track of the previous month's counts
     const lastMonthStats = {
       prevMonthTotalGoods: 0,
-      prevMonthTotalCategories: 0,
-      prevMonthTotalReturnedProducts: 0,
+      // prevMonthTotalCategories: 0,
+      // prevMonthTotalReturnedProducts: 0,
     };
-    // const ff = inventoryStats.map((inv) => inv.products.map((q) => q.));
-    //
 
-    //
-    this.calculateBasicStats(inventoryStats, allcategoroes, sales, stats);
+    this.calculateBasicStats(
+      productStats,
+      inventoryStats,
+      allcategoroes,
+      sales,
+      stats,
+    );
+    stats.totalGoods;
     this.calculateLastMonthStats(
       inventoryStatsLastMonth,
       salesLastMonth,
@@ -314,32 +388,28 @@ export class InventoryService {
       stats.totalGoods,
       lastMonthStats.prevMonthTotalGoods,
     );
-    stats.categoriesPercentageChange = calculatePercentageChange(
-      stats.totalCategories,
-      lastMonthStats.prevMonthTotalCategories,
-    );
-    stats.returnPercentageChange = calculatePercentageChange(
-      stats.totalReturnedProducts,
-      lastMonthStats.prevMonthTotalReturnedProducts,
-    );
+    // stats.categoriesPercentageChange = calculatePercentageChange(
+    //   stats.totalCategories,
+    //   lastMonthStats.prevMonthTotalCategories,
+    // );
+    // stats.returnPercentageChange = calculatePercentageChange(
+    //   stats.totalReturnedProducts,
+    //   lastMonthStats.prevMonthTotalReturnedProducts,
+    // );
 
     return stats;
   }
 
   private calculateBasicStats(
+    productStats,
     inventoryStats,
     allcategoroes,
     sales,
     stats: InventoryStatsDto,
   ) {
     stats.totalGoods = inventoryStats.length;
+    stats.totalLowStocks = productStats.length;
     stats.totalCategories = allcategoroes.length;
-
-    for (const inventory_item of inventoryStats) {
-      if (inventory_item.status === ProductStatusType.running_low) {
-        stats.totalLowStocks++;
-      }
-    }
 
     for (const sale of sales) {
       for (const saleProduct of sale.sales_products) {
@@ -351,19 +421,19 @@ export class InventoryService {
   private calculateLastMonthStats(inventoryStats, sales, stats) {
     stats.prevMonthTotalGoods = inventoryStats.length;
 
-    for (const inventory_item of inventoryStats) {
-      if (inventory_item.product.categories) {
-        stats.prevMonthTotalCategories +=
-          inventory_item.product.categories.length;
-      }
-    }
+    // for (const inventory_item of inventoryStats) {
+    //   if (inventory_item.product.categories) {
+    //     stats.prevMonthTotalCategories +=
+    //       inventory_item.product.categories.length;
+    //   }
+    // }
 
-    // Calculate sales-related stats
-    for (const sale of sales) {
-      for (const saleProduct of sale.sales_products) {
-        stats.prevMonthTotalReturnedProducts += saleProduct.returned_counts;
-      }
-    }
+    // // Calculate sales-related stats
+    // for (const sale of sales) {
+    //   for (const saleProduct of sale.sales_products) {
+    //     stats.prevMonthTotalReturnedProducts += saleProduct.returned_counts;
+    //   }
+    // }
   }
 
   async getAllInventories(tenant_id: number, filters: PaginatorDTO) {

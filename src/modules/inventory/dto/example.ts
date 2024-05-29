@@ -1,19 +1,18 @@
 import { PricingType } from '@prisma/client';
 
-export const exampleCreateInventoryDto = {
-  '1': {
+export const exampleCreateInventoryDto = [
+  {
+    pid: 1,
     pricing_type: PricingType.bulk,
     quantity: 100,
-    bulk_pricing: {
-      price: 10,
-      quantity_threshold: 50,
-      note: 'Bulk pricing for product 1',
-    },
+    price: 10,
+    note: 'Bulk pricing for product 1',
   },
-  '2': {
+  {
+    pid: 1,
     pricing_type: PricingType.individual,
-    quantity: 2,
-    individual_pricing: [
+    quantity: 100,
+    individual_items: [
       {
         note: 'Individual pricing for product 2, variant 1',
         price: 30,
@@ -28,4 +27,4 @@ export const exampleCreateInventoryDto = {
       },
     ],
   },
-};
+];

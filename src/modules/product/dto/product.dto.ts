@@ -8,6 +8,10 @@ export class CreateProductoDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  threshold?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   description?: string;
 
@@ -29,6 +33,10 @@ export class EditProductDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  threshold?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
