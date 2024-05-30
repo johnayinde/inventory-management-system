@@ -56,7 +56,7 @@ export function determineProductStatus(
   remainingQuantity: number,
   threshold: number,
 ) {
-  console.log({ remainingQuantity });
+  console.log({ remainingQuantity ,threshold});
 
   if (remainingQuantity === 0) {
     return ProductStatusType.sold_out;

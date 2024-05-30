@@ -43,13 +43,28 @@ export class InventoryController {
     );
   }
 
-  @Post('/:inventoryId/duplicate')
-  @HttpCode(HttpStatus.CREATED)
-  duplicateInventory(
-    @Param('inventoryId', ParseIntPipe) inventoryId: number,
+  // @Post('/:inventoryId/duplicate')
+  // @HttpCode(HttpStatus.CREATED)
+  // duplicateInventory(
+  //   @Param('inventoryId', ParseIntPipe) inventoryId: number,
+  //   @Req() { tenant_id }: Request,
+  // ) {
+  //   return this.inventoryService.duplicateInventory(tenant_id, inventoryId);
+  // }
+
+  @Get('/dashboard-stats')
+  @HttpCode(HttpStatus.OK)
+  getStats(@Req() { tenant_id }: Request) {
+    return this.inventoryService.getDashboardStats(tenant_id);
+  }
+
+  @Get(':inventoryId')
+  @HttpCode(HttpStatus.OK)
+  getProduct(
     @Req() { tenant_id }: Request,
+    @Param('inventoryId', ParseIntPipe) inventoryId: number,
   ) {
-    return this.inventoryService.duplicateInventory(tenant_id, inventoryId);
+    return this.inventoryService.getInventory(tenant_id, inventoryId);
   }
 
   @Get('')
@@ -59,12 +74,6 @@ export class InventoryController {
     @Query() filters: PaginatorDTO,
   ) {
     return this.inventoryService.getAllInventories(tenant_id, filters);
-  }
-
-  @Get('/dashboard-stats')
-  @HttpCode(HttpStatus.OK)
-  getStats(@Req() { tenant_id }: Request) {
-    return this.inventoryService.getDashboardStats(tenant_id);
   }
 
   @Patch('/:inventoryId')

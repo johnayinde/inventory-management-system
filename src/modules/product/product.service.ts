@@ -1,17 +1,8 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
 import { CreateProductoDto, EditProductDto } from './dto/product.dto';
 import { ProductStatsDto, inventoryFilters, page_generator } from '@app/common';
-import {
-  calculatePercentageChange,
-  deleteImage,
-  getLastMonthDateRange,
-  uploadImages,
-} from '@app/common/helpers';
+import { deleteImage, uploadImages } from '@app/common/helpers';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
 @Injectable()
@@ -59,6 +50,7 @@ export class ProductService {
       data: {
         ...product,
         attachments: image_urls,
+        ...(data.threshold && { threshold: +data.threshold }),
         tenant: { connect: { id: tenant_id } },
         category: { connect: { id: category.id } },
         ...(sub_category && {
@@ -145,6 +137,7 @@ export class ProductService {
       where: { id, tenant_id },
       data: {
         ...(data.name && { name: data.name }),
+        ...(data.threshold && { threshold: data.threshold }),
         ...(data.description && { description: data.description }),
         attachments: image_urls,
         category_id: category.id,

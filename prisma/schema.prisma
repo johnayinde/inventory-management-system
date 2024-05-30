@@ -188,18 +188,21 @@ model Permission {
 }
 
 model Product {
-  id              Int          @id @default(autoincrement())
+  id              Int               @id @default(autoincrement())
   name            String
   description     String?
-  category        Category     @relation(fields: [category_id], references: [id])
+  category        Category          @relation(fields: [category_id], references: [id])
   category_id     Int
-  sub_category    Subcategory? @relation(fields: [sub_category_id], references: [id])
+  sub_category    Subcategory?      @relation(fields: [sub_category_id], references: [id])
   sub_category_id Int?
   attachments     String[]
   tenant_id       Int
-  tenant          Tenant       @relation(fields: [tenant_id], references: [id])
+  tenant          Tenant            @relation(fields: [tenant_id], references: [id])
   expenses        Expense[]
   fees            Fees[]
+  status          ProductStatusType @default(sold_out)
+  threshold       Int               @default(0)
+  prices          String?
 
   //
   deleted    Boolean     @default(false)
@@ -208,7 +211,7 @@ model Product {
   shipment   Shipment[]
   inventory  Inventory[]
 
-  @@index(fields: [id, tenant_id])
+  @@index(fields: [id, tenant_id, status, threshold, prices])
 }
 
 model ExpenseCategory {
@@ -256,17 +259,14 @@ model Inventory {
   prod_id       String
   serial_number String?
 
-  name               String?
-  attachments        String[]
-  pricing_type       PricingType       @default(individual)
-  price              Float?
-  tenant             Tenant            @relation(fields: [tenant_id], references: [id])
-  product            Product           @relation(fields: [product_id], references: [id])
-  shipment           Shipment          @relation(fields: [shipment_id], references: [id])
-  //
-  quantity           Int?              @default(0)
-  status             ProductStatusType @default(sold_out)
-  quantity_threshold Int               @default(0)
+  name         String?
+  attachments  String[]
+  pricing_type PricingType @default(individual)
+  price        Float?
+  tenant       Tenant      @relation(fields: [tenant_id], references: [id])
+  product      Product     @relation(fields: [product_id], references: [id])
+  shipment     Shipment    @relation(fields: [shipment_id], references: [id])
+  quantity     Int?        @default(0)
 
   //
   tenant_id    Int
@@ -341,7 +341,7 @@ model SaleProduct {
   created_at DateTime  @default(now()) @db.Timestamptz(3)
   updated_at DateTime? @updatedAt
 
-  @@index(fields: [id, tenant_id, saleId])
+  @@index(fields: [id, tenant_id, saleId, inventory_id])
   @@map("sales_product")
 }
 
