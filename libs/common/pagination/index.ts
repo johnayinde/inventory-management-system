@@ -17,17 +17,13 @@ export const inventoryFilters = (data: PaginatorDTO) => {
 
   if (data.catId) {
     filter.OR.push({
-      categories: {
-        every: { id: Number(data.catId) },
-      },
+      category_id: Number(data.catId),
     });
   }
 
   if (data.sub_catId) {
     filter.OR.push({
-      categories: {
-        every: { sub_categories: { every: { id: Number(data.sub_catId) } } },
-      },
+      sub_category_id: Number(data.sub_catId),
     });
   }
 
@@ -53,6 +49,7 @@ export const inventoryFilters = (data: PaginatorDTO) => {
   }
   const hasOtherFilters =
     filter.OR.length > 0 || filter.AND.length > 0 ? filter : null;
+  console.log(hasOtherFilters);
 
   return hasOtherFilters;
 };

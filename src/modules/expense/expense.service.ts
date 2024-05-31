@@ -132,9 +132,12 @@ export class ExpenseService {
       take,
     });
 
+    const totalCount = await this.postgresService.expense.count({
+      where: whereCondition,
+    });
     return {
       data: all_expenses,
-      totalCount: all_expenses.length,
+      totalCount,
       pageInfo: {
         currentPage: Number(filters.page),
         perPage: Number(filters.pageSize),

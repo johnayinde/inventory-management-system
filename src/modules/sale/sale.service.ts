@@ -304,9 +304,12 @@ export class SaleService {
       take,
     });
 
+    const totalCount = await this.postgresService.sale.count({
+      where: whereCondition,
+    });
     return {
       data: all_sales || [],
-      totalCount: all_sales.length || 0,
+      totalCount,
       pageInfo: {
         currentPage: Number(filters.page),
         perPage: Number(filters.pageSize),
