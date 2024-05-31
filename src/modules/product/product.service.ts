@@ -74,10 +74,13 @@ export class ProductService {
       skip,
       take,
     });
+    const totalCount = await this.postgresService.product.count({
+      where: whereCondition,
+    });
 
     return {
       data: all_products || [],
-      totalCount: all_products.length || 0,
+      totalCount,
       pageInfo: {
         currentPage: Number(filters.page),
         perPage: Number(filters.pageSize),
@@ -97,6 +100,7 @@ export class ProductService {
       where: { id, tenant_id },
       include: { category: true, sub_category: true },
     });
+
     if (!product) {
       throw new NotFoundException('Product not found');
     }
@@ -133,7 +137,7 @@ export class ProductService {
       }
     }
 
-    return await this.postgresService.product.update({
+    await this.postgresService.product.update({
       where: { id, tenant_id },
       data: {
         ...(data.name && { name: data.name }),
@@ -145,6 +149,11 @@ export class ProductService {
           sub_category_id: sub_category.id,
         }),
       },
+    });
+
+    return await this.postgresService.product.findUnique({
+      where: { id, tenant_id },
+      include: { category: true, sub_category: true },
     });
   }
 

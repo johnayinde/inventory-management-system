@@ -70,9 +70,14 @@ export class CategoryService {
       take,
     });
 
+    const totalCount = await this.postgresService.category.findFirst({
+      where: whereCondition,
+      include: { sub_categories: true },
+    });
+
     return {
       data: all_subCategory.sub_categories || [],
-      totalCount: all_subCategory.sub_categories.length || 0,
+      totalCount: totalCount.sub_categories.length || 0,
       pageInfo: {
         currentPage: Number(filters.page),
         perPage: Number(filters.pageSize),

@@ -95,14 +95,10 @@ export class InventoryService {
               const prodId = `${prodIdPrefix}-${uuidv4().split('-')[2]}`;
               const inventory = await tx.inventory.create({
                 data: {
+                  ...individual_item,
                   prod_id: prodId,
-                  name: individual_item.name,
-                  price: individual_item.price,
-                  note: individual_item.note,
                   pricing_type: PricingType.individual,
-                  // quantity_threshold: 1,
                   quantity: 1,
-                  // status: 'running_low',
 
                   tenant: { connect: { id: tenant_id } },
                   shipment: { connect: { id: shipmentId } },
@@ -189,7 +185,6 @@ export class InventoryService {
       });
 
       if (data?.quantity != undefined || data?.price) {
-
         await this.getTotalQuantityByProduct(
           tx as PrismaClient,
           tenant_id,
@@ -199,16 +194,15 @@ export class InventoryService {
 
       return await tx.inventory.findFirst({
         where: { id, tenant_id },
-        include: { product: true },
+        include: { product: { include: { category: true } } },
       });
     });
   }
 
-  // NO Endpoint yet
   async getInventory(tenant_id: number, id: number) {
     const inventory = await this.postgresService.inventory.findUnique({
       where: { id, tenant_id },
-      include: { product: true },
+      include: { product: { include: { category: true } } },
     });
     if (!inventory) {
       throw new NotFoundException('Inventory not found');
@@ -250,7 +244,7 @@ export class InventoryService {
           shipment: { connect: { id: shipment_id } },
           product: { connect: { id: product_id } },
         },
-        include: { product: true },
+        include: { product: { include: { category: true } } },
       });
 
       return newInventory;
@@ -446,14 +440,17 @@ export class InventoryService {
 
     const all_inventories = await this.postgresService.inventory.findMany({
       where: whereCondition,
-      include: { product: true },
+      include: { product: { include: { category: true } } },
       skip,
       take,
     });
 
+    const totalCount = await this.postgresService.inventory.count({
+      where: whereCondition,
+    });
     return {
       data: all_inventories || [],
-      totalCount: all_inventories.length || 0,
+      totalCount,
       pageInfo: {
         currentPage: Number(filters.page),
         perPage: Number(filters.pageSize),

@@ -100,9 +100,13 @@ export class ShipmentService {
       take,
     });
 
+    const totalCount = await this.postgresService.shipment.count({
+      where: whereCondition,
+    });
+
     return {
       data: all_sales || [],
-      totalCount: all_sales.length || 0,
+      totalCount,
       pageInfo: {
         currentPage: Number(filters.page),
         perPage: Number(filters.pageSize),
