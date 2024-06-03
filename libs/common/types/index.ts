@@ -28,6 +28,7 @@ export class InventoryStatsDto {
   totalReturnedProducts: number;
   returnPercentageChange: number;
   totalLowStocks: number;
+  prevMonthTotalGoods: number;
 }
 
 export class ProductStatsDto {

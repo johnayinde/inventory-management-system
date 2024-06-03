@@ -48,6 +48,12 @@ export class ShipmentController {
     return this.shipmentService.createShipment(tenant_id, data, files);
   }
 
+  @Get('/dashboard-stats')
+  @HttpCode(HttpStatus.OK)
+  getStats(@Req() { tenant_id }: Request) {
+    return this.shipmentService.getDashboardStats(tenant_id);
+  }
+
   @Get(':shipmentId')
   @HttpCode(HttpStatus.OK)
   getProduct(

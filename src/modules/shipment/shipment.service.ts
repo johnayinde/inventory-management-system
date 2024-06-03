@@ -7,7 +7,12 @@ import { OrmService } from 'src/database/orm.service';
 import { CreateShipmentDto } from './dto/shipment.dto';
 import { page_generator, shipmentFilters } from '@app/common';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
-import { deleteImage, uploadImages } from '@app/common/helpers';
+import {
+  calculatePercentageChange,
+  deleteImage,
+  getLastMonthDateRange,
+  uploadImages,
+} from '@app/common/helpers';
 
 @Injectable()
 export class ShipmentService {
@@ -73,6 +78,85 @@ export class ShipmentService {
     );
   }
 
+  async getDashboardStats(tenant_id: number) {
+    const { firstDayOfLastMonth, lastDayOfLastMonth } = getLastMonthDateRange();
+
+    const total_shipment_counts = await this.postgresService.shipment.count({
+      where: {
+        tenant_id,
+      },
+    });
+
+    const total_last_month_shipment_counts =
+      await this.postgresService.shipment.count({
+        where: {
+          tenant_id,
+          created_at: {
+            gte: firstDayOfLastMonth,
+            lte: lastDayOfLastMonth,
+          },
+        },
+      });
+
+    const inStockCount = await this.postgresService.product.count({
+      where: {
+        tenant_id,
+        status: 'in_stock',
+      },
+    });
+
+    const inStockCount_last_month = await this.postgresService.product.count({
+      where: {
+        tenant_id,
+        status: 'in_stock',
+        created_at: {
+          gte: firstDayOfLastMonth,
+          lte: lastDayOfLastMonth,
+        },
+      },
+    });
+
+    const outOfStockCount = await this.postgresService.product.count({
+      where: {
+        tenant_id,
+        status: 'sold_out',
+      },
+    });
+
+    const outOfStockCount_last_month = await this.postgresService.product.count(
+      {
+        where: {
+          tenant_id,
+          status: 'sold_out',
+          created_at: {
+            gte: firstDayOfLastMonth,
+            lte: lastDayOfLastMonth,
+          },
+        },
+      },
+    );
+
+    const stats = {
+      total_shipments: total_shipment_counts || 0,
+      total_shipments_change:
+        calculatePercentageChange(
+          total_shipment_counts,
+          total_last_month_shipment_counts,
+        ) || 0,
+      in_stock: inStockCount || 0,
+      in_stock_change:
+        calculatePercentageChange(inStockCount, inStockCount_last_month) || 0,
+      out_of_stock: outOfStockCount || 0,
+      out_of_stock_change:
+        calculatePercentageChange(
+          outOfStockCount,
+          outOfStockCount_last_month,
+        ) || 0,
+    };
+
+    return stats;
+  }
+
   async getShipment(tenant_id: number, id: number) {
     const shipment = await this.postgresService.shipment.findUnique({
       where: { id, tenant_id },
@@ -95,7 +179,7 @@ export class ShipmentService {
 
     const all_sales = await this.postgresService.shipment.findMany({
       where: whereCondition,
-      include: { expenses: true },
+      include: { expenses: true, products: true },
       skip,
       take,
     });

@@ -276,35 +276,27 @@ export class InventoryService {
     const { firstDayOfLastMonth, lastDayOfLastMonth } = getLastMonthDateRange();
 
     // Fetch data from the database
-    const productStats = await this.postgresService.product.findMany({
+    const productStats = await this.postgresService.product.count({
       where: {
         tenant_id,
         status: 'running_low',
       },
     });
-    const inventoryStats = await this.postgresService.inventory.findMany({
+    const inventoryStats = await this.postgresService.inventory.count({
       where: {
         tenant_id,
       },
     });
 
-    const inventoryStatsLastMonth =
-      await this.postgresService.inventory.findMany({
-        where: {
-          tenant_id,
-          created_at: {
-            gte: firstDayOfLastMonth,
-            lte: lastDayOfLastMonth,
-          },
+    const inventoryStatsLastMonth = await this.postgresService.inventory.count({
+      where: {
+        tenant_id,
+        created_at: {
+          gte: firstDayOfLastMonth,
+          lte: lastDayOfLastMonth,
         },
-        include: {
-          product: {
-            include: {
-              category: true,
-            },
-          },
-        },
-      });
+      },
+    });
 
     const sales = await this.postgresService.sale.findMany({
       where: {
@@ -336,98 +328,40 @@ export class InventoryService {
       },
     });
 
-    const allcategoroes = await this.postgresService.category.findMany({
+    const allcategoroes = await this.postgresService.category.count({
       where: {
         tenant_id,
-      },
-      include: {
-        sub_categories: true,
       },
     });
 
     // Calculate the statistics
     const stats: InventoryStatsDto = {
       totalGoods: 0,
-      goodsPercentageChange: 0,
-      totalCategories: 0,
-      categoriesPercentageChange: 0,
-      totalReturnedProducts: 0,
-      returnPercentageChange: 0,
       totalLowStocks: 0,
-    };
-
-    // Keep track of the previous month's counts
-    const lastMonthStats = {
+      totalCategories: 0,
+      totalReturnedProducts: 0,
       prevMonthTotalGoods: 0,
-      // prevMonthTotalCategories: 0,
-      // prevMonthTotalReturnedProducts: 0,
+      goodsPercentageChange: 0,
+      //
+      categoriesPercentageChange: 0,
+      returnPercentageChange: 0,
     };
 
-    this.calculateBasicStats(
-      productStats,
-      inventoryStats,
-      allcategoroes,
-      sales,
-      stats,
-    );
-    stats.totalGoods;
-    this.calculateLastMonthStats(
-      inventoryStatsLastMonth,
-      salesLastMonth,
-      lastMonthStats,
-    );
-
-    // Calculate the percentage increase/decrease for each category
+    stats.totalGoods = inventoryStats;
+    stats.totalLowStocks = productStats;
+    stats.totalCategories = allcategoroes;
+    stats.prevMonthTotalGoods = inventoryStatsLastMonth;
     stats.goodsPercentageChange = calculatePercentageChange(
       stats.totalGoods,
-      lastMonthStats.prevMonthTotalGoods,
+      stats.prevMonthTotalGoods,
     );
-    // stats.categoriesPercentageChange = calculatePercentageChange(
-    //   stats.totalCategories,
-    //   lastMonthStats.prevMonthTotalCategories,
-    // );
-    // stats.returnPercentageChange = calculatePercentageChange(
-    //   stats.totalReturnedProducts,
-    //   lastMonthStats.prevMonthTotalReturnedProducts,
-    // );
-
-    return stats;
-  }
-
-  private calculateBasicStats(
-    productStats,
-    inventoryStats,
-    allcategoroes,
-    sales,
-    stats: InventoryStatsDto,
-  ) {
-    stats.totalGoods = inventoryStats.length;
-    stats.totalLowStocks = productStats.length;
-    stats.totalCategories = allcategoroes.length;
-
     for (const sale of sales) {
       for (const saleProduct of sale.sales_products) {
         stats.totalReturnedProducts += saleProduct.returned_counts;
       }
     }
-  }
 
-  private calculateLastMonthStats(inventoryStats, sales, stats) {
-    stats.prevMonthTotalGoods = inventoryStats.length;
-
-    // for (const inventory_item of inventoryStats) {
-    //   if (inventory_item.product.categories) {
-    //     stats.prevMonthTotalCategories +=
-    //       inventory_item.product.categories.length;
-    //   }
-    // }
-
-    // // Calculate sales-related stats
-    // for (const sale of sales) {
-    //   for (const saleProduct of sale.sales_products) {
-    //     stats.prevMonthTotalReturnedProducts += saleProduct.returned_counts;
-    //   }
-    // }
+    return stats;
   }
 
   async getAllInventories(tenant_id: number, filters: PaginatorDTO) {
