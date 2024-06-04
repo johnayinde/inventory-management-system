@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateCustomerDto, EditCustomerDto } from './dto/customer.dto';
 import { OrmService } from 'src/database/orm.service';
+import { page_generator, customersFilters } from '@app/common';
+import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
 @Injectable()
 export class CustomerService {
@@ -18,10 +20,35 @@ export class CustomerService {
     });
   }
 
-  async getAllCustomers(tenant_id: number) {
-    return await this.postgresService.customer.findMany({
-      where: { tenant_id },
+  async getAllCustomers(tenant_id: number, filters: PaginatorDTO) {
+    const { skip, take } = page_generator(
+      Number(filters.page),
+      Number(filters.pageSize),
+    );
+    const filter = customersFilters(filters);
+    const whereCondition = filter ? { tenant_id, ...filter } : { tenant_id };
+
+    const totalCount = await this.postgresService.customer.count({
+      where: whereCondition,
     });
+
+    const all_customers = await this.postgresService.customer.findMany({
+      where: whereCondition,
+      skip,
+      take,
+    });
+
+    return {
+      data: all_customers || [],
+      totalCount,
+      pageInfo: {
+        currentPage: Number(filters.page),
+        perPage: Number(filters.pageSize),
+        hasNextPage:
+          all_customers.length >
+          Number(filters.page) * Number(filters.pageSize),
+      },
+    };
   }
 
   async editCustomer(tenant_id: number, id: number, data: EditCustomerDto) {

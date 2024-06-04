@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
   UseInterceptors,
 } from '@nestjs/common';
@@ -17,6 +18,7 @@ import { Role, Roles, TenantInterceptor } from '@app/common';
 import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { CreateCustomerDto, EditCustomerDto } from './dto/customer.dto';
 import { Request } from 'express';
+import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
 @ApiTags('Customer')
 @ApiBearerAuth()
@@ -38,8 +40,8 @@ export class CustomerController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  getCategories(@Req() { tenant_id }: Request) {
-    return this.customerService.getAllCustomers(tenant_id);
+  getCategories(@Req() { tenant_id }: Request, @Query() filters: PaginatorDTO) {
+    return this.customerService.getAllCustomers(tenant_id, filters);
   }
 
   @Get('/:customerId/orders')
