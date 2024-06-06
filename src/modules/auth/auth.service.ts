@@ -139,7 +139,7 @@ export class AuthService {
     if (!isMatch) {
       throw new HttpException(
         'Email or password is incorrect',
-        HttpStatus.FORBIDDEN,
+        HttpStatus.BAD_REQUEST,
       );
     }
 

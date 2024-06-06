@@ -77,6 +77,13 @@ export class CustomerService {
   }
 
   async getCustomerOrderHistories(tenant_id: number, id: number) {
+    const customer = await this.postgresService.customer.findUnique({
+      where: { id, tenant_id },
+    });
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
     const customerSales = await this.postgresService.customer.findFirst({
       where: { id, tenant_id },
       include: { sales: true },
@@ -84,6 +91,6 @@ export class CustomerService {
     if (!customerSales) {
       throw new NotFoundException('Customer Sales not found');
     }
-    return customerSales.sales;
+    return { customer, sales: customerSales.sales };
   }
 }
