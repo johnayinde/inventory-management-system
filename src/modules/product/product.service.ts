@@ -73,6 +73,7 @@ export class ProductService {
       include: { category: true, expenses: true },
       skip,
       take,
+      orderBy: { created_at: 'desc' },
     });
     const totalCount = await this.postgresService.product.count({
       where: whereCondition,

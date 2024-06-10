@@ -98,6 +98,7 @@ export class FeesService {
     return await this.prismaService.fees.findMany({
       where: { tenant_id: tenant_id },
       include: { products: true },
+      orderBy: { created_at: 'desc' },
     });
   }
 

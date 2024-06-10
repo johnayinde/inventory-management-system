@@ -98,4 +98,10 @@ export class DashboardController {
       endDate,
     );
   }
+
+  @Get('top-inventories')
+  @HttpCode(HttpStatus.OK)
+  getAllInventories(@Req() { tenant_id }: Request) {
+    return this.dashboardService.topInventories(tenant_id);
+  }
 }

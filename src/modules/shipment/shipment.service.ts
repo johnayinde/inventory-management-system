@@ -182,6 +182,7 @@ export class ShipmentService {
       include: { expenses: true, products: true },
       skip,
       take,
+      orderBy: { created_at: 'desc' },
     });
 
     const totalCount = await this.postgresService.shipment.count({

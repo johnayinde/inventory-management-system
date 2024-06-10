@@ -342,4 +342,15 @@ export class DashboardService {
 
     return resultArray;
   }
+
+  async topInventories(tenant_id: number) {
+    const all_inventories = await this.postgresService.inventory.findMany({
+      where: { tenant_id },
+      include: { product: { include: { category: true } } },
+      orderBy: { created_at: 'desc' },
+      take: 5,
+    });
+
+    return all_inventories;
+  }
 }

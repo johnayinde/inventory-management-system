@@ -36,6 +36,7 @@ export class CustomerService {
       where: whereCondition,
       skip,
       take,
+      orderBy: { created_at: 'desc' },
     });
 
     return {

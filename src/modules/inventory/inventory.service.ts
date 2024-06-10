@@ -377,6 +377,7 @@ export class InventoryService {
       include: { product: { include: { category: true } } },
       skip,
       take,
+      orderBy: { created_at: 'desc' },
     });
 
     const totalCount = await this.postgresService.inventory.count({
