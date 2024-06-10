@@ -25,6 +25,7 @@ export class CategoryService {
     return await this.postgresService.category.findMany({
       where: { tenant_id },
       include: { sub_categories: true },
+      orderBy: { created_at: 'desc' },
     });
   }
 
@@ -68,6 +69,7 @@ export class CategoryService {
       include: { sub_categories: true, products: true },
       skip,
       take,
+      orderBy: { created_at: 'desc' },
     });
 
     const totalCount = await this.postgresService.category.findFirst({

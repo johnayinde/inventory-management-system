@@ -130,6 +130,7 @@ export class ExpenseService {
       include: { category: true },
       skip,
       take,
+      orderBy: { created_at: 'desc' },
     });
 
     const totalCount = await this.postgresService.expense.count({

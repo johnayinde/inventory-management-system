@@ -302,6 +302,7 @@ export class SaleService {
       include: { customer: true },
       skip,
       take,
+      orderBy: { created_at: 'desc' },
     });
 
     const totalCount = await this.postgresService.sale.count({
