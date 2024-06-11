@@ -60,7 +60,8 @@ export class InventoryService {
               data: {
                 prod_id: prodId,
                 pricing_type: PricingType.bulk,
-                price: item.price,
+                cost_price: item.cost_price,
+                selling_price: item.selling_price,
                 note: item.note,
                 quantity: Number(quantity),
                 name: mappedProduct[pid].name,
@@ -146,18 +147,18 @@ export class InventoryService {
         quantity: true,
       },
       _min: {
-        price: true,
+        selling_price: true,
       },
       _max: {
-        price: true,
+        selling_price: true,
       },
     });
 
     console.log(inventorySummary);
 
     const total_qty = inventorySummary?.[0]?._sum?.quantity ?? 0;
-    const min_price = inventorySummary?.[0]?._min?.price ?? 0;
-    const max_price = inventorySummary?.[0]?._max?.price ?? 0;
+    const min_price = inventorySummary?.[0]?._min?.selling_price ?? 0;
+    const max_price = inventorySummary?.[0]?._max?.selling_price ?? 0;
 
     const status = determineProductStatus(total_qty, threshold);
 

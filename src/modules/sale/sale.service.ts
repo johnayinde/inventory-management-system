@@ -75,7 +75,8 @@ export class SaleService {
         console.log({ totalProductExpenses });
 
         OverAlltotalExpenses += totalProductExpenses;
-        const productSellingPrice = (inventoryItem.price || 0) * quantity;
+        const productSellingPrice =
+          (inventoryItem.selling_price || 0) * quantity;
         console.log({ productSellingPrice });
 
         let totalFee = await this.calculateProductFee(
@@ -94,7 +95,7 @@ export class SaleService {
           inventory_item: { connect: { id: productId } },
           quantity,
           expense: totalProductExpenses,
-          unit_price: inventoryItem.price,
+          unit_price: inventoryItem.selling_price,
           total_price: productSellingPrice,
           tenant: { connect: { id: tenant_id } },
         });
@@ -221,18 +222,18 @@ export class SaleService {
         quantity: true,
       },
       _min: {
-        price: true,
+        selling_price: true,
       },
       _max: {
-        price: true,
+        selling_price: true,
       },
     });
 
     console.log(inventorySummary);
 
     const total_qty = inventorySummary?.[0]?._sum?.quantity ?? 0;
-    const min_price = inventorySummary?.[0]?._min?.price ?? 0;
-    const max_price = inventorySummary?.[0]?._max?.price ?? 0;
+    const min_price = inventorySummary?.[0]?._min?.selling_price ?? 0;
+    const max_price = inventorySummary?.[0]?._max?.selling_price ?? 0;
 
     const status = determineProductStatus(total_qty, threshold);
 
@@ -273,19 +274,37 @@ export class SaleService {
     }
   }
 
-  async getInvoice(tenant_id: number, salesId: number) {
-    const sales = await this.postgresService.sale.findUnique({
-      where: { id: salesId, tenant_id },
+  async getInvoice(tenant_id: number, salesId: number, filters: PaginatorDTO) {
+    const { skip, take } = page_generator(
+      Number(filters.page),
+      Number(filters.pageSize),
+    );
+
+    const sales = await this.postgresService.saleProduct.findMany({
+      where: { saleId: salesId, tenant_id },
+      skip,
+      take,
+      orderBy: { created_at: 'desc' },
       include: {
-        customer: true,
-        sales_products: { include: { inventory_item: true } },
-        _count: true,
+        inventory_item: {
+          include: { product: { include: { category: true } } },
+        },
       },
     });
     if (!sales) {
       throw new NotFoundException('Sales Invoice not found');
     }
-    return sales;
+
+    return {
+      data: sales || [],
+      totalCount: sales.length,
+      pageInfo: {
+        currentPage: Number(filters.page),
+        perPage: Number(filters.pageSize),
+        hasNextPage:
+          sales.length > Number(filters.page) * Number(filters.pageSize),
+      },
+    };
   }
 
   async getAllSales(tenant_id: number, filters: PaginatorDTO) {

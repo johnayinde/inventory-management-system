@@ -259,14 +259,15 @@ model Inventory {
   prod_id       String
   serial_number String?
 
-  name         String?
-  attachments  String[]
-  pricing_type PricingType @default(individual)
-  price        Float?
-  tenant       Tenant      @relation(fields: [tenant_id], references: [id])
-  product      Product     @relation(fields: [product_id], references: [id])
-  shipment     Shipment    @relation(fields: [shipment_id], references: [id])
-  quantity     Int?        @default(0)
+  name          String?
+  attachments   String[]
+  pricing_type  PricingType @default(individual)
+  selling_price Float       @default(0)
+  cost_price    Float       @default(0)
+  tenant        Tenant      @relation(fields: [tenant_id], references: [id])
+  product       Product     @relation(fields: [product_id], references: [id])
+  shipment      Shipment    @relation(fields: [shipment_id], references: [id])
+  quantity      Int?        @default(0)
 
   //
   tenant_id    Int

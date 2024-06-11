@@ -49,10 +49,12 @@ export class CustomerController {
   customerSales(
     @Req() { tenant_id }: Request,
     @Param('customerId', ParseIntPipe) customerId: number,
+    @Query() filters: PaginatorDTO,
   ) {
     return this.customerService.getCustomerOrderHistories(
       tenant_id,
       customerId,
+      filters,
     );
   }
 
