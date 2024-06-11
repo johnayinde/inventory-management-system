@@ -1,0 +1,22 @@
+version: '3.8'
+volumes:
+  migrations:
+
+services:
+  invio-api:
+    # image: invio_image:latest
+    container_name: app_server
+    build: .
+    command: yarn run start:dev
+    ports:
+      - 9009:5000
+    env_file:
+      - .env
+    # environment:
+    #   REDIS_HOST: 'rediss://red-coucfbq1hbls7383midg:fIlGNTUvBe57HLIX2Vd4MTN11601Ds7p@oregon-redis.render.com'
+    #   REDIS_PORT: 6379
+
+    volumes:
+      - ./.env:/home/app/.env
+      - migrations:/home/app/prisma/migrations
+    # network_mode: host
