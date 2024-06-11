@@ -77,7 +77,20 @@ export class CustomerService {
     });
   }
 
-  async getCustomerOrderHistories(tenant_id: number, id: number) {
+  async getCustomerOrderHistories(
+    tenant_id: number,
+    id: number,
+    filters: PaginatorDTO,
+  ) {
+    const { skip, take } = page_generator(
+      Number(filters.page),
+      Number(filters.pageSize),
+    );
+    const filter = customersFilters(filters);
+    const whereCondition = filter
+      ? { tenant_id, ...filter }
+      : { tenant_id, customerId: id };
+
     const customer = await this.postgresService.customer.findUnique({
       where: { id, tenant_id },
     });
@@ -85,13 +98,26 @@ export class CustomerService {
       throw new NotFoundException('Customer not found');
     }
 
-    const customerSales = await this.postgresService.customer.findFirst({
-      where: { id, tenant_id },
-      include: { sales: true },
+    const customerSales = await this.postgresService.sale.findMany({
+      where: whereCondition,
+      skip,
+      take,
+      orderBy: { created_at: 'desc' },
     });
     if (!customerSales) {
       throw new NotFoundException('Customer Sales not found');
     }
-    return { customer, sales: customerSales.sales };
+
+    return {
+      data: { customer, sales: customerSales },
+      totalCount: customerSales.length,
+      pageInfo: {
+        currentPage: Number(filters.page),
+        perPage: Number(filters.pageSize),
+        hasNextPage:
+          customerSales.length >
+          Number(filters.page) * Number(filters.pageSize),
+      },
+    };
   }
 }

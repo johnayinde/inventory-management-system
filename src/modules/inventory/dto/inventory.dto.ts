@@ -23,7 +23,12 @@ class IndividualPricing {
   @ApiProperty()
   @IsNotEmpty()
   @IsNumber({ allowNaN: false, allowInfinity: false })
-  price: number;
+  cost_price: number;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsNumber({ allowNaN: false, allowInfinity: false })
+  selling_price: number;
 
   @ApiProperty()
   @IsString()
@@ -55,7 +60,11 @@ export class InventoryPayload {
 
   @ApiPropertyOptional()
   @IsOptional()
-  price?: number;
+  selling_price?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  cost_price?: number;
 
   @ApiPropertyOptional()
   @IsString()
