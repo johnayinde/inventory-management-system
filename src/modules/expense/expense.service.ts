@@ -46,7 +46,7 @@ export class ExpenseService {
   ) {
     let image_urls: string[] = [];
 
-    if (files.length) {
+    if (files && files.length > 0) {
       const folder = process.env.AWS_S3_FOLDER;
       image_urls = await uploadImages(files, folder);
     }
