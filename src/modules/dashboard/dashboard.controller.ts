@@ -99,9 +99,9 @@ export class DashboardController {
     );
   }
 
-  @Get('top-inventories')
+  @Get('recent-sales')
   @HttpCode(HttpStatus.OK)
   getAllInventories(@Req() { tenant_id }: Request) {
-    return this.dashboardService.topInventories(tenant_id);
+    return this.dashboardService.recentSales(tenant_id);
   }
 }
