@@ -33,7 +33,11 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, options);
-  SwaggerModule.setup('api-doc', app, document);
+  SwaggerModule.setup('api-doc', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  });
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
 
   await app.listen(configService.get('APP_PORT'));

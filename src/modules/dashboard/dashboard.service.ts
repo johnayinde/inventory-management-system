@@ -343,14 +343,14 @@ export class DashboardService {
     return resultArray;
   }
 
-  async topInventories(tenant_id: number) {
-    const all_inventories = await this.postgresService.inventory.findMany({
+  async recentSales(tenant_id: number) {
+    const recent_sales = await this.postgresService.sale.findMany({
       where: { tenant_id },
-      include: { product: { include: { category: true } } },
+      include: { customer: true },
       orderBy: { created_at: 'desc' },
       take: 5,
     });
 
-    return all_inventories;
+    return recent_sales;
   }
 }
