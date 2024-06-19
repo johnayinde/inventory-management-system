@@ -274,37 +274,19 @@ export class SaleService {
     }
   }
 
-  async getInvoice(tenant_id: number, salesId: number, filters: PaginatorDTO) {
-    const { skip, take } = page_generator(
-      Number(filters.page),
-      Number(filters.pageSize),
-    );
-
-    const sales = await this.postgresService.saleProduct.findMany({
-      where: { saleId: salesId, tenant_id },
-      skip,
-      take,
-      orderBy: { created_at: 'desc' },
+  async getInvoice(tenant_id: number, salesId: number) {
+    const sales = await this.postgresService.sale.findUnique({
+      where: { id: salesId, tenant_id },
       include: {
-        inventory_item: {
-          include: { product: { include: { category: true } } },
-        },
+        customer: true,
+        sales_products: { include: { inventory_item: true } },
+        _count: true,
       },
     });
     if (!sales) {
       throw new NotFoundException('Sales Invoice not found');
     }
-
-    return {
-      data: sales || [],
-      totalCount: sales.length,
-      pageInfo: {
-        currentPage: Number(filters.page),
-        perPage: Number(filters.pageSize),
-        hasNextPage:
-          sales.length > Number(filters.page) * Number(filters.pageSize),
-      },
-    };
+    return sales;
   }
 
   async getAllSales(tenant_id: number, filters: PaginatorDTO) {

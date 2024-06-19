@@ -177,15 +177,19 @@ export class ExpenseService {
         },
       });
     } else if (expense.type == ExpenseType.general) {
-      const { productId, categoryId, ...expenseData } = data;
+      const { productId, categoryId, amount, ...expenseData } = data;
 
-      return await this.postgresService.expense.update({
+      await this.postgresService.expense.update({
         where: { id, tenant_id },
         data: {
           ...expenseData,
-          expense_categoryId: categoryId,
+          amount: Number(amount),
+          expense_categoryId: Number(categoryId),
           attachments: image_urls,
         },
+      });
+      return await this.postgresService.expense.findFirst({
+        where: { id, tenant_id },
       });
     } else if (expense.type == ExpenseType.shipment) {
       const { productId, categoryId, ...expenseData } = data;
