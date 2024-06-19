@@ -65,6 +65,18 @@ export class OrmService
           params.args['where'] = { deleted: false };
         }
       }
+
+      if (params.action === 'count') {
+        // Count queries
+        if (params.args.where) {
+          if (!params.args.where.deleted) {
+            // Exclude deleted records if they have not been explicitly requested
+            params.args.where['deleted'] = false;
+          }
+        } else {
+          params.args['where'] = { deleted: false };
+        }
+      }
       // Handle relations for soft delete
       const result = await next(params);
 
