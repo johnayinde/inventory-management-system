@@ -73,14 +73,9 @@ export class TenantController {
     );
   }
 
-  @Get('/personal-business-info')
-  @ApiQuery({
-    name: 'email',
-    required: true,
-    type: String,
-  })
+  @Get('/user-info')
   @HttpCode(HttpStatus.OK)
-  getTenantPersonalBusnessInfo(@Query() data: TenantEmailDTO) {
-    return this.tenantService.getTenantPersonalBusnessInfo(data.email);
+  getTenantData(@Req() { tenant_id }: Request) {
+    return this.tenantService.getTenantInfo(tenant_id);
   }
 }
