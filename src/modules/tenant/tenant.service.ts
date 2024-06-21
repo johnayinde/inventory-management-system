@@ -88,4 +88,21 @@ export class TenantService {
       business: business_info,
     };
   }
+
+  async getTenantInfo(tenant_id: number) {
+    const tenant_info = await this.postgresService.tenant.findFirst({
+      where: { id: tenant_id },
+      include: { business: true },
+    });
+
+    const { password, isOauthUser, ...personal_data } =
+      await this.postgresService.auth.findFirst({
+        where: { email: tenant_info.email },
+      });
+
+    return {
+      personal: personal_data,
+      business: tenant_info?.business,
+    };
+  }
 }

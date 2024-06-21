@@ -92,9 +92,8 @@ export class SaleController {
   getInvoice(
     @Req() { tenant_id }: Request,
     @Param('salesId', ParseIntPipe) salesId: number,
-    @Query() filters: PaginatorDTO,
   ) {
-    return this.saleService.getInvoice(tenant_id, salesId, filters);
+    return this.saleService.getInvoice(tenant_id, salesId);
   }
 
   @Post('products/return/:saleId/:productId/:quantity')

@@ -100,6 +100,7 @@ export class CustomerService {
 
     const customerSales = await this.postgresService.sale.findMany({
       where: whereCondition,
+      include: { customer: true },
       skip,
       take,
       orderBy: { created_at: 'desc' },
