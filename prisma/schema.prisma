@@ -54,21 +54,23 @@ enum NotifierType {
 }
 
 model Auth {
-  id             Int       @id @default(autoincrement())
+  id             Int         @id @default(autoincrement())
   first_name     String?
   last_name      String?
-  email          String    @unique
-  phone_number   String?   @unique
+  email          String      @unique
+  phone_number   String?     @unique
   password       String?
   mfa_secret     String?
-  is_mfa         Boolean   @default(false)
-  isOauthUser    Boolean   @default(false)
-  isUser         Boolean   @default(false)
+  is_mfa         Boolean     @default(false)
+  is_oauth_user  Boolean     @default(false)
+  is_user        Boolean     @default(false)
+  is_super_admin Boolean     @default(false)
   //
-  deleted        Boolean   @default(false)
-  email_verified Boolean?  @default(false)
-  created_at     DateTime  @default(now()) @db.Timestamptz(3)
-  updated_at     DateTime? @updatedAt
+  deleted        Boolean     @default(false)
+  email_verified Boolean?    @default(false)
+  created_at     DateTime    @default(now()) @db.Timestamptz(3)
+  updated_at     DateTime?   @updatedAt
+  permission     Permission?
 
   @@index(fields: [email])
 }
@@ -97,7 +99,7 @@ model Tenant {
   saleProducts     SaleProduct[]
   fees             Fees[]
   shipments        Shipment[]
-  Product_notifier Notification[]
+  product_notifier Notification[]
 
   @@index(fields: [id, email])
 }
@@ -156,9 +158,9 @@ model User {
   is_suspended Boolean    @default(false)
   is_revoked   Boolean    @default(false)
 
-  tenant_id  Int
-  tenant     Tenant      @relation(fields: [tenant_id], references: [id])
-  permission Permission?
+  tenant_id   Int
+  tenant      Tenant      @relation(fields: [tenant_id], references: [id])
+  permissions Permission?
 
   //
   deleted    Boolean   @default(false)
@@ -175,10 +177,11 @@ model Permission {
   expenses  Boolean @default(false)
   report    Boolean @default(false)
   customers Boolean @default(false)
-  tenant_id Int
-  userId    Int     @unique
-  user_id   User    @relation(fields: [userId], references: [id])
 
+  auth_id    Int       @unique
+  user_auth  Auth      @relation(fields: [auth_id], references: [id])
+  user_id    Int?      @unique
+  user       User?     @relation(fields: [user_id], references: [id])
   //
   deleted    Boolean   @default(false)
   created_at DateTime  @default(now()) @db.Timestamptz(3)

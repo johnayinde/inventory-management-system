@@ -73,7 +73,7 @@ export class TenantService {
   }
 
   async getTenantPersonalBusnessInfo(email: string) {
-    const { password, isOauthUser, ...personal_data } =
+    const { password, is_oauth_user, ...personal_data } =
       await this.postgresService.auth.findFirst({
         where: { email },
       });
@@ -95,7 +95,7 @@ export class TenantService {
       include: { business: true },
     });
 
-    const { password, isOauthUser, ...personal_data } =
+    const { password, is_oauth_user, ...personal_data } =
       await this.postgresService.auth.findFirst({
         where: { email: tenant_info.email },
       });

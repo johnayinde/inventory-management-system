@@ -106,6 +106,7 @@ export class AuthService {
       data: {
         email: data.email,
         password: data.password,
+        is_super_admin: true,
       },
     });
 
@@ -115,6 +116,18 @@ export class AuthService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+
+    await this.postgresService.permission.create({
+      data: {
+        dashboard: true,
+        customers: true,
+        expenses: true,
+        inventory: true,
+        report: true,
+        sales: true,
+        user_auth: { connect: { id: new_account.id } },
+      },
+    });
 
     const otp = await this.cache.setOTPValue(data.email);
     await this.emailService.sendOTP(otp, data.email);
@@ -145,7 +158,7 @@ export class AuthService {
 
     let userId: number;
 
-    if (user.isUser) {
+    if (user.is_user) {
       const userRec = await this.postgresService.user.findFirst({
         where: { email: user.email },
       });
@@ -171,7 +184,7 @@ export class AuthService {
     return {
       ...user,
       is_profile_complete,
-      token: await this.generateAccessToken(userId, user.email, user.isUser),
+      token: await this.generateAccessToken(userId, user.email, user.is_user),
     };
   }
 
@@ -214,7 +227,7 @@ export class AuthService {
 
         return {
           ...user,
-          token: this.generateAccessToken(user.id, user.email, user.isUser),
+          token: this.generateAccessToken(user.id, user.email, user.is_user),
         };
       });
     } else {
@@ -223,7 +236,7 @@ export class AuthService {
         token: this.generateAccessToken(
           existing_user.id,
           existing_user.email,
-          existing_user.isUser,
+          existing_user.is_user,
         ),
       };
     }
@@ -268,7 +281,7 @@ export class AuthService {
   async resetPassword(email: string) {
     const user = await this.getUserByEmail(email);
 
-    const data = await this.emailService.sendResetPasswordToEmail(user.email);
+    const data = await this.emailService.sendResetPasswordToEmail(email, user);
     this.cache.setData(data.encryptedText, data);
 
     return `Reset Link sent to your registered email address.`;
@@ -279,8 +292,8 @@ export class AuthService {
     if (!data) {
       throw new BadRequestException('Verification failed, Please try again');
     }
-    const user = decryption(data as encryptData);
-    const account = this.getUserByEmail(user);
+    const { email } = decryption(data as encryptData);
+    const account = this.getUserByEmail(email);
     if (!account) {
       throw new UnauthorizedException(`Invalid Process, please try again`);
     }
@@ -290,7 +303,7 @@ export class AuthService {
 
     await this.postgresService.auth.update({
       where: {
-        email: user,
+        email,
       },
       data: {
         password: new_password,

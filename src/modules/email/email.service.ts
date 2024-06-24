@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 // import * as nodemailer from 'nodemailer';
-import { encryption } from '@app/common';
+import { decryption, encryption } from '@app/common';
 import * as SendGrid from '@sendgrid/mail';
 
 @Injectable()
@@ -42,16 +42,17 @@ export class EmailService {
 
   public async sendResetPasswordToEmail(
     email: string,
+    data,
     path: string = 'auth',
   ): Promise<{ salt: string; iv: string; encryptedText: string }> {
-    const encrypted_data = encryption(email);
+    const encrypted_data = encryption(data);
 
     const url = `${this.configService.get<string>(
       'FRONTEND_URL',
     )}/${path}/reset-password?token=${encrypted_data.encryptedText}`;
     const subject = 'Password Reset Link';
     const html = `To Reset Password continue with the link ${url}`;
-    this.sendmail(email, subject, html);
+    await this.sendmail(email, subject, html);
     return encrypted_data;
   }
 }
