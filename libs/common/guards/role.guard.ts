@@ -32,7 +32,7 @@ export class RolesGuard implements CanActivate {
       const prisma = new PrismaClient();
 
       const permission = await prisma.permission.findFirst({
-        where: { userId: user.userId },
+        where: { user_id: user.userId },
       });
       await prisma.$disconnect();
 

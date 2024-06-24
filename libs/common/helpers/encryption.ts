@@ -7,12 +7,13 @@ function generateKey() {
 }
 
 // Function to encrypt using AES-256-CTR
-export function encryption(text: string): encryptData {
+export function encryption(data): encryptData {
   const key = generateKey();
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-ctr', key, iv);
+  const jsonData = JSON.stringify(data);
   const encrypted = Buffer.concat([
-    cipher.update(text, 'utf-8'),
+    cipher.update(jsonData, 'utf-8'),
     cipher.final(),
   ]);
   return {
@@ -35,5 +36,5 @@ export function decryption(data: encryptData) {
     decipher.update(Buffer.from(encryptedText, 'hex')),
     decipher.final(),
   ]);
-  return decrypted.toString('utf-8');
+  return JSON.parse(decrypted.toString('utf-8'));
 }

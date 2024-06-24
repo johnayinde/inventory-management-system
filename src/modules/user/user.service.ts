@@ -13,7 +13,7 @@ import { EmailService } from '../email/email.service';
 import { ResetPasswordDto, ValidateTokenDto } from '../auth/dto/auth.dto';
 import { USER_SIGNUP, decryption, encryptData } from '@app/common';
 import * as bcrypt from 'bcrypt';
-import { User } from '@prisma/client';
+import { Auth, User } from '@prisma/client';
 
 @Injectable()
 export class UserService {
@@ -33,18 +33,12 @@ export class UserService {
         },
       });
 
-      await tx.permission.create({
-        data: {
-          ...user.permissions,
-          tenant_id,
-          user_id: { connect: { id: user_acc.id } },
-        },
-      });
-
       const data = await this.emailService.sendResetPasswordToEmail(
-        user_acc.email,
+        user.email,
+        { user: user_acc, user_permissions: user.permissions },
         'user',
       );
+
       this.cache.setData(data.encryptedText, data);
       return USER_SIGNUP;
     });
@@ -60,6 +54,7 @@ export class UserService {
     }
     return isMatch;
   }
+
   private async hashPassword(password: string) {
     const salt = await bcrypt.genSalt(10);
 
@@ -67,17 +62,18 @@ export class UserService {
 
     return hashedPassword;
   }
+
   async validateEmailForPassword(
     token: ValidateTokenDto,
     body: ResetPasswordDto,
-  ): Promise<string> {
+  ): Promise<Auth> {
     const data = await this.cache.getData(token.token);
     if (!data) {
       throw new BadRequestException('Verification failed, Please try again');
     }
-    const user = decryption(data as encryptData);
+    const { user, user_permissions } = decryption(data as encryptData);
     const account = await this.postgresService.user.findFirst({
-      where: { email: user },
+      where: { email: user.email },
     });
 
     if (!account) {
@@ -87,16 +83,25 @@ export class UserService {
 
     const new_password = await this.hashPassword(body.password);
 
-    await this.postgresService.auth.create({
+    const user_auth = await this.postgresService.auth.create({
       data: {
-        email: user,
+        email: user.email,
         password: new_password,
-        isUser: true,
+        is_user: true,
         email_verified: true,
       },
     });
     this.cache.delData(token.token);
-    return 'New password saved!';
+
+    await this.postgresService.permission.create({
+      data: {
+        ...user_permissions,
+        user_auth: { connect: { id: user_auth.id } },
+        user: { connect: { id: account.id } },
+      },
+    });
+
+    return user_auth;
   }
 
   async suspendUser(tenant_id: number, id: number, suspend: boolean) {
@@ -104,18 +109,9 @@ export class UserService {
       where: { id, tenant_id },
       data: {
         is_suspended: suspend,
-        permission: {
-          update: {
-            dashboard: false,
-            inventory: false,
-            sales: false,
-            expenses: false,
-            report: false,
-            customers: false,
-          },
-        },
       },
     });
+
     return 'Status Updated!';
   }
 
@@ -129,17 +125,17 @@ export class UserService {
   }
 
   async getAllTenantUsers(tenant_id: number): Promise<User[]> {
-    const tenantAndUsers = await this.postgresService.tenant.findFirst({
-      where: { id: tenant_id },
-      include: { users: true },
+    const tenantAndUsers = await this.postgresService.user.findMany({
+      where: { tenant_id },
+      include: { permissions: true },
     });
-    return tenantAndUsers.users;
+    return tenantAndUsers;
   }
 
   async getUserById(tenant_id: number, userId: number): Promise<User> {
     const user = await this.postgresService.user.findUnique({
       where: { id: userId, tenant_id },
-      include: { permission: true },
+      include: { permissions: true },
     });
 
     if (!user) {
@@ -150,7 +146,7 @@ export class UserService {
   }
 
   async editUser(tenant_id: number, id: number, data: EditUserDto) {
-    await this.postgresService.$transaction(async (tx) => {
+    return await this.postgresService.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: { id, tenant_id },
       });
@@ -158,12 +154,23 @@ export class UserService {
       if (!user) {
         throw new NotFoundException('User not found');
       }
+      const { permissions, ...user_doc } = data;
+
       await tx.user.update({
         where: { id, tenant_id },
-        data: { ...data },
+        data: { ...user_doc },
+      });
+
+      if (permissions) {
+        await tx.permission.update({
+          where: { user_id: id },
+          data: { ...permissions },
+        });
+      }
+      return await tx.user.findUnique({
+        where: { id, tenant_id },
+        include: { permissions: true },
       });
     });
-
-    return 'User Updated';
   }
 }
