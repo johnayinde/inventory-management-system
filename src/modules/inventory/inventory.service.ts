@@ -382,7 +382,7 @@ export class InventoryService {
     });
 
     const totalCount = await this.postgresService.inventory.count({
-      where: whereCondition,
+      where: { tenant_id },
     });
     return {
       data: all_inventories || [],

@@ -134,8 +134,9 @@ export class ExpenseService {
     });
 
     const totalCount = await this.postgresService.expense.count({
-      where: whereCondition,
+      where: { tenant_id },
     });
+
     return {
       data: all_expenses,
       totalCount,

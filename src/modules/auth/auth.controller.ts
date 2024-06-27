@@ -65,7 +65,7 @@ export class AuthController {
     return this.authService.verifyEmailOtp(body);
   }
 
-  @Post('/reset-account')
+  @Post('/request-reset-password')
   @ApiBody({
     description: 'request new password link',
     type: ResetAccountDto,
