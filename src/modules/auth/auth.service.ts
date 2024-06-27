@@ -281,7 +281,10 @@ export class AuthService {
   async resetPassword(email: string) {
     const user = await this.getUserByEmail(email);
 
-    const data = await this.emailService.sendResetPasswordToEmail(email, user);
+    const data = await this.emailService.sendResetPasswordToEmail(email, {
+      is_user_flag: false,
+      data: { ...user, user_permissions: null },
+    });
     this.cache.setData(data.encryptedText, data);
 
     return `Reset Link sent to your registered email address.`;
@@ -292,24 +295,65 @@ export class AuthService {
     if (!data) {
       throw new BadRequestException('Verification failed, Please try again');
     }
-    const { email } = decryption(data as encryptData);
-    const account = this.getUserByEmail(email);
-    if (!account) {
-      throw new UnauthorizedException(`Invalid Process, please try again`);
+
+    const {
+      is_user_flag,
+      data: { email, id: user_auth_id, user_permissions },
+    } = decryption(data as encryptData);
+
+    if (is_user_flag) {
+      const account = await this.postgresService.user.findFirst({
+        where: { email },
+      });
+
+      if (!account) {
+        throw new UnauthorizedException(`Invalid Process, please try again`);
+      }
+      await this.comparePassword(body.password, body.confirm_password);
+
+      const new_password = await this.hashPassword(body.password);
+
+      await this.postgresService.auth.update({
+        where: {
+          email,
+        },
+        data: {
+          password: new_password,
+          email_verified: true,
+          is_user: true,
+        },
+      });
+
+      await this.postgresService.permission.create({
+        data: {
+          ...user_permissions,
+          user_auth: { connect: { id: user_auth_id } },
+          user: { connect: { id: account.id } },
+        },
+      });
+      this.cache.delData(token.token);
+
+      return await this.getUserByEmail(email);
+    } else {
+      const account = await this.getUserByEmail(email);
+      if (!account) {
+        throw new UnauthorizedException(`Invalid Process, please try again`);
+      }
+      await this.comparePassword(body.password, body.confirm_password);
+
+      const new_password = await this.hashPassword(body.password);
+      console.log('*****');
+
+      await this.postgresService.auth.update({
+        where: {
+          email,
+        },
+        data: {
+          password: new_password,
+        },
+      });
+      this.cache.delData(token.token);
+      return await this.getUserByEmail(email);
     }
-    await this.comparePassword(body.password, body.confirm_password);
-
-    const new_password = await this.hashPassword(body.password);
-
-    await this.postgresService.auth.update({
-      where: {
-        email,
-      },
-      data: {
-        password: new_password,
-      },
-    });
-    this.cache.delData(token.token);
-    return 'New password saved!';
   }
 }

@@ -307,7 +307,7 @@ export class SaleService {
     });
 
     const totalCount = await this.postgresService.sale.count({
-      where: whereCondition,
+      where: { tenant_id },
     });
     return {
       data: all_sales || [],

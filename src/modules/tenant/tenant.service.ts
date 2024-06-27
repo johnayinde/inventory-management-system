@@ -54,29 +54,51 @@ export class TenantService {
     tenant_id: number,
     data: EditPersonalBusinessDTO,
   ) {
-    await this.postgresService.$transaction([
-      this.postgresService.auth.update({
+    await this.postgresService.$transaction(async (tx) => {
+      await tx.auth.update({
         where: { id: tenant_id },
         data: {
           ...data.personal_info,
         },
-      }),
+      });
 
-      this.postgresService.business.update({
+      await tx.business.update({
         where: { id: tenant_id },
         data: {
           ...data.business_info,
         },
-      }),
-    ]);
-    return 'Update successful';
+      });
+    });
+    return await this.getTenantInfo(tenant_id);
   }
 
   async getTenantPersonalBusnessInfo(email: string) {
-    const { password, is_oauth_user, ...personal_data } =
-      await this.postgresService.auth.findFirst({
-        where: { email },
+    const {
+      password,
+      is_oauth_user,
+      email: user_email,
+      is_user,
+      ...personal_data
+    } = await this.postgresService.auth.findFirst({
+      where: { email },
+    });
+    console.log(is_user);
+
+    if (is_user) {
+      const { id: tenent_id } = await this.postgresService.tenant.findFirst({
+        where: { users: { some: { email: { in: [user_email] } } } },
       });
+
+      const business_info = await this.postgresService.tenant.findFirst({
+        where: { id: tenent_id },
+        include: { business: true },
+      });
+
+      return {
+        personal: personal_data,
+        business: business_info,
+      };
+    }
 
     const business_info = await this.postgresService.tenant.findFirst({
       where: { email },

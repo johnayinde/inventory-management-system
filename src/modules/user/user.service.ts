@@ -1,19 +1,12 @@
-import {
-  BadRequestException,
-  HttpException,
-  HttpStatus,
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
 import { CreateUserDto, EditUserDto } from './dto/user.dto';
 import { CacheService } from '../cache/cache.service';
 import { EmailService } from '../email/email.service';
-import { ResetPasswordDto, ValidateTokenDto } from '../auth/dto/auth.dto';
-import { USER_SIGNUP, decryption, encryptData } from '@app/common';
-import * as bcrypt from 'bcrypt';
+import { USER_SIGNUP, customersFilters, page_generator } from '@app/common';
 import { Auth, User } from '@prisma/client';
+import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
+import { generatePassword } from '@app/common/helpers';
 
 @Injectable()
 export class UserService {
@@ -24,6 +17,8 @@ export class UserService {
   ) {}
 
   async createUser(tenant_id: number, user: CreateUserDto) {
+    const default_password = generatePassword();
+
     return await this.postgresService.$transaction(async (tx) => {
       const user_acc = await tx.user.create({
         data: {
@@ -33,75 +28,26 @@ export class UserService {
         },
       });
 
+      const user_auth = await tx.auth.create({
+        data: {
+          email: user.email,
+          password: default_password,
+          is_user: true,
+          // email_verified: true,
+        },
+      });
+
       const data = await this.emailService.sendResetPasswordToEmail(
         user.email,
-        { user: user_acc, user_permissions: user.permissions },
-        'user',
+        {
+          is_user_flag: true,
+          data: { ...user_auth, user_permissions: user.permissions },
+        },
       );
 
       this.cache.setData(data.encryptedText, data);
       return USER_SIGNUP;
     });
-  }
-
-  private async comparePassword(pwd: string, cPwd: string) {
-    const isMatch = pwd == cPwd;
-    if (!isMatch) {
-      throw new HttpException(
-        'Password does not match',
-        HttpStatus.BAD_GATEWAY,
-      );
-    }
-    return isMatch;
-  }
-
-  private async hashPassword(password: string) {
-    const salt = await bcrypt.genSalt(10);
-
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    return hashedPassword;
-  }
-
-  async validateEmailForPassword(
-    token: ValidateTokenDto,
-    body: ResetPasswordDto,
-  ): Promise<Auth> {
-    const data = await this.cache.getData(token.token);
-    if (!data) {
-      throw new BadRequestException('Verification failed, Please try again');
-    }
-    const { user, user_permissions } = decryption(data as encryptData);
-    const account = await this.postgresService.user.findFirst({
-      where: { email: user.email },
-    });
-
-    if (!account) {
-      throw new UnauthorizedException(`Invalid Process, please try again`);
-    }
-    await this.comparePassword(body.password, body.confirm_password);
-
-    const new_password = await this.hashPassword(body.password);
-
-    const user_auth = await this.postgresService.auth.create({
-      data: {
-        email: user.email,
-        password: new_password,
-        is_user: true,
-        email_verified: true,
-      },
-    });
-    this.cache.delData(token.token);
-
-    await this.postgresService.permission.create({
-      data: {
-        ...user_permissions,
-        user_auth: { connect: { id: user_auth.id } },
-        user: { connect: { id: account.id } },
-      },
-    });
-
-    return user_auth;
   }
 
   async suspendUser(tenant_id: number, id: number, suspend: boolean) {
@@ -124,12 +70,37 @@ export class UserService {
     return 'Status Updated!';
   }
 
-  async getAllTenantUsers(tenant_id: number): Promise<User[]> {
+  async getAllTenantUsers(tenant_id: number, filters: PaginatorDTO) {
+    const { skip, take } = page_generator(
+      Number(filters.page),
+      Number(filters.pageSize),
+    );
+    const filter = customersFilters(filters);
+    const whereCondition = filter ? { tenant_id, ...filter } : { tenant_id };
+
     const tenantAndUsers = await this.postgresService.user.findMany({
-      where: { tenant_id },
+      where: whereCondition,
       include: { permissions: true },
+      skip,
+      take,
+      orderBy: { created_at: 'desc' },
     });
-    return tenantAndUsers;
+
+    const totalCount = await this.postgresService.product.count({
+      where: { tenant_id },
+    });
+
+    return {
+      data: tenantAndUsers || [],
+      totalCount,
+      pageInfo: {
+        currentPage: Number(filters.page),
+        perPage: Number(filters.pageSize),
+        hasNextPage:
+          tenantAndUsers.length >
+          Number(filters.page) * Number(filters.pageSize),
+      },
+    };
   }
 
   async getUserById(tenant_id: number, userId: number): Promise<User> {

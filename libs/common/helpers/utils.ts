@@ -70,3 +70,18 @@ export function calculate_date_range(no_of_days) {
   const start_date = new Date(end_date - no_of_days * 24 * 60 * 60 * 1000);
   return { start: start_date, end: new Date(end_date) };
 }
+
+export function generatePassword(minLength = 8, maxLength = 20) {
+  const length =
+    Math.floor(Math.random() * (maxLength - minLength + 1)) + minLength;
+  const charset =
+    'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=';
+
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * charset.length);
+    password += charset[randomIndex];
+  }
+
+  return password;
+}

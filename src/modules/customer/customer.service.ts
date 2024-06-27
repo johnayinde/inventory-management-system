@@ -29,7 +29,7 @@ export class CustomerService {
     const whereCondition = filter ? { tenant_id, ...filter } : { tenant_id };
 
     const totalCount = await this.postgresService.customer.count({
-      where: whereCondition,
+      where: { tenant_id },
     });
 
     const all_customers = await this.postgresService.customer.findMany({
@@ -109,9 +109,13 @@ export class CustomerService {
       throw new NotFoundException('Customer Sales not found');
     }
 
+    const totalCount = await this.postgresService.sale.count({
+      where: { tenant_id, customerId: id },
+    });
+
     return {
       data: { customer, sales: customerSales },
-      totalCount: customerSales.length,
+      totalCount,
       pageInfo: {
         currentPage: Number(filters.page),
         perPage: Number(filters.pageSize),

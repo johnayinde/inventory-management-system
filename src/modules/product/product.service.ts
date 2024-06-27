@@ -76,7 +76,7 @@ export class ProductService {
       orderBy: { created_at: 'desc' },
     });
     const totalCount = await this.postgresService.product.count({
-      where: whereCondition,
+      where: { tenant_id },
     });
 
     return {

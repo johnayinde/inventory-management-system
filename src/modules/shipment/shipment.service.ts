@@ -186,7 +186,7 @@ export class ShipmentService {
     });
 
     const totalCount = await this.postgresService.shipment.count({
-      where: whereCondition,
+      where: { tenant_id },
     });
 
     return {

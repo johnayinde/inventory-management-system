@@ -13,11 +13,11 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { ApiTags, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { CreateUserDto, EditUserDto, SuspendUserDto } from './dto/user.dto';
 import { Request } from 'express';
-import { ResetPasswordDto, ValidateTokenDto } from '../auth/dto/auth.dto';
-import { Public, TenantInterceptor } from '@app/common';
+import { TenantInterceptor } from '@app/common';
+import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
 @ApiTags('Users')
 @Controller('user')
@@ -36,26 +36,6 @@ export class UserController {
     @Req() { tenant_id }: Request,
   ) {
     return this.userService.createUser(tenant_id, createUserDto);
-  }
-
-  @Public()
-  @Post('/reset-password')
-  @ApiBody({
-    description: 'set password for new user',
-    type: ResetPasswordDto,
-  })
-  @ApiQuery({
-    name: 'token',
-    required: true,
-    type: String,
-  })
-  @HttpCode(HttpStatus.OK)
-  async setAccount(
-    @Query() token: ValidateTokenDto,
-
-    @Body() body: ResetPasswordDto,
-  ) {
-    return this.userService.validateEmailForPassword(token, body);
   }
 
   @ApiBearerAuth()
@@ -110,8 +90,8 @@ export class UserController {
   @UseInterceptors(TenantInterceptor)
   @Get('')
   @HttpCode(HttpStatus.OK)
-  getAllUsers(@Req() { tenant_id }: Request) {
-    return this.userService.getAllTenantUsers(tenant_id);
+  getAllUsers(@Req() { tenant_id }: Request, @Query() filters: PaginatorDTO) {
+    return this.userService.getAllTenantUsers(tenant_id, filters);
   }
 
   @ApiBearerAuth()
