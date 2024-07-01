@@ -5,6 +5,12 @@ import {
   TenantPersonalInfoDto,
 } from './dto/tenant.dto';
 import { OrmService } from 'src/database/orm.service';
+import { ChangePasswordDTO } from '../auth/dto/auth.dto';
+import {
+  compareHashedPasswords,
+  comparePasswordString,
+  hashPassword,
+} from '@app/common/helpers';
 
 @Injectable()
 export class TenantService {
@@ -52,24 +58,27 @@ export class TenantService {
 
   async updateTenantPersonalBusnessInfo(
     tenant_id: number,
+    user_data,
     data: EditPersonalBusinessDTO,
   ) {
+    const { email } = user_data;
+
     await this.postgresService.$transaction(async (tx) => {
       await tx.auth.update({
-        where: { id: tenant_id },
+        where: { email },
         data: {
           ...data.personal_info,
         },
       });
 
       await tx.business.update({
-        where: { id: tenant_id },
+        where: { tenant_id },
         data: {
           ...data.business_info,
         },
       });
     });
-    return await this.getTenantInfo(tenant_id);
+    return await this.getTenantInfo(tenant_id, user_data);
   }
 
   async getTenantPersonalBusnessInfo(email: string) {
@@ -111,39 +120,53 @@ export class TenantService {
     };
   }
 
-  async getTenantInfo(tenant_id: number, user_id = 0) {
-    let personal = null;
-    let business = null;
+  async getTenantInfo(tenant_id: number, user_data = null) {
+    const { email } = user_data;
+
+    const { password, is_oauth_user, ...personal_data } =
+      await this.postgresService.auth.findFirst({
+        where: { email },
+      });
 
     const tenant_info = await this.postgresService.tenant.findFirst({
       where: { id: tenant_id },
       include: { business: true },
     });
 
-    if (user_id) {
-      const { email } = await this.postgresService.user.findFirst({
-        where: { id: user_id },
-      });
-
-      const { password, is_oauth_user, ...personal_data } =
-        await this.postgresService.auth.findFirst({
-          where: { email },
-        });
-
-      personal = personal_data;
-    } else {
-      const { password, is_oauth_user, ...personal_data } =
-        await this.postgresService.auth.findFirst({
-          where: { email: tenant_info.email },
-        });
-
-      personal = personal_data;
-      business = personal_data;
-    }
-
     return {
-      personal,
+      personal: personal_data,
       business: tenant_info?.business,
     };
+  }
+
+  async changePassword(user_data, data: ChangePasswordDTO): Promise<void> {
+    const { current_password, confirm_password, password } = data;
+    const { email } = user_data;
+
+    const user = await this.postgresService.auth.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    await comparePasswordString(password, confirm_password);
+
+    const isPasswordValid = await compareHashedPasswords(
+      current_password,
+      user.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const hashedPassword = await hashPassword(password);
+
+    await this.postgresService.auth.update({
+      where: { email },
+      data: { password: hashedPassword },
+    });
   }
 }

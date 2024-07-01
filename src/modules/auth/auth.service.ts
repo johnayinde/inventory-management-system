@@ -29,6 +29,7 @@ import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
 import { StatusType } from '@prisma/client';
 import { TenantService } from '../tenant/tenant.service';
+import { comparePasswordString, hashPassword } from '@app/common/helpers';
 
 @Injectable()
 export class AuthService {
@@ -40,24 +41,6 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
-
-  async hashPassword(password: string) {
-    const salt = await bcrypt.genSalt(10);
-
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    return hashedPassword;
-  }
-  async comparePassword(pwd: string, cPwd: string) {
-    const isMatch = pwd == cPwd;
-    if (!isMatch) {
-      throw new HttpException(
-        'Password does not match',
-        HttpStatus.BAD_GATEWAY,
-      );
-    }
-    return isMatch;
-  }
 
   async generateAccessToken(
     userId: number,
@@ -99,9 +82,9 @@ export class AuthService {
     if (user) {
       throw new HttpException('User Already exist.', HttpStatus.BAD_REQUEST);
     }
-    await this.comparePassword(data.password, data.confirm_password);
+    await comparePasswordString(data.password, data.confirm_password);
 
-    data.password = await this.hashPassword(data.password);
+    data.password = await hashPassword(data.password);
     const new_account = await this.postgresService.auth.create({
       data: {
         email: data.email,
@@ -318,9 +301,9 @@ export class AuthService {
       if (!account) {
         throw new UnauthorizedException(`Invalid Process, please try again`);
       }
-      await this.comparePassword(body.password, body.confirm_password);
+      await comparePasswordString(body.password, body.confirm_password);
 
-      const new_password = await this.hashPassword(body.password);
+      const new_password = await hashPassword(body.password);
 
       await this.postgresService.auth.update({
         where: {
@@ -348,10 +331,9 @@ export class AuthService {
       if (!account) {
         throw new UnauthorizedException(`Invalid Process, please try again`);
       }
-      await this.comparePassword(body.password, body.confirm_password);
+      await comparePasswordString(body.password, body.confirm_password);
 
-      const new_password = await this.hashPassword(body.password);
-      console.log('*****');
+      const new_password = await hashPassword(body.password);
 
       await this.postgresService.auth.update({
         where: {

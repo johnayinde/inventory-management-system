@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class PaginatorDTO {
   @ApiPropertyOptional()
@@ -41,4 +41,10 @@ export class PaginatorDTO {
 
   @ApiPropertyOptional()
   date?: string;
+
+  @ApiPropertyOptional()
+  minPrice?: number;
+
+  @ApiPropertyOptional()
+  maxPrice?: number;
 }

@@ -8,18 +8,18 @@ import {
   Req,
   Patch,
   UseInterceptors,
-  Query,
+  Put,
 } from '@nestjs/common';
 import { TenantService } from './tenant.service';
 import {
   EditPersonalBusinessDTO,
   TenantBusinessDTO,
-  TenantEmailDTO,
   TenantPersonalInfoDto,
 } from './dto/tenant.dto';
-import { ApiBearerAuth, ApiBody, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { TenantInterceptor } from '@app/common';
+import { ChangePasswordDTO } from '../auth/dto/auth.dto';
 
 @ApiTags('Tenant')
 @ApiBearerAuth()
@@ -65,17 +65,26 @@ export class TenantController {
   @HttpCode(HttpStatus.OK)
   updateTenantPersonalBusnessInfo(
     @Body() updatePersonalBusiness: EditPersonalBusinessDTO,
-    @Req() { tenant_id }: Request,
+    @Req() { tenant_id, user }: Request,
   ) {
     return this.tenantService.updateTenantPersonalBusnessInfo(
       tenant_id,
+      user,
       updatePersonalBusiness,
     );
   }
 
   @Get('/user-info')
   @HttpCode(HttpStatus.OK)
-  getTenantData(@Req() { tenant_id, user_id }: Request) {
-    return this.tenantService.getTenantInfo(tenant_id, user_id);
+  getTenantData(@Req() { tenant_id, user }: Request) {
+    return this.tenantService.getTenantInfo(tenant_id, user);
+  }
+
+  @Put('change-password')
+  async changePassword(
+    @Req() { user }: Request,
+    @Body() data: ChangePasswordDTO,
+  ): Promise<void> {
+    return await this.tenantService.changePassword(user, data);
   }
 }

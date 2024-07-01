@@ -3,13 +3,12 @@ import {
   IsHexadecimal,
   IsOptional,
   IsString,
-  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { RecordExists, RecordIsInDb } from '@app/common';
+import {  RecordIsInDb } from '@app/common';
 import { CheckPassword } from '../decorators/pwd.valid.decorator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty,  } from '@nestjs/swagger';
 
 export class RegisterDto {
   @ApiProperty()
@@ -94,4 +93,23 @@ export class OAuthDto {
   @IsString()
   @ApiProperty()
   token: string;
+}
+
+export class ChangePasswordDTO {
+  @ApiProperty()
+  current_password: string;
+
+  @ApiProperty()
+  @MinLength(8)
+  @MaxLength(20)
+  @IsString()
+  @CheckPassword('auth.password')
+  password: string;
+
+  @ApiProperty()
+  @MinLength(8)
+  @MaxLength(20)
+  @IsString()
+  @CheckPassword('auth.password')
+  confirm_password: string;
 }

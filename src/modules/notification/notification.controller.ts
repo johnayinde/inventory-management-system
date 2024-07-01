@@ -5,7 +5,6 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Logger,
   Param,
   ParseIntPipe,
   Post,
@@ -35,7 +34,10 @@ export class NotificationController {
     @Body() data: NotificationConfigDto,
     @Req() { tenant_id }: Request,
   ) {
-    await this.notificationService.setNotificationConfigs(tenant_id, data);
+    return await this.notificationService.setNotificationConfigs(
+      tenant_id,
+      data,
+    );
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
@@ -60,8 +62,14 @@ export class NotificationController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  getCategories(@Req() { tenant_id }: Request) {
+  getNotifications(@Req() { tenant_id }: Request) {
     return this.notificationService.getAllNotification(tenant_id);
+  }
+
+  @Get('configs')
+  @HttpCode(HttpStatus.OK)
+  getCongig(@Req() { tenant_id }: Request) {
+    return this.notificationService.getCongigs(tenant_id);
   }
 
   @Delete('/:id')

@@ -152,6 +152,12 @@ export class NotificationService {
     });
   }
 
+  async getCongigs(tenant_id: number) {
+    return await this.postgresService.notification.findFirst({
+      where: { tenant_id },
+    });
+  }
+
   async delete(tenant_id: number, id: number) {
     await this.postgresService.log.delete({
       where: { id, tenant_id },
