@@ -185,7 +185,7 @@ export class ExpenseService {
         data: {
           ...expenseData,
           amount: Number(amount),
-          expense_categoryId: Number(categoryId),
+          category_id: Number(categoryId),
           attachments: image_urls,
         },
       });
@@ -269,7 +269,7 @@ export class ExpenseService {
     const {
       id,
       tenant_id: originalTenantId,
-      expense_categoryId,
+      category_id,
       category,
       productId,
       product,
@@ -295,7 +295,7 @@ export class ExpenseService {
           ...expenseData,
           name: `Copy of ${expenseToDuplicate.name}`,
           tenant: { connect: { id: tenant_id } },
-          category: { connect: { id: expense_categoryId } },
+          category: { connect: { id: category_id } },
         },
       });
     } else if (expenseToDuplicate.type == ExpenseType.shipment) {
