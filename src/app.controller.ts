@@ -12,9 +12,8 @@ export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
-  getHello(@Req() { tenant_id }: Request) {
-    console.log(tenant_id);
+  getHello(@Req() { tenant_id, user_id }: Request) {
 
-    return this.appService.getHello(tenant_id);
+    return this.appService.getHello(tenant_id, user_id);
   }
 }

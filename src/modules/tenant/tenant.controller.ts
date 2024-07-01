@@ -75,7 +75,7 @@ export class TenantController {
 
   @Get('/user-info')
   @HttpCode(HttpStatus.OK)
-  getTenantData(@Req() { tenant_id }: Request) {
-    return this.tenantService.getTenantInfo(tenant_id);
+  getTenantData(@Req() { tenant_id, user_id }: Request) {
+    return this.tenantService.getTenantInfo(tenant_id, user_id);
   }
 }

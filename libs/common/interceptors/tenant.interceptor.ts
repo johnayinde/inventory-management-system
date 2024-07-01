@@ -13,6 +13,7 @@ declare global {
   namespace Express {
     interface Request {
       tenant_id?: number;
+      user_id?: number;
     }
   }
 }
@@ -45,6 +46,7 @@ export class TenantInterceptor implements NestInterceptor {
         if (!userRec) throw new UnauthorizedException();
 
         request.tenant_id = userRec.tenant_id;
+        request.user_id = userRec.id;
       }
       return next.handle();
     }

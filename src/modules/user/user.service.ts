@@ -27,13 +27,15 @@ export class UserService {
           tenant: { connect: { id: tenant_id } },
         },
       });
+      const [first_name, ...other] = user.name.split(' ');
 
       const user_auth = await tx.auth.create({
         data: {
           email: user.email,
           password: default_password,
           is_user: true,
-          // email_verified: true,
+          first_name: first_name,
+          last_name: other.join(' '),
         },
       });
 
@@ -86,7 +88,7 @@ export class UserService {
       orderBy: { created_at: 'desc' },
     });
 
-    const totalCount = await this.postgresService.product.count({
+    const totalCount = await this.postgresService.user.count({
       where: { tenant_id },
     });
 

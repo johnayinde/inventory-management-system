@@ -4,14 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CreateSaleDto } from './dto/sales.dto';
-import {
-  FeeType,
-  Inventory,
-  NotifierType,
-  PrismaClient,
-  ProductStatusType,
-  ValueType,
-} from '@prisma/client';
+import { FeeType, PrismaClient, ValueType } from '@prisma/client';
 import { OrmService } from 'src/database/orm.service';
 
 import {
@@ -188,18 +181,10 @@ export class SaleService {
         include: { product: true },
       });
 
-      const { status } = await this.getTotalQuantityByProduct(
+      await this.getTotalQuantityByProduct(
         tx as PrismaClient,
         tenant_id,
         inventory,
-      );
-
-      await this.notifyProductStatus(
-        status,
-        tx as PrismaClient,
-        tenant_id,
-        inventory,
-        inventory.quantity,
       );
     }
   }
@@ -229,8 +214,6 @@ export class SaleService {
       },
     });
 
-    console.log(inventorySummary);
-
     const total_qty = inventorySummary?.[0]?._sum?.quantity ?? 0;
     const min_price = inventorySummary?.[0]?._min?.selling_price ?? 0;
     const max_price = inventorySummary?.[0]?._max?.selling_price ?? 0;
@@ -246,32 +229,6 @@ export class SaleService {
     });
 
     return { total_qty, status };
-  }
-
-  private async notifyProductStatus(
-    status: string,
-    tx: PrismaClient,
-    tenant_id: number,
-    product: Inventory,
-    qty: number,
-  ) {
-    if (status === ProductStatusType.running_low) {
-      await tx.notification.create({
-        data: {
-          tenant_id,
-          type: NotifierType.low_stock,
-          products: [{ product: product.name, quantity: qty }],
-        },
-      });
-    } else if (status === ProductStatusType.sold_out) {
-      await tx.notification.create({
-        data: {
-          tenant_id,
-          type: NotifierType.sold_out,
-          products: [{ product: product.name, quantity: qty }],
-        },
-      });
-    }
   }
 
   async getInvoice(tenant_id: number, salesId: number) {
