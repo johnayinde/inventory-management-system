@@ -1,5 +1,7 @@
 import { ProductStatusType } from '@prisma/client';
 import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import * as bcrypt from 'bcrypt';
+import { HttpException, HttpStatus } from '@nestjs/common';
 
 export function getLastMonthDateRange() {
   const currentDate = new Date();
@@ -84,4 +86,27 @@ export function generatePassword(minLength = 8, maxLength = 20) {
   }
 
   return password;
+}
+
+export async function hashPassword(password: string) {
+  const salt = await bcrypt.genSalt(10);
+
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  return hashedPassword;
+}
+
+export async function compareHashedPasswords(
+  prev_password: string,
+  new_password: string,
+) {
+  return await bcrypt.compare(prev_password, new_password);
+}
+
+export async function comparePasswordString(pwd: string, cPwd: string) {
+  const isMatch = pwd == cPwd;
+  if (!isMatch) {
+    throw new HttpException('Password does not match', HttpStatus.BAD_GATEWAY);
+  }
+  return isMatch;
 }

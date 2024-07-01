@@ -17,13 +17,7 @@ export const inventoryFilters = (data: PaginatorDTO) => {
 
   if (data.catId) {
     filter.OR.push({
-      category_id: Number(data.catId),
-    });
-  }
-
-  if (data.sub_catId) {
-    filter.OR.push({
-      sub_category_id: Number(data.sub_catId),
+      product: { category_id: Number(data.catId) },
     });
   }
 
@@ -47,6 +41,71 @@ export const inventoryFilters = (data: PaginatorDTO) => {
       },
     });
   }
+
+  if (data.minPrice && data.maxPrice) {
+    filter.OR.push({
+      selling_price: {
+        gte: Number(data.minPrice),
+        lte: Number(data.maxPrice),
+      },
+    });
+  } else if (data.minPrice) {
+    filter.OR.push({
+      selling_price: {
+        gte: Number(data.minPrice),
+      },
+    });
+  } else if (data.maxPrice) {
+    filter.OR.push({
+      selling_price: {
+        lte: Number(data.maxPrice),
+      },
+    });
+  }
+
+  const hasOtherFilters =
+    filter.OR.length > 0 || filter.AND.length > 0 ? filter : null;
+  console.log(hasOtherFilters);
+
+  return hasOtherFilters;
+};
+
+export const productFilters = (data: PaginatorDTO) => {
+  const filter = { OR: [], AND: [] };
+
+  if (data.catId) {
+    filter.OR.push({
+      category_id: Number(data.catId),
+    });
+  }
+
+  if (data.productId) {
+    filter.OR.push({
+      id: Number(data.productId),
+    });
+  }
+
+  if (data.date) {
+    filter.OR.push({
+      created_at: data.date,
+    });
+  }
+
+  if (data.search) {
+    filter.OR.push({
+      name: {
+        contains: data.search,
+        mode: 'insensitive',
+      },
+    });
+  }
+
+  if (data.status) {
+    filter.OR.push({
+      status: data.status,
+    });
+  }
+
   const hasOtherFilters =
     filter.OR.length > 0 || filter.AND.length > 0 ? filter : null;
   console.log(hasOtherFilters);
@@ -96,7 +155,7 @@ export const expenseFilters = (data: PaginatorDTO) => {
 
   if (data.catId) {
     filter.OR.push({
-      category: { id: Number(data.catId) },
+      category_id: { id: Number(data.catId) },
     });
   }
 
@@ -114,7 +173,7 @@ export const expenseFilters = (data: PaginatorDTO) => {
 
   if (data.amount) {
     filter.OR.push({
-      amount: data.amount,
+      amount: Number(data.amount),
     });
   }
 
@@ -179,6 +238,11 @@ export const subCategoryFilters = (data: PaginatorDTO) => {
 export const customersFilters = (data: PaginatorDTO) => {
   const filter = { OR: [], AND: [] };
 
+  if (data.customerId) {
+    filter.OR.push({
+      id: Number(data.customerId),
+    });
+  }
   if (data.date) {
     filter.OR.push({
       created_at: data.date,

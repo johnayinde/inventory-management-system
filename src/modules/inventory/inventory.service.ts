@@ -154,8 +154,6 @@ export class InventoryService {
       },
     });
 
-    console.log(inventorySummary);
-
     const total_qty = inventorySummary?.[0]?._sum?.quantity ?? 0;
     const min_price = inventorySummary?.[0]?._min?.selling_price ?? 0;
     const max_price = inventorySummary?.[0]?._max?.selling_price ?? 0;

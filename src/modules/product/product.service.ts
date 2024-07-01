@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
 import { CreateProductoDto, EditProductDto } from './dto/product.dto';
-import { ProductStatsDto, inventoryFilters, page_generator } from '@app/common';
+import { ProductStatsDto, page_generator, productFilters } from '@app/common';
 import { deleteImage, uploadImages } from '@app/common/helpers';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
@@ -66,7 +66,7 @@ export class ProductService {
       Number(filters.page),
       Number(filters.pageSize),
     );
-    const filter = inventoryFilters(filters);
+    const filter = productFilters(filters);
     const whereCondition = filter ? { tenant_id, ...filter } : { tenant_id };
     const all_products = await this.postgresService.product.findMany({
       where: whereCondition,

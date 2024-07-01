@@ -13,7 +13,6 @@ export class AppController {
 
   @Get()
   getHello(@Req() { tenant_id, user_id }: Request) {
-
     return this.appService.getHello(tenant_id, user_id);
   }
 }

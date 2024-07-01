@@ -231,19 +231,19 @@ model ExpenseCategory {
 }
 
 model Expense {
-  id                 Int              @id @default(autoincrement())
-  tenant             Tenant           @relation(fields: [tenant_id], references: [id])
-  tenant_id          Int
-  name               String
-  description        String?
-  amount             Float?
-  date               DateTime
-  type               ExpenseType      @default(general)
-  attachments        String[]
-  expense_categoryId Int?
-  category           ExpenseCategory? @relation(fields: [expense_categoryId], references: [id])
-  product            Product?         @relation(fields: [productId], references: [id])
-  productId          Int?
+  id          Int              @id @default(autoincrement())
+  tenant      Tenant           @relation(fields: [tenant_id], references: [id])
+  tenant_id   Int
+  name        String
+  description String?
+  amount      Float?
+  date        DateTime
+  type        ExpenseType      @default(general)
+  attachments String[]
+  category_id Int?
+  category    ExpenseCategory? @relation(fields: [category_id], references: [id])
+  product     Product?         @relation(fields: [productId], references: [id])
+  productId   Int?
 
   //
   deleted    Boolean   @default(false)

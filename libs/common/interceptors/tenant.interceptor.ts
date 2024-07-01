@@ -14,6 +14,7 @@ declare global {
     interface Request {
       tenant_id?: number;
       user_id?: number;
+      user?: { is_user: boolean; email: string; user_id: number };
     }
   }
 }
@@ -39,6 +40,7 @@ export class TenantInterceptor implements NestInterceptor {
         if (!tenantRecord) throw new UnauthorizedException();
 
         request.tenant_id = tenantRecord.id;
+        request.user = { is_user: false, email: tenantRecord.email };
       } else if (user.isUser) {
         const userRec = await prisma.user.findFirst({
           where: { id: user.userId },
@@ -47,6 +49,11 @@ export class TenantInterceptor implements NestInterceptor {
 
         request.tenant_id = userRec.tenant_id;
         request.user_id = userRec.id;
+        request.user = {
+          is_user: true,
+          email: user.email,
+          user_id: userRec.id,
+        };
       }
       return next.handle();
     }
