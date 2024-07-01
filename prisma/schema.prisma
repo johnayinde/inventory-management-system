@@ -85,10 +85,6 @@ model Tenant {
   expense_categories ExpenseCategory[]
   expenses           Expense[]
 
-  low_stock_notifier   Boolean @default(false)
-  sold_out_notifier    Boolean @default(false)
-  top_selling_notifier Boolean @default(false)
-
   //
   deleted          Boolean        @default(false)
   created_at       DateTime       @default(now()) @db.Timestamptz(3)
@@ -100,6 +96,7 @@ model Tenant {
   fees             Fees[]
   shipments        Shipment[]
   product_notifier Notification[]
+  logs             Log[]
 
   @@index(fields: [id, email])
 }
@@ -391,9 +388,27 @@ model Shipment {
 }
 
 model Notification {
-  id       Int          @id @default(autoincrement())
-  type     NotifierType @default(low_stock)
-  products Json
+  id                   Int     @id @default(autoincrement())
+  low_stock_notifier   Boolean @default(false)
+  sold_out_notifier    Boolean @default(false)
+  top_selling_notifier Boolean @default(false)
+  tenant_id            Int     @unique
+  tenant               Tenant  @relation(fields: [tenant_id], references: [id])
+
+  //
+  deleted    Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  @@index(fields: [id, tenant_id])
+}
+
+model Log {
+  id           Int          @id @default(autoincrement())
+  product_name String?
+  quantity     Int?
+  revenue      String?
+  type         NotifierType @default(low_stock)
 
   tenant_id Int
   tenant    Tenant @relation(fields: [tenant_id], references: [id])

@@ -111,19 +111,38 @@ export class TenantService {
     };
   }
 
-  async getTenantInfo(tenant_id: number) {
+  async getTenantInfo(tenant_id: number, user_id = 0) {
+    let personal = null;
+    let business = null;
+
     const tenant_info = await this.postgresService.tenant.findFirst({
       where: { id: tenant_id },
       include: { business: true },
     });
 
-    const { password, is_oauth_user, ...personal_data } =
-      await this.postgresService.auth.findFirst({
-        where: { email: tenant_info.email },
+    if (user_id) {
+      const { email } = await this.postgresService.user.findFirst({
+        where: { id: user_id },
       });
 
+      const { password, is_oauth_user, ...personal_data } =
+        await this.postgresService.auth.findFirst({
+          where: { email },
+        });
+
+      personal = personal_data;
+    } else {
+      const { password, is_oauth_user, ...personal_data } =
+        await this.postgresService.auth.findFirst({
+          where: { email: tenant_info.email },
+        });
+
+      personal = personal_data;
+      business = personal_data;
+    }
+
     return {
-      personal: personal_data,
+      personal,
       business: tenant_info?.business,
     };
   }

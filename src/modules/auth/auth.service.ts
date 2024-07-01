@@ -174,13 +174,22 @@ export class AuthService {
       userId = user.id;
     }
 
+    delete user.password;
+    delete user.mfa_secret;
+
+    if (user.is_user) {
+      return {
+        ...user,
+        is_profile_complete: true,
+        token: await this.generateAccessToken(userId, user.email, user.is_user),
+      };
+    }
+
     const { personal, business } =
       await this.tenantService.getTenantPersonalBusnessInfo(user.email);
 
     const is_profile_complete = !!business.business && !!personal.first_name;
 
-    delete user.password;
-    delete user.mfa_secret;
     return {
       ...user,
       is_profile_complete,
