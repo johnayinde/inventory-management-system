@@ -43,7 +43,7 @@ export class SaleService {
       const saleProducts = [];
 
       for (const product_item of products) {
-        const { productId, quantity } = product_item;
+        const { productId, quantity, selling_price } = product_item;
 
         const inventoryItem = await tx.inventory.findUnique({
           where: { id: productId, tenant_id },
@@ -66,9 +66,7 @@ export class SaleService {
         );
 
         OverAlltotalExpenses += totalProductExpenses;
-        const productSellingPrice =
-          (inventoryItem.selling_price || 0) * quantity;
-        console.log({ productSellingPrice });
+        const productSellingPrice = selling_price * quantity;
 
         let totalFee = await this.calculateProductFee(
           tx as PrismaClient,
@@ -85,7 +83,7 @@ export class SaleService {
           inventory_item: { connect: { id: productId } },
           quantity,
           expense: totalProductExpenses,
-          unit_price: inventoryItem.selling_price,
+          unit_price: selling_price,
           total_price: productSellingPrice,
           tenant: { connect: { id: tenant_id } },
         });
