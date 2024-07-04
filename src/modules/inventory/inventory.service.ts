@@ -5,11 +5,10 @@ import {
 } from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
 import { CreateInventoryDto, EditInventoryDto } from './dto/inventory.dto';
-import { PricingType, PrismaClient } from '@prisma/client';
+import { PricingType, PrismaClient, ProductStatusType } from '@prisma/client';
 import {
-  calculatePercentageChange,
+  calculateChangeInPercentage,
   determineProductStatus,
-  getLastMonthDateRange,
 } from '@app/common/helpers';
 import {
   InventoryStatsDto,
@@ -18,6 +17,7 @@ import {
 } from '@app/common';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { getTimeRanges } from '@app/common/helpers/date-ranges';
 
 @Injectable()
 export class InventoryService {
@@ -271,65 +271,85 @@ export class InventoryService {
     });
   }
 
-  async getDashboardStats(tenant_id: number): Promise<InventoryStatsDto> {
-    const { firstDayOfLastMonth, lastDayOfLastMonth } = getLastMonthDateRange();
+  async getDashboardStats(
+    tenant_id: number,
+    time_period: 'day' | 'week' | 'month' | 'year',
+  ): Promise<InventoryStatsDto> {
+    const { current, previous } = getTimeRanges(time_period);
 
-    // Fetch data from the database
-    const productStats = await this.postgresService.product.count({
-      where: {
-        tenant_id,
-        status: 'running_low',
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
       },
-    });
-    const inventoryStats = await this.postgresService.inventory.count({
+    };
+
+    const previousDateCondition = {
+      created_at: {
+        gte: previous.start,
+        lte: previous.end,
+      },
+    };
+
+    const total_inventories = await this.postgresService.inventory.count({
       where: {
         tenant_id,
+        ...dateCondition,
       },
     });
 
     const inventoryStatsLastMonth = await this.postgresService.inventory.count({
       where: {
         tenant_id,
-        created_at: {
-          gte: firstDayOfLastMonth,
-          lte: lastDayOfLastMonth,
-        },
+        ...previousDateCondition,
       },
     });
 
-    const sales = await this.postgresService.sale.findMany({
+    const runningLow_products = await this.postgresService.product.count({
       where: {
         tenant_id,
-      },
-      include: {
-        sales_products: {
-          include: {
-            inventory_item: true,
-          },
-        },
+        status: ProductStatusType.running_low,
+        ...dateCondition,
       },
     });
 
-    const salesLastMonth = await this.postgresService.sale.findMany({
+    const runningLow_products_previous =
+      await this.postgresService.product.count({
+        where: {
+          tenant_id,
+          status: ProductStatusType.running_low,
+          ...dateCondition,
+        },
+      });
+
+    const returnedCount = await this.postgresService.saleProduct.aggregate({
       where: {
         tenant_id,
-        created_at: {
-          gte: firstDayOfLastMonth,
-          lte: lastDayOfLastMonth,
-        },
+        ...dateCondition,
       },
-      include: {
-        sales_products: {
-          include: {
-            inventory_item: true,
-          },
-        },
-      },
+      _count: { returned_counts: true },
     });
+
+    const returnedCount_previous =
+      await this.postgresService.saleProduct.aggregate({
+        where: {
+          tenant_id,
+          ...previousDateCondition,
+        },
+        _count: { returned_counts: true },
+      });
 
     const allcategoroes = await this.postgresService.category.count({
       where: {
         tenant_id,
+        ...dateCondition,
+      },
+    });
+
+    const allcategoroes_previous = await this.postgresService.category.count({
+      where: {
+        tenant_id,
+        ...previousDateCondition,
       },
     });
 
@@ -339,26 +359,34 @@ export class InventoryService {
       totalLowStocks: 0,
       totalCategories: 0,
       totalReturnedProducts: 0,
-      prevMonthTotalGoods: 0,
       goodsPercentageChange: 0,
-      //
+      totalLowStocksPercentChange: 0,
       categoriesPercentageChange: 0,
       returnPercentageChange: 0,
     };
 
-    stats.totalGoods = inventoryStats;
-    stats.totalLowStocks = productStats;
+    stats.totalGoods = total_inventories;
     stats.totalCategories = allcategoroes;
-    stats.prevMonthTotalGoods = inventoryStatsLastMonth;
-    stats.goodsPercentageChange = calculatePercentageChange(
-      stats.totalGoods,
-      stats.prevMonthTotalGoods,
+    stats.totalReturnedProducts = returnedCount._count.returned_counts;
+    stats.totalLowStocks = runningLow_products;
+
+    stats.goodsPercentageChange = calculateChangeInPercentage(
+      total_inventories,
+      inventoryStatsLastMonth,
     );
-    for (const sale of sales) {
-      for (const saleProduct of sale.sales_products) {
-        stats.totalReturnedProducts += saleProduct.returned_counts;
-      }
-    }
+    stats.totalCategories = calculateChangeInPercentage(
+      allcategoroes,
+      allcategoroes_previous,
+    );
+    stats.returnPercentageChange = calculateChangeInPercentage(
+      stats.totalReturnedProducts,
+      returnedCount_previous._count.returned_counts,
+    );
+
+    stats.totalLowStocksPercentChange = calculateChangeInPercentage(
+      stats.totalLowStocks,
+      runningLow_products_previous,
+    );
 
     return stats;
   }

@@ -14,8 +14,8 @@ import {
   Patch,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
-import { ApiFile, Role, Roles, TenantInterceptor } from '@app/common';
-import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { Role, Roles, TenantInterceptor } from '@app/common';
+import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { CreateInventoryDto, EditInventoryDto } from './dto/inventory.dto';
 import { Request } from 'express';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
@@ -54,8 +54,9 @@ export class InventoryController {
 
   @Get('/dashboard-stats')
   @HttpCode(HttpStatus.OK)
-  getStats(@Req() { tenant_id }: Request) {
-    return this.inventoryService.getDashboardStats(tenant_id);
+  @ApiQuery({ name: 'time_period', required: false })
+  getStats(@Req() { tenant_id }: Request, @Query('time_period') time_period) {
+    return this.inventoryService.getDashboardStats(tenant_id, time_period);
   }
 
   @Get(':inventoryId')

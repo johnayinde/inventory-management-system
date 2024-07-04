@@ -9,13 +9,14 @@ import { ExpenseType, ValueType } from '@prisma/client';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 import { ExpenseStatsDto, expenseFilters, page_generator } from '@app/common';
 import {
-  calculatePercentageChange,
+  calculateChangeInPercentage,
   deleteImage,
-  formatDate,
-  getLastMonthDateRange,
-  mappedData,
   uploadImages,
 } from '@app/common/helpers';
+import {
+  aggregateByTimestamp,
+  getTimeRanges,
+} from '@app/common/helpers/date-ranges';
 
 @Injectable()
 export class ExpenseService {
@@ -311,23 +312,21 @@ export class ExpenseService {
 
   async getExpenseDashboardStats(
     tenant_id: number,
-    start_date: Date,
-    end_date: Date,
+    time_period: 'day' | 'week' | 'month' | 'year',
   ) {
-    const dateCondition: any = {};
-    if (start_date && end_date) {
-      const { startDate, endDate } = formatDate(start_date, end_date);
-      dateCondition.created_at = {
-        gte: startDate,
-        lte: endDate,
-      };
-    }
-    const { firstDayOfLastMonth, lastDayOfLastMonth } = getLastMonthDateRange();
+    const { current, previous } = getTimeRanges(time_period);
+
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
 
     const previousDateCondition = {
       created_at: {
-        gte: firstDayOfLastMonth,
-        lte: lastDayOfLastMonth,
+        gte: previous.start,
+        lte: previous.end,
       },
     };
     const expenses = await this.postgresService.expense.findMany({
@@ -379,41 +378,43 @@ export class ExpenseService {
 
   async calculateExpenseStats(
     tenant_id: number,
-    start_date: Date,
-    end_date: Date,
+    time_period: 'day' | 'week' | 'month' | 'year',
   ) {
-    const dateCondition: any = {};
-    if (start_date && end_date) {
-      const { startDate, endDate } = formatDate(start_date, end_date);
-      dateCondition.created_at = {
-        gte: startDate,
-        lte: endDate,
-      };
-    }
+    const { current, labels } = getTimeRanges(time_period);
 
-    const expenses = await this.postgresService.expense.groupBy({
-      by: ['created_at'],
-      _sum: { amount: true },
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
+
+    const expenses = await this.postgresService.expense.findMany({
+      select: {
+        created_at: true,
+      },
       where: {
         tenant_id,
         ...dateCondition,
       },
     });
+    const prepared_data = aggregateByTimestamp(expenses, time_period, labels);
 
-    const result = mappedData(expenses, '_sum', 'amount');
-
-    return result;
+    return prepared_data;
   }
 
-  async topExpenses(tenant_id: number, start_date: Date, end_date: Date) {
-    const dateCondition: any = {};
-    if (start_date && end_date) {
-      const { startDate, endDate } = formatDate(start_date, end_date);
-      dateCondition.created_at = {
-        gte: startDate,
-        lte: endDate,
-      };
-    }
+  async topExpenses(
+    tenant_id: number,
+    time_period: 'day' | 'week' | 'month' | 'year',
+  ) {
+    const { current } = getTimeRanges(time_period);
+
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
 
     const topExpenses = await this.postgresService.expense.findMany({
       where: {
@@ -433,24 +434,22 @@ export class ExpenseService {
   }
 
   private determinePercentages(stats, statsLastMonth) {
-    stats.totalExpensesChange =
-      calculatePercentageChange(
-        stats.totalExpenses,
-        statsLastMonth.totalExpenses,
-      ) || 0;
+    stats.totalExpensesChange = calculateChangeInPercentage(
+      stats.totalExpenses,
+      statsLastMonth.totalExpenses,
+    );
 
-    stats.totalShippingChange =
-      calculatePercentageChange(
-        stats.totalShipping,
-        statsLastMonth.totalShipping,
-      ) || 0;
+    stats.totalShippingChange = calculateChangeInPercentage(
+      stats.totalShipping,
+      statsLastMonth.totalShipping,
+    );
     stats.totalFeesChange =
-      calculatePercentageChange(stats.totalFees, statsLastMonth.totalFees) || 0;
-    stats.miscelleneousChange =
-      calculatePercentageChange(
-        stats.miscelleneous,
-        statsLastMonth.miscelleneous,
-      ) || 0;
+      calculateChangeInPercentage(stats.totalFees, statsLastMonth.totalFees) ||
+      0;
+    stats.miscelleneousChange = calculateChangeInPercentage(
+      stats.miscelleneous,
+      statsLastMonth.miscelleneous,
+    );
   }
 
   private calculateBasicStats(fees, stats, expenses) {

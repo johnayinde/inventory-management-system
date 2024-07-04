@@ -8,11 +8,12 @@ import { CreateShipmentDto } from './dto/shipment.dto';
 import { page_generator, shipmentFilters } from '@app/common';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 import {
-  calculatePercentageChange,
+  calculateChangeInPercentage,
   deleteImage,
-  getLastMonthDateRange,
   uploadImages,
 } from '@app/common/helpers';
+import { getTimeRanges } from '@app/common/helpers/date-ranges';
+import { ProductStatusType } from '@prisma/client';
 
 @Injectable()
 export class ShipmentService {
@@ -78,80 +79,89 @@ export class ShipmentService {
     );
   }
 
-  async getDashboardStats(tenant_id: number) {
-    const { firstDayOfLastMonth, lastDayOfLastMonth } = getLastMonthDateRange();
+  async getDashboardStats(
+    tenant_id: number,
+    time_period: 'day' | 'week' | 'month' | 'year',
+  ) {
+    const { current, previous } = getTimeRanges(time_period);
+
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
+
+    const previousDateCondition = {
+      created_at: {
+        gte: previous.start,
+        lte: previous.end,
+      },
+    };
 
     const total_shipment_counts = await this.postgresService.shipment.count({
       where: {
         tenant_id,
+        ...dateCondition,
       },
     });
 
-    const total_last_month_shipment_counts =
+    const total_shipment_counts_previous =
       await this.postgresService.shipment.count({
         where: {
           tenant_id,
-          created_at: {
-            gte: firstDayOfLastMonth,
-            lte: lastDayOfLastMonth,
-          },
+          ...previousDateCondition,
         },
       });
 
     const inStockCount = await this.postgresService.product.count({
       where: {
         tenant_id,
-        status: 'in_stock',
+        status: ProductStatusType.in_stock,
+        ...dateCondition,
       },
     });
 
-    const inStockCount_last_month = await this.postgresService.product.count({
+    const inStockCount_previous = await this.postgresService.product.count({
       where: {
         tenant_id,
-        status: 'in_stock',
-        created_at: {
-          gte: firstDayOfLastMonth,
-          lte: lastDayOfLastMonth,
-        },
+        status: ProductStatusType.in_stock,
+        ...previousDateCondition,
       },
     });
 
     const outOfStockCount = await this.postgresService.product.count({
       where: {
         tenant_id,
-        status: 'sold_out',
+        status: ProductStatusType.sold_out,
+        ...dateCondition,
       },
     });
 
-    const outOfStockCount_last_month = await this.postgresService.product.count(
-      {
-        where: {
-          tenant_id,
-          status: 'sold_out',
-          created_at: {
-            gte: firstDayOfLastMonth,
-            lte: lastDayOfLastMonth,
-          },
-        },
+    const outOfStockCount_previous = await this.postgresService.product.count({
+      where: {
+        tenant_id,
+        status: ProductStatusType.sold_out,
+        ...previousDateCondition,
       },
-    );
+    });
 
     const stats = {
-      total_shipments: total_shipment_counts || 0,
-      total_shipments_change:
-        calculatePercentageChange(
-          total_shipment_counts,
-          total_last_month_shipment_counts,
-        ) || 0,
-      in_stock: inStockCount || 0,
-      in_stock_change:
-        calculatePercentageChange(inStockCount, inStockCount_last_month) || 0,
-      out_of_stock: outOfStockCount || 0,
-      out_of_stock_change:
-        calculatePercentageChange(
-          outOfStockCount,
-          outOfStockCount_last_month,
-        ) || 0,
+      total_shipments: total_shipment_counts,
+      total_shipments_change: calculateChangeInPercentage(
+        total_shipment_counts,
+        total_shipment_counts_previous,
+      ),
+      in_stock: inStockCount,
+      in_stock_change: calculateChangeInPercentage(
+        inStockCount,
+        inStockCount_previous,
+      ),
+      out_of_stock: outOfStockCount,
+      out_of_stock_change: calculateChangeInPercentage(
+        outOfStockCount,
+        outOfStockCount_previous,
+      ),
     };
 
     return stats;

@@ -2,11 +2,14 @@ import { Injectable } from '@nestjs/common';
 import {
   AnalyticsResult,
   ProfitMarginData,
-  SalesOverviewData,
   TopSellingProduct,
 } from './interface';
 import { OrmService } from 'src/database/orm.service';
-import { formatDate, getLastMonthDateRange } from '@app/common/helpers';
+import { calculateChangeInPercentage,  } from '@app/common/helpers';
+import {
+  aggregateByTimestamp,
+  getTimeRanges,
+} from '@app/common/helpers/date-ranges';
 
 @Injectable()
 export class DashboardService {
@@ -14,17 +17,23 @@ export class DashboardService {
 
   async calculateAnalytics(
     tenant_id: number,
-    start_date?: Date,
-    end_date?: Date,
+    time_period: 'day' | 'week' | 'month' | 'year',
   ): Promise<AnalyticsResult> {
-    const dateCondition: any = {};
-    if (start_date && end_date) {
-      const { startDate, endDate } = formatDate(start_date, end_date);
-      dateCondition.created_at = {
-        gte: startDate,
-        lte: endDate,
-      };
-    }
+    const { current, previous } = getTimeRanges(time_period);
+
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
+
+    const previousDateCondition = {
+      created_at: {
+        gte: previous.start,
+        lte: previous.end,
+      },
+    };
 
     const totalSales = await this.postgresService.sale.count({
       where: {
@@ -61,14 +70,6 @@ export class DashboardService {
       },
     });
 
-    const { firstDayOfLastMonth, lastDayOfLastMonth } = getLastMonthDateRange();
-
-    const previousDateCondition = {
-      created_at: {
-        gte: firstDayOfLastMonth,
-        lte: lastDayOfLastMonth,
-      },
-    };
     const previousTotalSales = await this.postgresService.sale.count({
       where: {
         tenant_id,
@@ -104,33 +105,21 @@ export class DashboardService {
       },
     });
 
-    const calculateChangePercentage = (
-      current: number,
-      previous: number,
-    ): number => {
-      if (previous === 0 || previous === null) return 0;
-      return ((current - previous) / previous) * 100;
-    };
-
-    const salesChangePercentage = calculateChangePercentage(
+    const salesChangePercentage = calculateChangeInPercentage(
       totalSales,
       previousTotalSales,
     );
-    console.log(
+
+    const revenueChangePercentage = calculateChangeInPercentage(
       totalRevenue._sum.total_price,
       previousTotalRevenue._sum.total_price,
     );
 
-    const revenueChangePercentage = calculateChangePercentage(
-      totalRevenue._sum.total_price,
-      previousTotalRevenue._sum.total_price,
-    );
-
-    const profitChangePercentage = calculateChangePercentage(
+    const profitChangePercentage = calculateChangeInPercentage(
       totalProfit._sum.total_price - totalProfit._sum.expenses,
       previousTotalProfit._sum.total_price - previousTotalProfit._sum.expenses,
     );
-    const inventoryChangePercentage = calculateChangePercentage(
+    const inventoryChangePercentage = calculateChangeInPercentage(
       totalInventory,
       previousTotalInventory,
     );
@@ -150,19 +139,17 @@ export class DashboardService {
 
   async getTopSellingProducts(
     tenant_id: number,
-    start_date: Date,
-    end_date: Date,
+    time_period: 'day' | 'week' | 'month' | 'year',
     limit: number = 5,
   ): Promise<TopSellingProduct[]> {
-    const dateCondition: any = {};
+    const { current } = getTimeRanges(time_period);
 
-    if (start_date && end_date) {
-      const { startDate, endDate } = formatDate(start_date, end_date);
-      dateCondition.created_at = {
-        gte: startDate,
-        lte: endDate,
-      };
-    }
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
 
     const allSaleProducts = await this.postgresService.saleProduct.findMany({
       where: {
@@ -190,18 +177,18 @@ export class DashboardService {
 
   async topProductInventory(
     tenant_id: number,
-    start_date: Date,
-    end_date: Date,
+    time_period: 'day' | 'week' | 'month' | 'year',
     limit: number = 5,
   ) {
-    const dateCondition: any = {};
-    if (start_date && end_date) {
-      const { startDate, endDate } = formatDate(start_date, end_date);
-      dateCondition.created_at = {
-        gte: startDate,
-        lte: endDate,
-      };
-    }
+    const { current } = getTimeRanges(time_period);
+
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
+
     const allSaleProducts = await this.postgresService.saleProduct.findMany({
       where: {
         tenant_id,
@@ -231,17 +218,17 @@ export class DashboardService {
 
   async getSalesOverview(
     tenant_id: number,
-    start_date: Date,
-    end_date: Date,
-  ): Promise<SalesOverviewData[]> {
-    const dateCondition: any = {};
-    if (start_date && end_date) {
-      const { startDate, endDate } = formatDate(start_date, end_date);
-      dateCondition.created_at = {
-        gte: startDate,
-        lte: endDate,
-      };
-    }
+    time_period: 'day' | 'week' | 'month' | 'year',
+  ) {
+    const { current, labels } = getTimeRanges(time_period);
+
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
+
     const sales = await this.postgresService.sale.findMany({
       select: {
         created_at: true,
@@ -251,46 +238,25 @@ export class DashboardService {
         tenant_id,
         ...dateCondition,
       },
-      orderBy: {
-        created_at: 'asc',
-      },
     });
 
-    // Aggregate the sales data by date
-    const aggregatedSales = sales.reduce((acc, item) => {
-      const dateKey = item.created_at.toISOString().split('T')[0];
-
-      if (acc[dateKey]) {
-        acc[dateKey].revenue += item.total_price || 0;
-      } else {
-        acc[dateKey] = {
-          date: new Date(dateKey),
-          revenue: item.total_price || 0,
-        };
-      }
-
-      return acc;
-    }, {} as Record<string, SalesOverviewData>);
-
-    // Convert the aggregated data back to an array
-    const resultArray = Object.values(aggregatedSales);
-
-    return resultArray;
+    const prepared_data = aggregateByTimestamp(sales, time_period, labels);
+    return prepared_data;
   }
 
   async calculateProfitMargin(
     tenant_id: number,
-    start_date: Date,
-    end_date: Date,
+    time_period: 'day' | 'week' | 'month' | 'year',
   ): Promise<ProfitMarginData[]> {
-    const dateCondition: any = {};
-    if (start_date && end_date) {
-      const { startDate, endDate } = formatDate(start_date, end_date);
-      dateCondition.created_at = {
-        gte: startDate,
-        lte: endDate,
-      };
-    }
+    const { current, labels } = getTimeRanges(time_period);
+
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
+
     const sales = await this.postgresService.sale.findMany({
       where: {
         tenant_id,
@@ -321,26 +287,12 @@ export class DashboardService {
       });
     }
 
-    // Aggregate the profit margin data by date
-    const aggregatedProfitMargin = profitMarginStats.reduce((acc, item) => {
-      const dateKey = item.created_at.toISOString().split('T')[0];
-
-      if (acc[dateKey]) {
-        acc[dateKey].profitMargin += item.profitMargin || 0;
-      } else {
-        acc[dateKey] = {
-          created_at: new Date(dateKey),
-          profitMargin: item.profitMargin || 0,
-        };
-      }
-
-      return acc;
-    }, {} as Record<string, ProfitMarginData>);
-
-    // Convert the aggregated data back to an array
-    const resultArray = Object.values(aggregatedProfitMargin);
-
-    return resultArray;
+    const prepared_data = aggregateByTimestamp(
+      profitMarginStats,
+      time_period,
+      labels,
+    );
+    return prepared_data;
   }
 
   async recentSales(tenant_id: number) {

@@ -18,7 +18,7 @@ import {
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductoDto, EditProductDto } from './dto/product.dto';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Request } from 'express';
 import { TenantInterceptor } from '@app/common';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
@@ -58,8 +58,9 @@ export class ProductController {
 
   @Get('/dashboard-stats')
   @HttpCode(HttpStatus.OK)
-  getStats(@Req() { tenant_id }: Request) {
-    return this.productService.getDashboardStats(tenant_id);
+  @ApiQuery({ name: 'time_period', required: false })
+  getStats(@Req() { tenant_id }: Request, @Query('time_period') time_period) {
+    return this.productService.getDashboardStats(tenant_id, time_period);
   }
 
   @Patch(':productId')

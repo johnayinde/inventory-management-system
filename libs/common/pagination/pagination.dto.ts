@@ -40,7 +40,10 @@ export class PaginatorDTO {
   amount?: number;
 
   @ApiPropertyOptional()
-  date?: string;
+  startDate?: string;
+
+  @ApiPropertyOptional()
+  endDate?: string;
 
   @ApiPropertyOptional()
   minPrice?: number;

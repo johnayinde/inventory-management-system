@@ -21,113 +21,78 @@ export class ReportController {
 
   @Get('card-stats')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   async getFinancialStats(
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
     @Req() { tenant_id }: Request,
+    @Query('time_period') time_period,
   ) {
-    return this.reportService.getDashboardStats(tenant_id, startDate, endDate);
+    return this.reportService.getDashboardStats(tenant_id, time_period);
   }
 
   @Get('/top-selling-stats')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   topSellingProductsSats(
     @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
   ) {
-    return this.reportService.getTopSellingProductsStats(
-      tenant_id,
-      startDate,
-      endDate,
-    );
+    return this.reportService.topProductInventory(tenant_id, time_period);
   }
 
   @Get('/customers-overview')
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   @HttpCode(HttpStatus.OK)
   customerOverview(
     @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
   ) {
-    return this.reportService.getCustomerStats(tenant_id, startDate, endDate);
+    return this.reportService.getCustomerStats(tenant_id, time_period);
   }
 
   @Get('/profit-margin-stats')
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   @HttpCode(HttpStatus.OK)
   profitMargin(
     @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
   ) {
-    return this.reportService.calculateProfitMargin(
-      tenant_id,
-      startDate,
-      endDate,
-    );
+    return this.reportService.calculateProfitMargin(tenant_id, time_period);
   }
 
-  @Get('/loss-margin-stats')
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
-  @HttpCode(HttpStatus.OK)
-  lossMargin(
-    @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
-  ) {
-    return this.reportService.calculateLossMargin(
-      tenant_id,
-      startDate,
-      endDate,
-    );
-  }
+  // @Get('/loss-margin-stats')
+  // @ApiQuery({ name: 'time_period', required: false })
+  // @HttpCode(HttpStatus.OK)
+  // lossMargin(@Req() { tenant_id }: Request, @Query('time_period') time_period) {
+  //   return this.reportService.calculateLossMargin(tenant_id, time_period);
+  // }
 
   @Get('/expense-stats')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   expenseStats(
     @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
   ) {
-    return this.reportService.calculateExpenseStats(
-      tenant_id,
-      startDate,
-      endDate,
-    );
+    return this.reportService.calculateExpenseStats(tenant_id, time_period);
   }
 
   @Get('/customer-stats')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   expensCustomerSalesStatseStats(
     @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
   ) {
-    return this.reportService.CustomerSalesStats(tenant_id, startDate, endDate);
+    return this.reportService.CustomerSalesStats(tenant_id, time_period);
   }
 
   @Get('/revenue-stats')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   revenueStats(
     @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
   ) {
-    return this.reportService.totalRevenue(tenant_id, startDate, endDate);
+    return this.reportService.totalRevenue(tenant_id, time_period);
   }
 }
