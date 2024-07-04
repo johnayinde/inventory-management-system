@@ -14,12 +14,11 @@ import {
   salesFilters,
 } from '@app/common';
 import {
-  calculatePercentageChange,
+  calculateChangeInPercentage,
   determineProductStatus,
-  formatDate,
-  getLastMonthDateRange,
 } from '@app/common/helpers';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
+import { getTimeRanges } from '@app/common/helpers/date-ranges';
 
 @Injectable()
 export class SaleService {
@@ -65,7 +64,6 @@ export class SaleService {
           (acc, expense) => acc + expense.amount || 0,
           0,
         );
-        console.log({ totalProductExpenses });
 
         OverAlltotalExpenses += totalProductExpenses;
         const productSellingPrice =
@@ -78,7 +76,6 @@ export class SaleService {
           inventoryItem.product_id,
           productSellingPrice,
         );
-        console.log({ totalFee });
         //
 
         OverAllSellingPrice += productSellingPrice + totalFee;
@@ -93,12 +90,6 @@ export class SaleService {
           tenant: { connect: { id: tenant_id } },
         });
       }
-      console.log({
-        OverAllSellingPrice,
-        OverAllTotalQty,
-        OverAlltotalExpenses,
-      });
-      console.log(saleProducts);
 
       const created_sales = await tx.sale.create({
         data: {
@@ -146,14 +137,12 @@ export class SaleService {
         fee.value_type === ValueType.fixed
       ) {
         feeAmount = fee.value;
-        console.log(ValueType.fixed, fee.fee_type, fee.value, feeAmount);
       } else if (
         (fee.fee_type === FeeType.all ||
           fee.products.some((p) => p.id === productId)) &&
         fee.value_type === ValueType.percentage
       ) {
         feeAmount = (fee.value / 100) * productSellingPrice;
-        console.log(ValueType.percentage, fee.fee_type, fee.value, feeAmount);
       }
 
       totalFee += feeAmount;
@@ -292,11 +281,9 @@ export class SaleService {
         productId,
         quantity,
       );
-      console.log({ saleProduct, sale });
 
       const newQty = saleProduct.quantity - quantity;
       const refundAmount = saleProduct.unit_price * quantity;
-      console.log({ newQty, refundAmount });
 
       const newSelligPrice = saleProduct.unit_price * newQty;
 
@@ -407,18 +394,23 @@ export class SaleService {
 
   async getSalesStats(
     tenant_id: number,
-    start_date: Date,
-    end_date: Date,
+    time_period: 'day' | 'week' | 'month' | 'year',
   ): Promise<SalesStatsDto> {
-    const dateCondition: any = {};
-    if (start_date && end_date) {
-      const { startDate, endDate } = formatDate(start_date, end_date);
-      dateCondition.created_at = {
-        gte: startDate,
-        lte: endDate,
-      };
-    }
+    const { current, previous } = getTimeRanges(time_period);
 
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
+
+    const previousDateCondition = {
+      created_at: {
+        gte: previous.start,
+        lte: previous.end,
+      },
+    };
     const sales = await this.postgresService.sale.findMany({
       where: {
         tenant_id,
@@ -448,15 +440,6 @@ export class SaleService {
     };
 
     this.calculateBasicStats(sales, stats);
-
-    const { firstDayOfLastMonth, lastDayOfLastMonth } = getLastMonthDateRange();
-
-    const previousDateCondition = {
-      created_at: {
-        gte: firstDayOfLastMonth,
-        lte: lastDayOfLastMonth,
-      },
-    };
 
     const salesLastMonth = await this.postgresService.sale.findMany({
       where: {
@@ -509,12 +492,10 @@ export class SaleService {
       where: { id: saleItemId, saleId, tenant_id },
       include: {},
     });
-    console.log({ existingSaleItem });
 
     if (!existingSaleItem) {
       throw new NotFoundException(`Sales item not found.`);
     }
-    console.log({ existingSaleItem });
 
     const { id, created_at, updated_at, ...saleitem_data } = existingSaleItem;
     return await this.postgresService.saleProduct.create({
@@ -547,7 +528,6 @@ export class SaleService {
       const product = await tx.inventory.findUnique({
         where: { id: saleProduct.inventory_item.id, tenant_id },
       });
-      console.log(product.quantity < quantity);
 
       if (product.quantity < quantity) {
         throw new BadRequestException(`Invalid quantity for product`);
@@ -561,7 +541,6 @@ export class SaleService {
         },
         _sum: { quantity: true },
       });
-      console.log({ totalSoldQuantity_beforeUpdate });
 
       await tx.saleProduct.update({
         where: { id: saleProductId, tenant_id, saleId: saleProduct.saleId },
@@ -582,7 +561,6 @@ export class SaleService {
         (acc, product) => acc + product.total_price,
         0,
       );
-      console.log({ totalQuantity, totalPrice });
 
       await tx.sale.update({
         where: { id: saleProduct.saleId, tenant_id },
@@ -603,17 +581,14 @@ export class SaleService {
 
       const newQty = totalSoldQuantity._sum?.quantity; //all productId qty after update of saleproduct
       const prevQty = totalSoldQuantity_beforeUpdate._sum?.quantity; //all productId qty before update of saleproduct
-      console.log({ newQty, prevQty });
-      const qty = Math.abs(prevQty - newQty);
 
-      console.log({ qty });
+      const qty = Math.abs(prevQty - newQty);
 
       const data: QuantityUpdate = { quantity: { decrement: qty } };
 
       if (prevQty > newQty) {
         data.quantity = { increment: qty }; // If previous quantity was greater, decrement
       }
-      console.log({ data });
 
       await tx.inventory.update({
         where: { id: saleProduct.inventory_item.id, tenant_id },
@@ -638,18 +613,18 @@ export class SaleService {
 
   async getTopSellingProductsStats(
     tenant_id: number,
-    start_date: Date,
-    end_date: Date,
+    time_period: 'day' | 'week' | 'month' | 'year',
     limit: number = 5,
   ) {
-    const dateCondition: any = {};
-    if (start_date && end_date) {
-      const { startDate, endDate } = formatDate(start_date, end_date);
-      dateCondition.created_at = {
-        gte: startDate,
-        lte: endDate,
-      };
-    }
+    const { current } = getTimeRanges(time_period);
+
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
+
     const topSellingProducts = await this.postgresService.$transaction(
       async (tx) => {
         const allSaleProducts = await tx.saleProduct.findMany({
@@ -675,18 +650,18 @@ export class SaleService {
 
   async getLeastSellingProductStats(
     tenant_id: number,
-    start_date: Date,
-    end_date: Date,
+    time_period: 'day' | 'week' | 'month' | 'year',
     limit: number = 5,
   ) {
-    const dateCondition: any = {};
-    if (start_date && end_date) {
-      const { startDate, endDate } = formatDate(start_date, end_date);
-      dateCondition.created_at = {
-        gte: startDate,
-        lte: endDate,
-      };
-    }
+    const { current, previous } = getTimeRanges(time_period);
+
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
+
     const leastSellingProducts = await this.postgresService.$transaction(
       async (tx) => {
         const allSaleProducts = await tx.saleProduct.findMany({
@@ -736,27 +711,28 @@ export class SaleService {
     statsLastMonth: SalesStatsDto,
   ) {
     stats.salesIncreasePercentage =
-      calculatePercentageChange(stats.totalSales, statsLastMonth.totalSales) ||
-      0;
-    console.log({ salesIncreasePercentage: stats.salesIncreasePercentage });
+      calculateChangeInPercentage(
+        stats.totalSales,
+        statsLastMonth.totalSales,
+      ) || 0;
 
     stats.profitsIncreasePercentage =
-      calculatePercentageChange(
+      calculateChangeInPercentage(
         stats.totalProfits,
         statsLastMonth.totalProfits,
       ) || 0;
     stats.expensesIncreasePercentage =
-      calculatePercentageChange(
+      calculateChangeInPercentage(
         stats.totalExpenses,
         statsLastMonth.totalExpenses,
       ) || 0;
     stats.soldProductsIncreasePercentage =
-      calculatePercentageChange(
+      calculateChangeInPercentage(
         stats.numberOfSoldProducts,
         statsLastMonth.numberOfSoldProducts,
       ) || 0;
     stats.returnedProductsIncreasePercentage =
-      calculatePercentageChange(
+      calculateChangeInPercentage(
         stats.returnedProducts,
         statsLastMonth.returnedProducts,
       ) || 0;

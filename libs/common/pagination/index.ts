@@ -27,9 +27,12 @@ export const inventoryFilters = (data: PaginatorDTO) => {
     });
   }
 
-  if (data.date) {
+  if (data.startDate && data.endDate) {
     filter.OR.push({
-      created_at: data.date,
+      created_at: {
+        gte: new Date(data.startDate),
+        lte: new Date(data.endDate),
+      },
     });
   }
 
@@ -85,9 +88,12 @@ export const productFilters = (data: PaginatorDTO) => {
     });
   }
 
-  if (data.date) {
+  if (data.startDate && data.endDate) {
     filter.OR.push({
-      created_at: data.date,
+      created_at: {
+        gte: new Date(data.startDate),
+        lte: new Date(data.endDate),
+      },
     });
   }
 
@@ -128,12 +134,14 @@ export const salesFilters = (data: PaginatorDTO) => {
     });
   }
 
-  if (data.date) {
+  if (data.startDate && data.endDate) {
     filter.OR.push({
-      created_at: data.date,
+      created_at: {
+        gte: new Date(data.startDate),
+        lte: new Date(data.endDate),
+      },
     });
   }
-
   if (data.search) {
     filter.OR.push({
       customer: {
@@ -155,7 +163,7 @@ export const expenseFilters = (data: PaginatorDTO) => {
 
   if (data.catId) {
     filter.OR.push({
-      category_id: { id: Number(data.catId) },
+      category_id: Number(data.catId),
     });
   }
 
@@ -165,9 +173,12 @@ export const expenseFilters = (data: PaginatorDTO) => {
     });
   }
 
-  if (data.date) {
+  if (data.startDate && data.endDate) {
     filter.OR.push({
-      created_at: data.date,
+      created_at: {
+        gte: new Date(data.startDate),
+        lte: new Date(data.endDate),
+      },
     });
   }
 
@@ -201,9 +212,12 @@ export const expenseFilters = (data: PaginatorDTO) => {
 export const subCategoryFilters = (data: PaginatorDTO) => {
   const filter = { OR: [], AND: [] };
 
-  if (data.date) {
+  if (data.startDate && data.endDate) {
     filter.OR.push({
-      created_at: data.date,
+      created_at: {
+        gte: new Date(data.startDate),
+        lte: new Date(data.endDate),
+      },
     });
   }
 
@@ -243,9 +257,13 @@ export const customersFilters = (data: PaginatorDTO) => {
       id: Number(data.customerId),
     });
   }
-  if (data.date) {
+
+  if (data.startDate && data.endDate) {
     filter.OR.push({
-      created_at: data.date,
+      created_at: {
+        gte: new Date(data.startDate),
+        lte: new Date(data.endDate),
+      },
     });
   }
 
@@ -280,9 +298,12 @@ export const shipmentFilters = (data: PaginatorDTO) => {
     });
   }
 
-  if (data.date) {
+  if (data.startDate && data.endDate) {
     filter.OR.push({
-      created_at: data.date,
+      created_at: {
+        gte: new Date(data.startDate),
+        lte: new Date(data.endDate),
+      },
     });
   }
 

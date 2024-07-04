@@ -2,8 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
 import { CreateProductoDto, EditProductDto } from './dto/product.dto';
 import { ProductStatsDto, page_generator, productFilters } from '@app/common';
-import { deleteImage, uploadImages } from '@app/common/helpers';
+import {
+  calculateChangeInPercentage,
+  deleteImage,
+  uploadImages,
+} from '@app/common/helpers';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
+import { getTimeRanges } from '@app/common/helpers/date-ranges';
 
 @Injectable()
 export class ProductService {
@@ -240,40 +245,69 @@ export class ProductService {
     return duplicatedProduct;
   }
 
-  async getDashboardStats(tenant_id: number): Promise<ProductStatsDto> {
-    const allProducts = await this.postgresService.product.findMany({
+  async getDashboardStats(
+    tenant_id: number,
+    time_period: 'day' | 'week' | 'month' | 'year',
+  ): Promise<ProductStatsDto> {
+    const { current, previous } = getTimeRanges(time_period);
+
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
+
+    const previousDateCondition = {
+      created_at: {
+        gte: previous.start,
+        lte: previous.end,
+      },
+    };
+
+    const allProducts = await this.postgresService.product.count({
       where: {
         tenant_id,
+        ...dateCondition,
       },
     });
 
-    const allcategoroes = await this.postgresService.category.findMany({
+    const allProducts_previous = await this.postgresService.product.count({
       where: {
         tenant_id,
+        ...previousDateCondition,
       },
-      include: {
-        sub_categories: true,
+    });
+
+    const allcategoroes = await this.postgresService.category.count({
+      where: {
+        tenant_id,
+        ...dateCondition,
+      },
+    });
+
+    const allcategoroes_previous = await this.postgresService.category.count({
+      where: {
+        tenant_id,
+        ...previousDateCondition,
       },
     });
 
     const stats: ProductStatsDto = {
-      totalProducts: 0,
-      totalCategories: 0,
+      totalProducts: allProducts,
+      totalCategories: allcategoroes,
+      categoriesPercentageChange: calculateChangeInPercentage(
+        allcategoroes,
+        allcategoroes_previous,
+      ),
+      productsPercentageChange: calculateChangeInPercentage(
+        allProducts,
+        allProducts_previous,
+      ),
+      subcategoriesPercentageChange: 0,
       totalSubcategories: 0,
     };
 
-    this.calculateBasicStats(allProducts, allcategoroes, stats);
-
     return stats;
-  }
-
-  private calculateBasicStats(allProducts, allcategoroes, stats) {
-    stats.totalProducts = allProducts.length;
-    stats.totalCategories = allcategoroes.length;
-    allcategoroes.map((category) => {
-      if (category.sub_categories.length) {
-        stats.totalSubcategories += category.sub_categories.length;
-      }
-    });
   }
 }

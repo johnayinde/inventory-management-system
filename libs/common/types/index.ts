@@ -28,16 +28,16 @@ export class InventoryStatsDto {
   totalReturnedProducts: number;
   returnPercentageChange: number;
   totalLowStocks: number;
-  prevMonthTotalGoods: number;
+  totalLowStocksPercentChange: number;
 }
 
 export class ProductStatsDto {
   totalProducts: number;
-  // productsPercentageChange: number;
+  productsPercentageChange: number;
   totalCategories: number;
-  // categoriesPercentageChange: number;
+  categoriesPercentageChange: number;
   totalSubcategories: number;
-  // subcategoriesPercentageChange: number;
+  subcategoriesPercentageChange: number;
 }
 
 export class ExpenseStatsDto {

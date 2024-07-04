@@ -39,46 +39,28 @@ export class SaleController {
 
   @Get('/sales-stats')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
-  getStats(
-    @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
-  ) {
-    return this.saleService.getSalesStats(tenant_id, startDate, endDate);
+  @ApiQuery({ name: 'time_period', required: false })
+  getStats(@Req() { tenant_id }: Request, @Query('time_period') time_period) {
+    return this.saleService.getSalesStats(tenant_id, time_period);
   }
-
   @Get('/top-selling')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   topSellingProductsSats(
     @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
   ) {
-    return this.saleService.getTopSellingProductsStats(
-      tenant_id,
-      startDate,
-      endDate,
-    );
+    return this.saleService.getTopSellingProductsStats(tenant_id, time_period);
   }
 
   @Get('least-selling')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   leastSellingProductsSats(
     @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
   ) {
-    return this.saleService.getLeastSellingProductStats(
-      tenant_id,
-      startDate,
-      endDate,
-    );
+    return this.saleService.getLeastSellingProductStats(tenant_id, time_period);
   }
 
   @Get('')

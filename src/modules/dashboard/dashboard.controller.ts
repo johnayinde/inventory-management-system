@@ -21,82 +21,52 @@ export class DashboardController {
 
   @Get('stats')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   async getFinancialStats(
     @Req() { tenant_id }: Request,
-    @Query('startDate') startDate?: Date,
-    @Query('endDate') endDate?: Date,
+    @Query('time_period') time_period,
   ) {
-    return this.dashboardService.calculateAnalytics(
-      tenant_id,
-      startDate,
-      endDate,
-    );
+    return this.dashboardService.calculateAnalytics(tenant_id, time_period);
   }
 
   @Get('top-selling')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'startDate', required: false })
-  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   async getTopSelling(
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
     @Req() { tenant_id }: Request,
   ) {
-    return this.dashboardService.getTopSellingProducts(
-      tenant_id,
-      startDate,
-      endDate,
-    );
+    return this.dashboardService.getTopSellingProducts(tenant_id, time_period);
   }
 
   @Get('/profit-margin-stats')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   profitMargin(
     @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
   ) {
-    return this.dashboardService.calculateProfitMargin(
-      tenant_id,
-      startDate,
-      endDate,
-    );
+    return this.dashboardService.calculateProfitMargin(tenant_id, time_period);
   }
 
   @Get('/top-product-inventory')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   topSellingProductsSats(
     @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
   ) {
-    return this.dashboardService.topProductInventory(
-      tenant_id,
-      startDate,
-      endDate,
-    );
+    return this.dashboardService.topProductInventory(tenant_id, time_period);
   }
 
   @Get('/sales-overview')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   salesOverview(
     @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
   ) {
-    return this.dashboardService.getSalesOverview(
-      tenant_id,
-      startDate,
-      endDate,
-    );
+    return this.dashboardService.getSalesOverview(tenant_id, time_period);
   }
 
   @Get('recent-sales')

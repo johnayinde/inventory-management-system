@@ -72,46 +72,32 @@ export class ExpenseController {
 
   @Get('card-stats')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   async getStats(
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
     @Req() { tenant_id }: Request,
   ) {
-    return this.expenseService.getExpenseDashboardStats(
-      tenant_id,
-      startDate,
-      endDate,
-    );
+    return this.expenseService.getExpenseDashboardStats(tenant_id, time_period);
   }
 
   @Get('/expense-stats')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   expenseStats(
     @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
   ) {
-    return this.expenseService.calculateExpenseStats(
-      tenant_id,
-      startDate,
-      endDate,
-    );
+    return this.expenseService.calculateExpenseStats(tenant_id, time_period);
   }
 
   @Get('/top-expense-stats')
   @HttpCode(HttpStatus.OK)
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'time_period', required: false })
   topExpenseStats(
     @Req() { tenant_id }: Request,
-    @Query('startDate') startDate: Date,
-    @Query('endDate') endDate: Date,
+    @Query('time_period') time_period,
   ) {
-    return this.expenseService.topExpenses(tenant_id, startDate, endDate);
+    return this.expenseService.topExpenses(tenant_id, time_period);
   }
 
   @Get(':expenseId')

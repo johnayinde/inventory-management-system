@@ -6,9 +6,9 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import {  RecordIsInDb } from '@app/common';
+import { RecordIsInDb } from '@app/common';
 import { CheckPassword } from '../decorators/pwd.valid.decorator';
-import { ApiProperty,  } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterDto {
   @ApiProperty()
@@ -71,7 +71,6 @@ export class ResetPasswordDto {
   @MinLength(8)
   @MaxLength(20)
   @IsString()
-  @CheckPassword('auth.password')
   confirm_password: string;
 }
 

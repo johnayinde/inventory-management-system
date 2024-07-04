@@ -19,7 +19,7 @@ import { ShipmentService } from './shipment.service';
 import { CreateShipmentDto } from './dto/shipment.dto';
 import { TenantInterceptor } from '@app/common';
 import { ApiFile } from '@app/common/decorators/swaggerUploadField';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Request } from 'express';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 
@@ -50,8 +50,9 @@ export class ShipmentController {
 
   @Get('/dashboard-stats')
   @HttpCode(HttpStatus.OK)
-  getStats(@Req() { tenant_id }: Request) {
-    return this.shipmentService.getDashboardStats(tenant_id);
+  @ApiQuery({ name: 'time_period', required: false })
+  getStats(@Req() { tenant_id }: Request, @Query('time_period') time_period) {
+    return this.shipmentService.getDashboardStats(tenant_id, time_period);
   }
 
   @Get(':shipmentId')
