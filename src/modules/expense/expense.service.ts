@@ -53,25 +53,32 @@ export class ExpenseService {
     }
 
     if (data.type == ExpenseType.product && data.productId) {
-      const product = await this.postgresService.product.findFirst({
+      const inventory_product = await this.postgresService.inventory.findFirst({
         where: { id: Number(data?.productId), tenant_id },
       });
-      if (!product) {
-        throw new NotFoundException('Provided product not found');
+      if (!inventory_product) {
+        throw new NotFoundException('Provided item not found in inventory');
       }
       const { productId, categoryId, shipmentId, amount, ...expenseData } =
         data;
-      return await this.postgresService.expense.create({
+
+      const created_expense = await this.postgresService.expense.create({
         data: {
           ...expenseData,
           amount: Number(amount),
           tenant: { connect: { id: tenant_id } },
           attachments: image_urls,
-          product: {
-            connect: { id: product.id },
+          inventory: {
+            connect: { id: inventory_product.id },
           },
         },
       });
+
+      await this.postgresService.inventory.update({
+        where: { id: Number(data?.productId), tenant_id },
+        data: { cost_price: { increment: Number(amount) } },
+      });
+      return created_expense;
     } else if (data.type == ExpenseType.general && data.categoryId) {
       const category = await this.postgresService.expenseCategory.findUnique({
         where: { id: Number(data.categoryId), tenant_id },
@@ -181,15 +188,25 @@ export class ExpenseService {
     } else if (expense.type == ExpenseType.general) {
       const { productId, categoryId, amount, ...expenseData } = data;
 
+      const original_amount = expense.amount;
+      const new_amount = Number(amount);
+
       await this.postgresService.expense.update({
         where: { id, tenant_id },
         data: {
           ...expenseData,
-          amount: Number(amount),
+          amount: new_amount,
           category_id: Number(categoryId),
           attachments: image_urls,
         },
       });
+
+      const difference = new_amount - original_amount;
+      await this.postgresService.inventory.update({
+        where: { id: Number(expense.inventory_id), tenant_id },
+        data: { cost_price: { increment: difference } },
+      });
+
       return await this.postgresService.expense.findFirst({
         where: { id, tenant_id },
       });
@@ -261,7 +278,7 @@ export class ExpenseService {
   async duplicateExpense(tenant_id: number, expenseId: number) {
     const expenseToDuplicate = await this.postgresService.expense.findUnique({
       where: { id: expenseId, tenant_id },
-      include: { category: true, product: true },
+      include: { category: true, inventory: true },
     });
     if (!expenseToDuplicate) {
       throw new NotFoundException('Expense not found');
@@ -272,8 +289,8 @@ export class ExpenseService {
       tenant_id: originalTenantId,
       category_id,
       category,
-      productId,
-      product,
+      inventory_id,
+      inventory,
       shipmentId,
       created_at,
       updated_at,
@@ -287,7 +304,7 @@ export class ExpenseService {
           ...expenseData,
           name: `Copy of ${expenseToDuplicate.name}`,
           tenant: { connect: { id: tenant_id } },
-          product: { connect: { id: productId } },
+          inventory: { connect: { id: inventory_id } },
         },
       });
     } else if (expenseToDuplicate.type == ExpenseType.general) {

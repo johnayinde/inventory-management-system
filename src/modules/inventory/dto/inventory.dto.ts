@@ -4,7 +4,6 @@ import {
   IsInt,
   IsNotEmpty,
   IsNumber,
-  IsObject,
   IsOptional,
   IsString,
   ValidateNested,
@@ -92,7 +91,11 @@ export class EditInventoryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  price?: number;
+  selling_price?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  cost_price?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

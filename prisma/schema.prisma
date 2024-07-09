@@ -198,7 +198,6 @@ model Product {
   attachments     String[]
   tenant_id       Int
   tenant          Tenant            @relation(fields: [tenant_id], references: [id])
-  expenses        Expense[]
   fees            Fees[]
   status          ProductStatusType @default(sold_out)
   threshold       Int               @default(0)
@@ -231,19 +230,19 @@ model ExpenseCategory {
 }
 
 model Expense {
-  id          Int              @id @default(autoincrement())
-  tenant      Tenant           @relation(fields: [tenant_id], references: [id])
-  tenant_id   Int
-  name        String
-  description String?
-  amount      Float?
-  date        DateTime
-  type        ExpenseType      @default(general)
-  attachments String[]
-  category_id Int?
-  category    ExpenseCategory? @relation(fields: [category_id], references: [id])
-  product     Product?         @relation(fields: [productId], references: [id])
-  productId   Int?
+  id           Int              @id @default(autoincrement())
+  tenant       Tenant           @relation(fields: [tenant_id], references: [id])
+  tenant_id    Int
+  name         String
+  description  String?
+  amount       Float?
+  date         DateTime
+  type         ExpenseType      @default(general)
+  attachments  String[]
+  category_id  Int?
+  category     ExpenseCategory? @relation(fields: [category_id], references: [id])
+  inventory    Inventory?       @relation(fields: [inventory_id], references: [id])
+  inventory_id Int?
 
   //
   deleted    Boolean   @default(false)
@@ -277,6 +276,7 @@ model Inventory {
   created_at   DateTime      @default(now()) @db.Timestamptz(3)
   updated_at   DateTime?     @updatedAt
   sale_product SaleProduct[]
+  expenses     Expense[]
 
   @@index(fields: [id, tenant_id, product_id, shipment_id])
 }
