@@ -5,7 +5,7 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 class SalesProductDto {
@@ -16,6 +16,10 @@ class SalesProductDto {
   @ApiProperty()
   @IsInt()
   quantity: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  selling_price?: number;
 }
 
 export class CreateSaleDto {

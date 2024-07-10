@@ -75,7 +75,7 @@ export class ProductService {
     const whereCondition = filter ? { tenant_id, ...filter } : { tenant_id };
     const all_products = await this.postgresService.product.findMany({
       where: whereCondition,
-      include: { category: true, expenses: true },
+      include: { category: true },
       skip,
       take,
       orderBy: { created_at: 'desc' },

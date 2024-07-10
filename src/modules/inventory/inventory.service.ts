@@ -183,7 +183,7 @@ export class InventoryService {
         include: { product: true },
       });
 
-      if (data?.quantity != undefined || data?.price) {
+      if (data?.quantity != undefined || data?.selling_price) {
         await this.getTotalQuantityByProduct(
           tx as PrismaClient,
           tenant_id,
@@ -191,10 +191,7 @@ export class InventoryService {
         );
       }
 
-      return await tx.inventory.findFirst({
-        where: { id, tenant_id },
-        include: { product: { include: { category: true } } },
-      });
+      return inventory;
     });
   }
 

@@ -43,11 +43,11 @@ export class SaleService {
       const saleProducts = [];
 
       for (const product_item of products) {
-        const { productId, quantity } = product_item;
+        const { productId, quantity, selling_price } = product_item;
 
         const inventoryItem = await tx.inventory.findUnique({
           where: { id: productId, tenant_id },
-          include: { product: { include: { expenses: true } } },
+          include: { expenses: true },
         });
 
         if (!inventoryItem) {
@@ -60,15 +60,13 @@ export class SaleService {
           );
         }
 
-        totalProductExpenses = inventoryItem.product.expenses.reduce(
+        totalProductExpenses = inventoryItem.expenses.reduce(
           (acc, expense) => acc + expense.amount || 0,
           0,
         );
 
         OverAlltotalExpenses += totalProductExpenses;
-        const productSellingPrice =
-          (inventoryItem.selling_price || 0) * quantity;
-        console.log({ productSellingPrice });
+        const productSellingPrice = selling_price * quantity;
 
         let totalFee = await this.calculateProductFee(
           tx as PrismaClient,
@@ -76,7 +74,6 @@ export class SaleService {
           inventoryItem.product_id,
           productSellingPrice,
         );
-        //
 
         OverAllSellingPrice += productSellingPrice + totalFee;
         OverAllTotalQty += quantity;
@@ -85,7 +82,7 @@ export class SaleService {
           inventory_item: { connect: { id: productId } },
           quantity,
           expense: totalProductExpenses,
-          unit_price: inventoryItem.selling_price,
+          unit_price: selling_price,
           total_price: productSellingPrice,
           tenant: { connect: { id: tenant_id } },
         });
@@ -471,6 +468,26 @@ export class SaleService {
     return stats;
   }
 
+  private calculateBasicStats(sales, stats) {
+    for (const sale of sales) {
+      stats.totalSales += sale.total_price;
+      stats.totalExpenses += sale.expenses;
+
+      for (const saleProduct of sale.sales_products) {
+        const unitCost = saleProduct.inventory_item.price || 0;
+        const totalSellingPrice = saleProduct.total_price || 0;
+        const quantitySold = saleProduct.quantity;
+
+        const profitPerProduct = (totalSellingPrice - unitCost) * quantitySold;
+
+        stats.totalProfits += profitPerProduct;
+
+        stats.numberOfSoldProducts += saleProduct.quantity;
+        stats.returnedProducts += saleProduct.returned_counts;
+      }
+    }
+  }
+
   async deleteSale(tenant_id: number, saleId: number) {
     return await this.postgresService.sale.delete({
       where: { tenant_id, id: saleId },
@@ -736,25 +753,5 @@ export class SaleService {
         stats.returnedProducts,
         statsLastMonth.returnedProducts,
       ) || 0;
-  }
-
-  private calculateBasicStats(sales, stats) {
-    for (const sale of sales) {
-      stats.totalSales += sale.total_price;
-      stats.totalExpenses += sale.expenses;
-
-      for (const saleProduct of sale.sales_products) {
-        const unitCost = saleProduct.inventory_item.price || 0;
-        const totalSellingPrice = saleProduct.total_price || 0;
-        const quantitySold = saleProduct.quantity;
-
-        const profitPerProduct = (totalSellingPrice - unitCost) * quantitySold;
-
-        stats.totalProfits += profitPerProduct;
-
-        stats.numberOfSoldProducts += saleProduct.quantity;
-        stats.returnedProducts += saleProduct.returned_counts;
-      }
-    }
   }
 }

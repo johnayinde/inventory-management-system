@@ -5,7 +5,7 @@ import {
   TopSellingProduct,
 } from './interface';
 import { OrmService } from 'src/database/orm.service';
-import { calculateChangeInPercentage,  } from '@app/common/helpers';
+import { calculateChangeInPercentage } from '@app/common/helpers';
 import {
   aggregateByTimestamp,
   getTimeRanges,
@@ -52,16 +52,11 @@ export class DashboardService {
       },
     });
 
-    const totalProfit = await this.postgresService.sale.aggregate({
-      where: {
-        tenant_id,
-        ...dateCondition,
-      },
-      _sum: {
-        total_price: true,
-        expenses: true,
-      },
-    });
+    const { total_profit, total_profit_prev } = await this.calculateMetrics(
+      tenant_id,
+      previousDateCondition,
+      dateCondition,
+    );
 
     const totalInventory = await this.postgresService.inventory.count({
       where: {
@@ -116,8 +111,8 @@ export class DashboardService {
     );
 
     const profitChangePercentage = calculateChangeInPercentage(
-      totalProfit._sum.total_price - totalProfit._sum.expenses,
-      previousTotalProfit._sum.total_price - previousTotalProfit._sum.expenses,
+      total_profit,
+      total_profit_prev,
     );
     const inventoryChangePercentage = calculateChangeInPercentage(
       totalInventory,
@@ -127,13 +122,61 @@ export class DashboardService {
     return {
       totalSales,
       totalRevenue: totalRevenue._sum.total_price || 0,
-      totalProfit:
-        totalProfit._sum.total_price - totalProfit._sum.expenses || 0,
+      totalProfit: total_profit || 0,
       totalInventory,
       salesChangePercentage,
       revenueChangePercentage,
       profitChangePercentage,
       inventoryChangePercentage,
+    };
+  }
+
+  private async calculateMetrics(
+    tenant_id: number,
+    previousDateCondition?: { created_at: { gte: any; lte: any } },
+    dateCondition?: { created_at: { gte: any; lte: any } },
+  ) {
+    const saleProduct_prev = await this.postgresService.saleProduct.findMany({
+      where: {
+        tenant_id,
+        ...previousDateCondition,
+      },
+      include: { inventory_item: true },
+    });
+
+    const saleProduct = await this.postgresService.saleProduct.findMany({
+      where: {
+        tenant_id,
+        ...dateCondition,
+      },
+      include: { inventory_item: true },
+    });
+
+    const total_revenue = saleProduct.reduce(
+      (sac, item) => sac + item.total_price,
+      0,
+    );
+    const cost_price = saleProduct.reduce(
+      (sac, item) => sac + item.inventory_item.cost_price,
+      0,
+    );
+
+    const total_revenue_prev = saleProduct_prev.reduce(
+      (sac, item) => sac + item.total_price,
+      0,
+    );
+    const cost_price_prev = saleProduct_prev.reduce(
+      (sac, item) => sac + item.inventory_item.cost_price,
+      0,
+    );
+    const profit_margin = saleProduct.map((item) => ({
+      profitMargin: ((total_revenue - cost_price) / total_revenue) * 100,
+      created_at: item.created_at,
+    }));
+    return {
+      total_profit: total_revenue - cost_price,
+      total_profit_prev: total_revenue_prev - cost_price_prev,
+      profit_margin,
     };
   }
 
@@ -257,38 +300,12 @@ export class DashboardService {
       },
     };
 
-    const sales = await this.postgresService.sale.findMany({
-      where: {
-        tenant_id,
-        ...dateCondition,
-      },
-      include: {
-        sales_products: true,
-      },
-    });
-
-    const profitMarginStats: { created_at: Date; profitMargin: number }[] = [];
-
-    for (const sale of sales) {
-      const totalRevenue = sale.total_price;
-      const totalExpenses = sale.expenses;
-      const totalCOGS = sale.sales_products.reduce(
-        (sum, saleProduct) => sum + saleProduct.expense,
-        0,
-      );
-
-      const profit = totalRevenue - totalCOGS - totalExpenses;
-      const profitMargin =
-        totalRevenue !== 0 ? (profit / totalRevenue) * 100 : 0;
-
-      profitMarginStats.push({
-        created_at: sale.created_at,
-        profitMargin,
-      });
-    }
-
+    const { profit_margin } = await this.calculateMetrics(
+      tenant_id,
+      dateCondition,
+    );
     const prepared_data = aggregateByTimestamp(
-      profitMarginStats,
+      profit_margin,
       time_period,
       labels,
     );
