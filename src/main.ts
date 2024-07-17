@@ -6,9 +6,15 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { json, urlencoded } from 'express';
 import { useContainer } from 'class-validator';
+import { CustomLogger } from 'logger';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger:
+      process.env.NODE_ENV === 'production'
+        ? new CustomLogger('App')
+        : undefined,
+  });
 
   app.enableCors();
   const configService = app.get(ConfigService);

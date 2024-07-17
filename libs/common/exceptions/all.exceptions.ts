@@ -5,17 +5,22 @@ import {
   HttpException,
   HttpStatus,
   Logger,
-  InternalServerErrorException,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { EXCEPTIONMESSAGE, NOTFOUNDROUTE, UNAUTHORIZED } from '@app/common';
+import { CustomLogger } from '../../../logger';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
-  private readonly logger = new Logger(AllExceptionsFilter.name);
-  constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
+  private readonly logger;
+  constructor(private readonly httpAdapterHost: HttpAdapterHost) {
+    this.logger =
+      process.env.NODE_ENV === 'production'
+        ? new CustomLogger(AllExceptionsFilter.name)
+        : new Logger(AllExceptionsFilter.name);
+  }
 
-  async catch(exception: unknown, host: ArgumentsHost): Promise<void> {
+  async catch(exception: HttpException, host: ArgumentsHost): Promise<void> {
     // In certain situations `httpAdapter` might not be available in the
     // constructor method, thus we should resolve it here.
     const { httpAdapter } = this.httpAdapterHost;
@@ -29,12 +34,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    console.log(typeof exception, exception);
-
     const response =
       exception instanceof HttpException
-        ? exception.getResponse()
-        : exception instanceof InternalServerErrorException
         ? exception.getResponse()
         : EXCEPTIONMESSAGE;
 
@@ -62,9 +63,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       : '';
 
     this.logger.error(
-      `TZ:${new Date().toUTCString()}- Status:${httpStatus}- Method: ${null} - Route:${
-        responseBody.path
-      } - Response ${exception}`,
+      ` - Response ${exception.stack},
+        - Status:${httpStatus}
+        - Time:${new Date().toUTCString()}`,
     );
 
     httpAdapter.reply(ctx.getResponse(), responseBody, httpStatus);
