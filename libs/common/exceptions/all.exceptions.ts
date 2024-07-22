@@ -12,13 +12,8 @@ import { CustomLogger } from '../../../logger';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
-  private readonly logger;
-  constructor(private readonly httpAdapterHost: HttpAdapterHost) {
-    this.logger =
-      process.env.NODE_ENV === 'production'
-        ? new CustomLogger(AllExceptionsFilter.name)
-        : new Logger(AllExceptionsFilter.name);
-  }
+  private readonly logger = new Logger(AllExceptionsFilter.name);
+  constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
 
   async catch(exception: HttpException, host: ArgumentsHost): Promise<void> {
     // In certain situations `httpAdapter` might not be available in the
@@ -62,11 +57,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       ? (responseBody = { ...responseBody, ...res })
       : '';
 
-    this.logger.error(
-      ` - Response ${exception.stack},
-        - Status:${httpStatus}
-        - Time:${new Date().toUTCString()}`,
-    );
+    this.logger.error(exception.stack);
 
     httpAdapter.reply(ctx.getResponse(), responseBody, httpStatus);
   }

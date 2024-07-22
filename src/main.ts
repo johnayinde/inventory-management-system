@@ -6,14 +6,12 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { json, urlencoded } from 'express';
 import { useContainer } from 'class-validator';
-import { CustomLogger } from 'logger';
+import { logger } from 'logger/winston.logger';
+import { WinstonModule } from 'nest-winston';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    logger:
-      process.env.NODE_ENV === 'production'
-        ? new CustomLogger('App')
-        : undefined,
+    logger,
   });
 
   app.enableCors();
