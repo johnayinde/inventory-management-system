@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CacheModule, CacheStore } from '@nestjs/cache-manager';
@@ -86,6 +86,7 @@ import { ScheduleModule } from '@nestjs/schedule';
       provide: APP_GUARD,
       useClass: RolesGuard,
     },
+    Logger,
     AppService,
     // remove to test with auth module
     JwtService,

@@ -91,7 +91,6 @@ export class TenantService {
     } = await this.postgresService.auth.findFirst({
       where: { email },
     });
-    console.log(is_user);
 
     if (is_user) {
       const { id: tenent_id } = await this.postgresService.tenant.findFirst({
@@ -133,9 +132,14 @@ export class TenantService {
       include: { business: true },
     });
 
+    const permissions = await this.postgresService.permission.findFirst({
+      where: { id: tenant_id },
+    });
+
     return {
       personal: personal_data,
       business: tenant_info?.business,
+      permissions,
     };
   }
 

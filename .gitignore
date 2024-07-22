@@ -37,7 +37,7 @@ lerna-debug.log*
 .env
 /images
 .docker
-
+/.logs
 
 .docker
 
