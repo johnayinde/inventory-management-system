@@ -3,7 +3,6 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
@@ -26,7 +25,6 @@ import { EmailService } from '../email/email.service';
 import { CacheService } from '../cache/cache.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { OAuth2Client } from 'google-auth-library';
 import { StatusType } from '@prisma/client';
 import { TenantService } from '../tenant/tenant.service';
 import { comparePasswordString, hashPassword } from '@app/common/helpers';
@@ -150,7 +148,7 @@ export class AuthService {
       }
       await this.postgresService.user.update({
         where: { id: userRec.id },
-        data: { last_login: new Date(), status: StatusType.online },
+        data: { last_login: new Date() },
       });
       userId = userRec.id;
     } else {
@@ -181,57 +179,65 @@ export class AuthService {
   }
 
   async googleAuth(dto: OAuthDto) {
-    const client = new OAuth2Client(
-      await this.configService.get('GOOGLE_CLIENT_ID'),
-      await this.configService.get('GOOGLE_CLIENT_SECRET'),
-      'postmessage',
-    );
-
-    const getTokenFromCLient = await client.getToken(dto.token);
-
-    const verifyClientToken = await client.verifyIdToken({
-      idToken: getTokenFromCLient.tokens.id_token,
-      audience: await this.configService.get('GOOGLE_CLIENT_ID'),
-    });
-    const { email } = verifyClientToken.getPayload();
-
+    const { email } = dto;
     const existing_user = await this.postgresService.auth.findUnique({
       where: {
         email,
       },
     });
+    let auth_user = existing_user;
 
     if (!existing_user) {
-      return this.postgresService.$transaction(async (tx) => {
-        // Code running in a transaction...
-        const user = await tx.auth.create({
-          data: {
-            email,
-            email_verified: true,
-          },
-        });
-
-        await this.postgresService.tenant.create({
-          data: {
-            email: user.email,
-          },
-        });
-
-        return {
-          ...user,
-          token: this.generateAccessToken(user.id, user.email, user.is_user),
-        };
+      const new_user = await this.postgresService.auth.create({
+        data: {
+          email,
+          email_verified: true,
+          is_super_admin: true,
+          is_oauth_user: true,
+        },
       });
-    } else {
-      return {
-        ...existing_user,
-        token: this.generateAccessToken(
-          existing_user.id,
-          existing_user.email,
-          existing_user.is_user,
-        ),
-      };
+
+      await this.postgresService.permission.create({
+        data: {
+          dashboard: true,
+          customers: true,
+          expenses: true,
+          inventory: true,
+          report: true,
+          sales: true,
+          user_auth: { connect: { id: new_user.id } },
+        },
+      });
+
+      await this.postgresService.tenant.create({
+        data: {
+          email: new_user.email,
+        },
+      });
+      auth_user = new_user;
     }
+
+    const business_info = await this.postgresService.tenant.findFirst({
+      where: { email },
+      include: { business: true },
+    });
+
+    const is_profile_complete =
+      !!business_info.business && !!auth_user.first_name;
+    console.log({ is_profile_complete });
+
+    delete auth_user.password;
+    delete auth_user.mfa_secret;
+
+    return {
+      ...auth_user,
+      is_profile_complete,
+      token: await this.generateAccessToken(
+        auth_user.id,
+        auth_user.email,
+        auth_user.is_user,
+      ),
+    };
   }
 
   async verifyEmailOtp(data: OTPDto) {
@@ -323,6 +329,13 @@ export class AuthService {
           user: { connect: { id: account.id } },
         },
       });
+      await this.postgresService.user.update({
+        where: { id: account.id, tenant_id: account.tenant_id },
+        data: {
+          status: StatusType.active,
+        },
+      });
+
       this.cache.delData(token.token);
 
       return await this.getUserByEmail(email);

@@ -25,8 +25,8 @@ export class InventoryStatsDto {
   goodsPercentageChange: number;
   totalCategories: number;
   categoriesPercentageChange: number;
-  totalReturnedProducts: number;
-  returnPercentageChange: number;
+  totalDamagedProducts: number;
+  damagedPercentageChange: number;
   totalLowStocks: number;
   totalLowStocksPercentChange: number;
 }

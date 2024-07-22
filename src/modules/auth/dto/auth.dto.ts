@@ -91,7 +91,8 @@ export class ValidateTokenDto {
 export class OAuthDto {
   @IsString()
   @ApiProperty()
-  token: string;
+  @IsEmail()
+  email: string;
 }
 
 export class ChangePasswordDTO {

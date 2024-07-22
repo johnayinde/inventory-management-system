@@ -16,8 +16,11 @@ enum BusinessType {
 }
 
 enum StatusType {
-  online
   offline
+  online
+  active
+  suspended
+  pending
 }
 
 enum PricingType {
@@ -51,6 +54,10 @@ enum NotifierType {
   low_stock
   sold_out
   top_selling
+}
+
+enum ArchiveType {
+  damaged
 }
 
 model Auth {
@@ -97,6 +104,7 @@ model Tenant {
   shipments        Shipment[]
   product_notifier Notification[]
   logs             Log[]
+  archives         Archive[]
 
   @@index(fields: [id, email])
 }
@@ -151,7 +159,7 @@ model User {
   name         String
   email        String
   last_login   DateTime?  @default(now())
-  status       StatusType @default(offline)
+  status       StatusType @default(pending)
   is_suspended Boolean    @default(false)
   is_revoked   Boolean    @default(false)
 
@@ -258,15 +266,16 @@ model Inventory {
   prod_id       String
   serial_number String?
 
-  name          String?
-  attachments   String[]
-  pricing_type  PricingType @default(individual)
-  selling_price Float       @default(0)
-  cost_price    Float       @default(0)
-  tenant        Tenant      @relation(fields: [tenant_id], references: [id])
-  product       Product     @relation(fields: [product_id], references: [id])
-  shipment      Shipment    @relation(fields: [shipment_id], references: [id])
-  quantity      Int?        @default(0)
+  name           String?
+  attachments    String[]
+  pricing_type   PricingType @default(individual)
+  selling_price  Float       @default(0)
+  cost_price     Float       @default(0)
+  tenant         Tenant      @relation(fields: [tenant_id], references: [id])
+  product        Product     @relation(fields: [product_id], references: [id])
+  shipment       Shipment    @relation(fields: [shipment_id], references: [id])
+  quantity       Int?        @default(0)
+  damaged_counts Int         @default(0)
 
   //
   tenant_id    Int
@@ -277,15 +286,16 @@ model Inventory {
   updated_at   DateTime?     @updatedAt
   sale_product SaleProduct[]
   expenses     Expense[]
+  archive      Archive[]
 
   @@index(fields: [id, tenant_id, product_id, shipment_id])
 }
 
 model Customer {
-  id           Int    @id @default(autoincrement())
+  id           Int     @id @default(autoincrement())
   name         String
   phone_number String
-  email        String
+  email        String?
   address      String
 
   tenant_id Int
@@ -330,7 +340,6 @@ model SaleProduct {
   unit_price      Float
   total_price     Float
   returned_counts Int   @default(0)
-  damaged_counts  Int   @default(0)
 
   sale           Sale      @relation(fields: [saleId], references: [id])
   inventory_item Inventory @relation(fields: [inventory_id], references: [id])
@@ -419,4 +428,20 @@ model Log {
   updated_at DateTime? @updatedAt
 
   @@index(fields: [id, tenant_id])
+}
+
+model Archive {
+  id           Int         @id @default(autoincrement())
+  type         ArchiveType @default(damaged)
+  inventory_id Int
+  tenant_id    Int
+
+  inventory  Inventory @relation(fields: [inventory_id], references: [id])
+  tenant     Tenant    @relation(fields: [tenant_id], references: [id])
+  //
+  deleted    Boolean   @default(false)
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime? @updatedAt
+
+  @@index(fields: [id, inventory_id, tenant_id, type])
 }

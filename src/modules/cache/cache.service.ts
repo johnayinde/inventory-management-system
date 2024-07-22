@@ -10,7 +10,7 @@ export class CacheService {
   public async setOTPValue(user: string): Promise<string> {
     const value = (size: number): string =>
       [...Array(size)]
-        .map(() => Math.floor(Math.random() * 16).toString(16))
+        .map(() => Math.floor(Math.random() * 10).toString(16))
         .join('');
     const otp_value = value(6).toUpperCase();
     this.cacheManager.del(`${this.OTP_PREFIX}_${user}`);

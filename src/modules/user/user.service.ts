@@ -4,7 +4,7 @@ import { CreateUserDto, EditUserDto } from './dto/user.dto';
 import { CacheService } from '../cache/cache.service';
 import { EmailService } from '../email/email.service';
 import { USER_SIGNUP, customersFilters, page_generator } from '@app/common';
-import { Auth, User } from '@prisma/client';
+import { StatusType, User } from '@prisma/client';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 import { generatePassword } from '@app/common/helpers';
 
@@ -24,6 +24,7 @@ export class UserService {
         data: {
           email: user.email,
           name: user.name,
+          status: StatusType.pending,
           tenant: { connect: { id: tenant_id } },
         },
       });
@@ -57,16 +58,8 @@ export class UserService {
       where: { id, tenant_id },
       data: {
         is_suspended: suspend,
+        status: StatusType.suspended,
       },
-    });
-
-    return 'Status Updated!';
-  }
-
-  async revokeUser(tenant_id: number, id: number, suspend: boolean) {
-    await this.postgresService.user.update({
-      where: { id, tenant_id },
-      data: { is_revoked: suspend, is_suspended: suspend },
     });
 
     return 'Status Updated!';

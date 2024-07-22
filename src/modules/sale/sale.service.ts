@@ -264,7 +264,7 @@ export class SaleService {
     };
   }
 
-  async returnProductItem(
+  async markReturnedItem(
     saleId: number,
     productId: number,
     quantity: number,
@@ -285,8 +285,11 @@ export class SaleService {
       const newSelligPrice = saleProduct.unit_price * newQty;
 
       await tx.saleProduct.update({
-        where: { id: saleProduct.id },
+        where: { id: saleProduct.id, tenant_id },
         data: {
+          quantity: {
+            decrement: quantity,
+          },
           returned_counts: {
             increment: quantity,
           },
@@ -304,7 +307,7 @@ export class SaleService {
         },
       });
       const inventory = await tx.inventory.findUnique({
-        where: { id: saleProduct.inventory_item.id, tenant_id },
+        where: { id: saleProduct.inventory_id, tenant_id },
         include: { product: true },
       });
 
@@ -338,7 +341,7 @@ export class SaleService {
       where: { id: saleId, tenant_id },
       include: {
         customer: true,
-        sales_products: { include: { inventory_item: true } },
+        sales_products: { where: { inventory_id: productId } },
       },
     });
 
@@ -360,33 +363,6 @@ export class SaleService {
       );
     }
     return { saleProduct, sale };
-  }
-
-  async markProductAsDamaged(
-    saleId: number,
-    productId: number,
-    quantity: number,
-    tenant_id: number,
-  ) {
-    return await this.postgresService.$transaction(async (tx) => {
-      const { saleProduct } = await this.returnSalesItem(
-        tx as PrismaClient,
-        saleId,
-        tenant_id,
-        productId,
-        quantity,
-      );
-      await tx.saleProduct.update({
-        where: { id: saleProduct.id },
-        data: {
-          damaged_counts: {
-            increment: quantity,
-          },
-        },
-      });
-
-      return `Successfully marked ${quantity} items as damaged`;
-    });
   }
 
   async getSalesStats(
@@ -521,7 +497,6 @@ export class SaleService {
         quantity: 0,
         total_price: 0,
         returned_counts: 0,
-        damaged_counts: 0,
       },
     });
   }

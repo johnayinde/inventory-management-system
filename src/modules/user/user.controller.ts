@@ -56,22 +56,6 @@ export class UserController {
 
   @ApiBearerAuth()
   @UseInterceptors(TenantInterceptor)
-  @Patch(':userId/revoke')
-  @ApiBody({
-    description: 'set user suspension status',
-    type: SuspendUserDto,
-  })
-  @HttpCode(HttpStatus.OK)
-  async revokeUser(
-    @Param('userId', ParseIntPipe) userId: number,
-    @Body() { flag }: SuspendUserDto,
-    @Req() { tenant_id }: Request,
-  ) {
-    return this.userService.revokeUser(tenant_id, userId, flag);
-  }
-
-  @ApiBearerAuth()
-  @UseInterceptors(TenantInterceptor)
   @Patch(':userId')
   @ApiBody({
     description: 'Edit User',

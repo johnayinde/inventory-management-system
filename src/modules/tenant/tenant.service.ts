@@ -91,7 +91,6 @@ export class TenantService {
     } = await this.postgresService.auth.findFirst({
       where: { email },
     });
-    console.log(is_user);
 
     if (is_user) {
       const { id: tenent_id } = await this.postgresService.tenant.findFirst({
