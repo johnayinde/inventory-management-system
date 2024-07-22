@@ -1,5 +1,5 @@
 import { IsEmail, IsOptional, IsString } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { RecordExists } from '@app/common';
 
 export class CreateCustomerDto {
@@ -7,11 +7,12 @@ export class CreateCustomerDto {
   @IsString()
   name: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   @IsEmail()
   @RecordExists('customer.email')
-  email: string;
+  email?: string;
 
   @ApiProperty()
   @IsString()

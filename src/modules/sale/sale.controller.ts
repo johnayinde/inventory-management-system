@@ -86,23 +86,7 @@ export class SaleController {
     @Param('quantity', ParseIntPipe) quantity: number,
     @Req() { tenant_id }: Request,
   ) {
-    return this.saleService.returnProductItem(
-      saleId,
-      productId,
-      quantity,
-      tenant_id,
-    );
-  }
-
-  @Post('products/damage/:saleId/:productId/:quantity')
-  @HttpCode(HttpStatus.CREATED)
-  async markProductAsDamaged(
-    @Param('saleId', ParseIntPipe) saleId: number,
-    @Param('productId', ParseIntPipe) productId: number,
-    @Param('quantity', ParseIntPipe) quantity: number,
-    @Req() { tenant_id }: Request,
-  ) {
-    return this.saleService.markProductAsDamaged(
+    return this.saleService.markReturnedItem(
       saleId,
       productId,
       quantity,

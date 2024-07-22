@@ -11,10 +11,7 @@ export class CustomerService {
   async createCustomer(tenant_id: number, customer: CreateCustomerDto) {
     return await this.postgresService.customer.create({
       data: {
-        email: customer.email,
-        name: customer.name,
-        address: customer.address,
-        phone_number: customer.phone_number,
+        ...customer,
         tenant: { connect: { id: tenant_id } },
       },
     });

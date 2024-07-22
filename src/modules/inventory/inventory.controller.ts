@@ -43,14 +43,15 @@ export class InventoryController {
     );
   }
 
-  // @Post('/:inventoryId/duplicate')
-  // @HttpCode(HttpStatus.CREATED)
-  // duplicateInventory(
-  //   @Param('inventoryId', ParseIntPipe) inventoryId: number,
-  //   @Req() { tenant_id }: Request,
-  // ) {
-  //   return this.inventoryService.duplicateInventory(tenant_id, inventoryId);
-  // }
+  @Post('damage/:id/:quantity')
+  @HttpCode(HttpStatus.CREATED)
+  async markProductAsDamaged(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('quantity', ParseIntPipe) quantity: number,
+    @Req() { tenant_id }: Request,
+  ) {
+    return this.inventoryService.markItemAsDamaged(id, quantity, tenant_id);
+  }
 
   @Get('/dashboard-stats')
   @HttpCode(HttpStatus.OK)

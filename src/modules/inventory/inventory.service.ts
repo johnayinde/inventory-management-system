@@ -319,21 +319,21 @@ export class InventoryService {
         },
       });
 
-    const returnedCount = await this.postgresService.saleProduct.aggregate({
+    const damagedCount = await this.postgresService.inventory.aggregate({
       where: {
         tenant_id,
         ...dateCondition,
       },
-      _count: { returned_counts: true },
+      _count: { damaged_counts: true },
     });
 
-    const returnedCount_previous =
-      await this.postgresService.saleProduct.aggregate({
+    const damagedCount_previous =
+      await this.postgresService.inventory.aggregate({
         where: {
           tenant_id,
           ...previousDateCondition,
         },
-        _count: { returned_counts: true },
+        _count: { damaged_counts: true },
       });
 
     const allcategoroes = await this.postgresService.category.count({
@@ -355,16 +355,16 @@ export class InventoryService {
       totalGoods: 0,
       totalLowStocks: 0,
       totalCategories: 0,
-      totalReturnedProducts: 0,
+      totalDamagedProducts: 0,
       goodsPercentageChange: 0,
       totalLowStocksPercentChange: 0,
       categoriesPercentageChange: 0,
-      returnPercentageChange: 0,
+      damagedPercentageChange: 0,
     };
 
     stats.totalGoods = total_inventories;
     stats.totalCategories = allcategoroes;
-    stats.totalReturnedProducts = returnedCount._count.returned_counts;
+    stats.totalDamagedProducts = damagedCount._count.damaged_counts;
     stats.totalLowStocks = runningLow_products;
 
     stats.goodsPercentageChange = calculateChangeInPercentage(
@@ -375,9 +375,9 @@ export class InventoryService {
       allcategoroes,
       allcategoroes_previous,
     );
-    stats.returnPercentageChange = calculateChangeInPercentage(
-      stats.totalReturnedProducts,
-      returnedCount_previous._count.returned_counts,
+    stats.damagedPercentageChange = calculateChangeInPercentage(
+      stats.totalDamagedProducts,
+      damagedCount_previous._count.damaged_counts,
     );
 
     stats.totalLowStocksPercentChange = calculateChangeInPercentage(
@@ -418,5 +418,48 @@ export class InventoryService {
           Number(filters.page) * Number(filters.pageSize),
       },
     };
+  }
+
+  async markItemAsDamaged(id: number, quantity: number, tenant_id: number) {
+    return await this.postgresService.$transaction(async (tx) => {
+      const inventory = await tx.inventory.findUnique({
+        where: { id, tenant_id },
+        include: { product: true },
+      });
+
+      if (!inventory) {
+        throw new NotFoundException('Inventory not found');
+      }
+
+      if (quantity > inventory.quantity) {
+        throw new BadRequestException(`Invalid quantity for inventory`);
+      }
+
+      await tx.inventory.update({
+        where: { id, tenant_id },
+        data: {
+          quantity: {
+            decrement: quantity,
+          },
+          damaged_counts: {
+            increment: quantity,
+          },
+        },
+      });
+
+      await tx.archive.create({
+        data: {
+          tenant: { connect: { id: tenant_id } },
+          inventory: { connect: { id } },
+        },
+      });
+
+      await this.getTotalQuantityByProduct(
+        tx as PrismaClient,
+        tenant_id,
+        inventory,
+      );
+      return await tx.inventory.findUnique({ where: { id, tenant_id } });
+    });
   }
 }
