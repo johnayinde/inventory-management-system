@@ -132,9 +132,14 @@ export class TenantService {
       include: { business: true },
     });
 
+    const permissions = await this.postgresService.permission.findFirst({
+      where: { id: tenant_id },
+    });
+
     return {
       personal: personal_data,
       business: tenant_info?.business,
+      permissions,
     };
   }
 
