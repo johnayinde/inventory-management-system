@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { EXCEPTIONMESSAGE, NOTFOUNDROUTE, UNAUTHORIZED } from '@app/common';
-import { CustomLogger } from '../../../logger';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
