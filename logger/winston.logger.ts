@@ -10,6 +10,7 @@ export const transports = {
         format: 'YYYY-MM-DD HH:mm:ss',
       }),
       winston.format.colorize({
+        all: true,
         colors: {
           info: 'blue',
           debug: 'yellow',

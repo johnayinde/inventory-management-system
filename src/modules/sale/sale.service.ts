@@ -59,6 +59,9 @@ export class SaleService {
             `Insufficient quantity for product ${inventoryItem.name}`,
           );
         }
+        const product_selling_price = selling_price
+          ? selling_price
+          : inventoryItem.selling_price;
 
         totalProductExpenses = inventoryItem.expenses.reduce(
           (acc, expense) => acc + expense.amount || 0,
@@ -66,7 +69,7 @@ export class SaleService {
         );
 
         OverAlltotalExpenses += totalProductExpenses;
-        const productSellingPrice = selling_price * quantity;
+        const productSellingPrice = product_selling_price * quantity;
 
         let totalFee = await this.calculateProductFee(
           tx as PrismaClient,
@@ -82,7 +85,7 @@ export class SaleService {
           inventory_item: { connect: { id: productId } },
           quantity,
           expense: totalProductExpenses,
-          unit_price: selling_price,
+          unit_price: product_selling_price,
           total_price: productSellingPrice,
           tenant: { connect: { id: tenant_id } },
         });

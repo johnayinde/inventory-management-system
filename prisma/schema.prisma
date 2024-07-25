@@ -19,8 +19,9 @@ enum StatusType {
   offline
   online
   active
-  suspended
-  pending
+  INVITED
+  INVITE_SENT
+  SUSPENDED
 }
 
 enum PricingType {
@@ -159,7 +160,7 @@ model User {
   name         String
   email        String
   last_login   DateTime?  @default(now())
-  status       StatusType @default(pending)
+  status       StatusType @default(INVITE_SENT)
   is_suspended Boolean    @default(false)
   is_revoked   Boolean    @default(false)
 
@@ -431,8 +432,10 @@ model Log {
 }
 
 model Archive {
-  id           Int         @id @default(autoincrement())
-  type         ArchiveType @default(damaged)
+  id       Int         @id @default(autoincrement())
+  type     ArchiveType @default(damaged)
+  quantity Int         @default(0)
+
   inventory_id Int
   tenant_id    Int
 

@@ -332,7 +332,7 @@ export class AuthService {
       await this.postgresService.user.update({
         where: { id: account.id, tenant_id: account.tenant_id },
         data: {
-          status: StatusType.active,
+          status: StatusType.INVITED,
         },
       });
 
