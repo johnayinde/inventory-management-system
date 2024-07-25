@@ -449,6 +449,7 @@ export class InventoryService {
 
       await tx.archive.create({
         data: {
+          quantity,
           tenant: { connect: { id: tenant_id } },
           inventory: { connect: { id } },
         },

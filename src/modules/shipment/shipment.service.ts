@@ -170,12 +170,31 @@ export class ShipmentService {
   async getShipment(tenant_id: number, id: number) {
     const shipment = await this.postgresService.shipment.findUnique({
       where: { id, tenant_id },
-      include: { products: { include: { category: true } }, expenses: true },
+      include: {
+        products: {
+          select: { id: true, name: true, category: true, status: true },
+        },
+        expenses: true,
+      },
     });
     if (!shipment) {
       throw new NotFoundException('Shipment not found');
     }
-    return shipment;
+    const formattedData = await Promise.all(
+      shipment.products.map(async (item) => {
+        const report = await this.generateShipmentReport(
+          id,
+          item.id,
+          tenant_id,
+        );
+        return {
+          ...item,
+          ...report,
+        };
+      }),
+    );
+
+    return { ...shipment, products: formattedData };
   }
 
   async getAllShipments(tenant_id: number, filters: PaginatorDTO) {
@@ -240,5 +259,78 @@ export class ShipmentService {
         },
       },
     });
+  }
+
+  private async generateShipmentReport(
+    shipment_id: number,
+    product_id: number,
+    tenant_id: number,
+  ) {
+    const items = await this.postgresService.inventory.findMany({
+      where: { product_id, shipment_id, tenant_id },
+      include: {
+        product: true,
+        sale_product: {
+          include: {
+            sale: true,
+          },
+        },
+        expenses: true,
+      },
+    });
+
+    let totalSellingPrice = 0;
+    let totalQTYSold = 0;
+    let totalCostPrice = 0;
+    let totalExpenses = 0;
+
+    items.forEach((inventory) => {
+      totalSellingPrice += inventory.sale_product.reduce(
+        (acc, saleProduct) => acc + saleProduct.total_price,
+        0,
+      );
+
+      totalQTYSold += inventory.sale_product.reduce(
+        (acc, saleProduct) => acc + saleProduct.quantity,
+        0,
+      );
+
+      totalQTYSold += inventory.sale_product.reduce(
+        (acc, saleProduct) => acc + saleProduct.quantity,
+        0,
+      );
+
+      totalCostPrice +=
+        inventory.cost_price *
+        inventory.sale_product.reduce(
+          (acc, saleProduct) => acc + saleProduct.quantity,
+          0,
+        );
+
+      totalExpenses += inventory.expenses.reduce(
+        (acc, expense) => acc + expense.amount,
+        0,
+      );
+    });
+
+    const averageSellingPrice = totalSellingPrice / totalQTYSold || 0;
+    const averageCostPrice =
+      (totalCostPrice + totalExpenses) / totalQTYSold || 0;
+
+    const profitOrLoss = averageSellingPrice - averageCostPrice;
+    const percentageProfit =
+      profitOrLoss > 0 ? (profitOrLoss / averageCostPrice) * 100 : 0;
+    const percentageLoss =
+      profitOrLoss < 0 ? (Math.abs(profitOrLoss) / averageCostPrice) * 100 : 0;
+
+    return {
+      productId: items[0].product.id,
+      productName: items[0].product.name,
+      totalQtySold: totalQTYSold,
+      averageSellingPrice: averageSellingPrice.toFixed(2),
+      averageCostPrice: averageCostPrice.toFixed(2),
+      percentageProfit: percentageProfit.toFixed(2),
+      percentageLoss: percentageLoss.toFixed(2),
+    };
   }
 }

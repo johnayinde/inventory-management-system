@@ -24,7 +24,7 @@ export class UserService {
         data: {
           email: user.email,
           name: user.name,
-          status: StatusType.pending,
+          status: StatusType.INVITE_SENT,
           tenant: { connect: { id: tenant_id } },
         },
       });
@@ -58,7 +58,7 @@ export class UserService {
       where: { id, tenant_id },
       data: {
         is_suspended: suspend,
-        status: StatusType.suspended,
+        status: StatusType.SUSPENDED,
       },
     });
 
