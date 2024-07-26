@@ -1,6 +1,5 @@
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
-import * as winstonDailyRotateFile from 'winston-daily-rotate-file';
 
 export const transports = {
   console: new winston.transports.Console({
@@ -24,19 +23,19 @@ export const transports = {
       }),
     ),
   }),
-  combinedFile: new winstonDailyRotateFile({
+  combinedFile: new winston.transports.File({
     dirname: 'logs',
-    filename: 'combined',
-    extension: '.log',
+    filename: 'combined.log',
     level: 'info',
-    maxFiles: '14d',
+    maxsize: 10485760, // 10MB
+    maxFiles: 1, // Keep a single combined log file
   }),
-  errorFile: new winstonDailyRotateFile({
+  errorFile: new winston.transports.File({
     dirname: 'logs',
-    filename: 'error',
-    extension: '.log',
+    filename: 'error.log',
     level: 'error',
-    maxFiles: '28d',
+    maxsize: 10485760, // 10MB
+    maxFiles: 1, // Keep a single error log file
   }),
 };
 

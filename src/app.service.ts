@@ -20,12 +20,6 @@ export class AppService {
       return null;
     }
 
-    errorLogFiles.sort((a, b) => {
-      const aDate = a.match(/error\.(\d{4}-\d{2}-\d{2})\.log/)[1];
-      const bDate = b.match(/error\.(\d{4}-\d{2}-\d{2})\.log/)[1];
-      return new Date(bDate).getTime() - new Date(aDate).getTime();
-    });
-
     return path.join(this.logDir, errorLogFiles[0]);
   }
 
