@@ -183,6 +183,9 @@ model Permission {
   expenses  Boolean @default(false)
   report    Boolean @default(false)
   customers Boolean @default(false)
+  product   Boolean @default(false)
+  settings  Boolean @default(false)
+  shipment  Boolean @default(false)
 
   auth_id    Int       @unique
   user_auth  Auth      @relation(fields: [auth_id], references: [id])
