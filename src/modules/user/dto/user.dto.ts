@@ -41,6 +41,21 @@ export class UserPermissionDto {
   @IsBoolean()
   @ApiPropertyOptional()
   customers: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @ApiPropertyOptional()
+  product: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @ApiPropertyOptional()
+  settings: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @ApiPropertyOptional()
+  shipment: boolean;
 }
 
 export class CreateUserDto {

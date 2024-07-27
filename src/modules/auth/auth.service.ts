@@ -205,6 +205,9 @@ export class AuthService {
           inventory: true,
           report: true,
           sales: true,
+          shipment: true,
+          settings: true,
+          product: true,
           user_auth: { connect: { id: new_user.id } },
         },
       });
