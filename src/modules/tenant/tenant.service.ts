@@ -122,9 +122,10 @@ export class TenantService {
   async getTenantInfo(tenant_id: number, user_data = null) {
     const { email } = user_data;
 
-    const { password, is_oauth_user, ...personal_data } =
+    const { password, is_oauth_user, permission, ...personal_data } =
       await this.postgresService.auth.findFirst({
         where: { email },
+        include: { permission: true },
       });
 
     const tenant_info = await this.postgresService.tenant.findFirst({
@@ -132,14 +133,10 @@ export class TenantService {
       include: { business: true },
     });
 
-    const permissions = await this.postgresService.permission.findFirst({
-      where: { id: tenant_id },
-    });
-
     return {
       personal: personal_data,
       business: tenant_info?.business,
-      permissions,
+      permissions: permission,
     };
   }
 
