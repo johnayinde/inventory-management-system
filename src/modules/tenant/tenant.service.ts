@@ -10,11 +10,15 @@ import {
   compareHashedPasswords,
   comparePasswordString,
   hashPassword,
+  ImageUploadService,
 } from '@app/common/helpers';
 
 @Injectable()
 export class TenantService {
-  constructor(readonly postgresService: OrmService) {}
+  constructor(
+    readonly postgresService: OrmService,
+    readonly imageUploadService: ImageUploadService,
+  ) {}
 
   async createTenantInfo(tenant_id: number, data: TenantPersonalInfoDto) {
     const tenant_data = await this.postgresService.tenant.findUnique({
@@ -60,14 +64,22 @@ export class TenantService {
     tenant_id: number,
     user_data,
     data: EditPersonalBusinessDTO,
+    files?: Array<Express.Multer.File>,
   ) {
     const { email } = user_data;
+
+    let profile_photo: string;
+
+    if (files.length) {
+      [profile_photo] = await this.imageUploadService.uploadImages(files);
+    }
 
     await this.postgresService.$transaction(async (tx) => {
       await tx.auth.update({
         where: { email },
         data: {
           ...data.personal_info,
+          profile_photo: profile_photo || null,
         },
       });
 

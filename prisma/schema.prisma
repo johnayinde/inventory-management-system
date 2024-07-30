@@ -69,6 +69,7 @@ model Auth {
   phone_number   String?     @unique
   password       String?
   mfa_secret     String?
+  profile_photo  String?
   is_mfa         Boolean     @default(false)
   is_oauth_user  Boolean     @default(false)
   is_user        Boolean     @default(false)

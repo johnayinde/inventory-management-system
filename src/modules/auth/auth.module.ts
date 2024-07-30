@@ -5,6 +5,7 @@ import { EmailService } from '../email/email.service';
 import { JwtService } from '@nestjs/jwt';
 import { CacheService } from '../cache/cache.service';
 import { TenantService } from '../tenant/tenant.service';
+import { ImageUploadService } from '@app/common/helpers';
 
 @Module({
   providers: [
@@ -13,6 +14,7 @@ import { TenantService } from '../tenant/tenant.service';
     CacheService,
     JwtService,
     TenantService,
+    ImageUploadService,
   ],
   controllers: [AuthController],
 })

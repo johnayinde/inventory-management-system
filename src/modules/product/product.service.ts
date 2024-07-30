@@ -4,15 +4,17 @@ import { CreateProductoDto, EditProductDto } from './dto/product.dto';
 import { ProductStatsDto, page_generator, productFilters } from '@app/common';
 import {
   calculateChangeInPercentage,
-  deleteImage,
-  uploadImages,
+  ImageUploadService,
 } from '@app/common/helpers';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 import { getTimeRanges } from '@app/common/helpers/date-ranges';
 
 @Injectable()
 export class ProductService {
-  constructor(readonly postgresService: OrmService) {}
+  constructor(
+    readonly postgresService: OrmService,
+    readonly imageUploadService: ImageUploadService,
+  ) {}
 
   async createProduct(
     tenant_id: number,
@@ -23,11 +25,11 @@ export class ProductService {
     if (!category_id) {
       throw new NotFoundException('Category is required');
     }
+    console.log(files);
 
     let image_urls = [];
     if (files && files.length > 0) {
-      const folder = process.env.AWS_S3_FOLDER;
-      image_urls = await uploadImages(files, folder);
+      image_urls = await this.imageUploadService.uploadImages(files);
     }
 
     const category = await this.postgresService.category.findUnique({
@@ -113,8 +115,7 @@ export class ProductService {
 
     let image_urls = product.attachments;
     if (files && files.length > 0) {
-      const folder = process.env.AWS_S3_FOLDER;
-      image_urls = await uploadImages(files, folder);
+      image_urls = await this.imageUploadService.uploadImages(files);
     }
     // Update category and subcategory if provided
     let category = product.category;
@@ -204,7 +205,7 @@ export class ProductService {
 
     const key = `${folder}${imageToDelete.split('/')[4]}`;
 
-    await deleteImage(key);
+    await this.imageUploadService.deleteImage(key);
     await this.postgresService.product.update({
       where: { id, tenant_id },
       data: {

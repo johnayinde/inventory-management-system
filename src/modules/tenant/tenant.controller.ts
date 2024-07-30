@@ -9,6 +9,9 @@ import {
   Patch,
   UseInterceptors,
   Put,
+  MaxFileSizeValidator,
+  ParseFilePipe,
+  UploadedFiles,
 } from '@nestjs/common';
 import { TenantService } from './tenant.service';
 import {
@@ -18,7 +21,7 @@ import {
 } from './dto/tenant.dto';
 import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
-import { TenantInterceptor } from '@app/common';
+import { ApiFile, TenantInterceptor } from '@app/common';
 import { ChangePasswordDTO } from '../auth/dto/auth.dto';
 
 @ApiTags('Tenant')
@@ -58,19 +61,24 @@ export class TenantController {
   }
 
   @Patch('/personal-business-info')
-  @ApiBody({
-    description: 'update tenant personal and business information',
-    type: EditPersonalBusinessDTO,
-  })
+  @ApiFile('files', 1, { type: EditPersonalBusinessDTO })
   @HttpCode(HttpStatus.OK)
   updateTenantPersonalBusnessInfo(
     @Body() updatePersonalBusiness: EditPersonalBusinessDTO,
     @Req() { tenant_id, user }: Request,
+    @UploadedFiles(
+      new ParseFilePipe({
+        fileIsRequired: false,
+        validators: [new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 })],
+      }),
+    )
+    files?: Array<Express.Multer.File>,
   ) {
     return this.tenantService.updateTenantPersonalBusnessInfo(
       tenant_id,
       user,
       updatePersonalBusiness,
+      files,
     );
   }
 
