@@ -9,15 +9,17 @@ import { page_generator, shipmentFilters } from '@app/common';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 import {
   calculateChangeInPercentage,
-  deleteImage,
-  uploadImages,
+  ImageUploadService,
 } from '@app/common/helpers';
 import { getTimeRanges } from '@app/common/helpers/date-ranges';
 import { ProductStatusType } from '@prisma/client';
 
 @Injectable()
 export class ShipmentService {
-  constructor(readonly postgresService: OrmService) {}
+  constructor(
+    readonly postgresService: OrmService,
+    readonly imageUploadService: ImageUploadService,
+  ) {}
   async createShipment(
     tenant_id: number,
     data: CreateShipmentDto,
@@ -59,8 +61,7 @@ export class ShipmentService {
         let image_urls: string[] = [];
 
         if (files && files.length) {
-          const folder = process.env.AWS_S3_FOLDER;
-          image_urls = await uploadImages(files, folder);
+          image_urls = await this.imageUploadService.uploadImages(files);
         }
         const createdShipment = await tx.shipment.create({
           data: {
@@ -250,7 +251,7 @@ export class ShipmentService {
 
     const key = `${folder}${imageToDelete.split('/')[4]}`;
 
-    await deleteImage(key);
+    await this.imageUploadService.deleteImage(key);
     await this.postgresService.shipment.update({
       where: { id, tenant_id },
       data: {

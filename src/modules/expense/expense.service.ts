@@ -10,8 +10,7 @@ import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 import { ExpenseStatsDto, expenseFilters, page_generator } from '@app/common';
 import {
   calculateChangeInPercentage,
-  deleteImage,
-  uploadImages,
+  ImageUploadService,
 } from '@app/common/helpers';
 import {
   aggregateByTimestamp,
@@ -20,7 +19,10 @@ import {
 
 @Injectable()
 export class ExpenseService {
-  constructor(readonly postgresService: OrmService) {}
+  constructor(
+    readonly postgresService: OrmService,
+    readonly imageUploadService: ImageUploadService,
+  ) {}
 
   async createExpenseCategory(
     tenant_id: number,
@@ -48,8 +50,7 @@ export class ExpenseService {
     let image_urls: string[] = [];
 
     if (files && files.length > 0) {
-      const folder = process.env.AWS_S3_FOLDER;
-      image_urls = await uploadImages(files, folder);
+      image_urls = await this.imageUploadService.uploadImages(files);
     }
 
     if (data.type == ExpenseType.product && data.productId) {
@@ -172,8 +173,7 @@ export class ExpenseService {
 
     let image_urls = expense.attachments;
     if (files && files.length > 0) {
-      const folder = process.env.AWS_S3_FOLDER;
-      image_urls = await uploadImages(files, folder);
+      image_urls = await this.imageUploadService.uploadImages(files);
     }
 
     if (expense.type == ExpenseType.product) {
@@ -264,7 +264,7 @@ export class ExpenseService {
 
     const key = `${folder}${imageToDelete.split('/')[4]}`;
 
-    await deleteImage(key);
+    await this.imageUploadService.deleteImage(key);
     await this.postgresService.expense.update({
       where: { id, tenant_id },
       data: {

@@ -31,6 +31,8 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { MfaModule } from './modules/mfa/mfa.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { S3Module } from '@app/common/helpers/aws-lib';
+import { ImageUploadService } from '@app/common/helpers';
 
 @Module({
   imports: [
@@ -67,6 +69,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     DashboardModule,
     MfaModule,
     NotificationModule,
+    S3Module,
   ],
   controllers: [AppController],
   providers: [
@@ -88,6 +91,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     },
     Logger,
     AppService,
+    ImageUploadService,
     // remove to test with auth module
     JwtService,
   ],
