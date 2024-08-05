@@ -14,13 +14,6 @@ import { PricingType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { exampleCreateInventoryDto } from './example';
 
-class AttachmentDto {
-  @ApiProperty()
-  @IsString()
-  @IsBase64()
-  base64: string;
-}
-
 class IndividualPricing {
   @ApiPropertyOptional()
   @IsOptional()
