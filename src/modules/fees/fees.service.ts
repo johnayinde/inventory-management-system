@@ -50,14 +50,14 @@ export class FeesService {
 
     const { products_ids, ...restData } = data;
 
-    if (fee.fee_type == FeeType.all) {
+    if (data.fee_type == FeeType.all) {
       return await this.prismaService.fees.update({
         where: { id, tenant_id },
         data: {
           ...restData,
         },
       });
-    } else if (fee.fee_type == FeeType.product) {
+    } else if (data.fee_type == FeeType.product) {
       if (!products_ids.length) {
         throw new BadRequestException('Select product(s)');
       }

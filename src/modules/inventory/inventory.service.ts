@@ -9,6 +9,7 @@ import { PricingType, PrismaClient, ProductStatusType } from '@prisma/client';
 import {
   calculateChangeInPercentage,
   determineProductStatus,
+  ImageUploadService,
 } from '@app/common/helpers';
 import {
   InventoryStatsDto,
@@ -21,7 +22,10 @@ import { getTimeRanges } from '@app/common/helpers/date-ranges';
 
 @Injectable()
 export class InventoryService {
-  constructor(private readonly postgresService: OrmService) {}
+  constructor(
+    private readonly postgresService: OrmService,
+    readonly imageUploadService: ImageUploadService,
+  ) {}
 
   async create(
     createInventoryDto: CreateInventoryDto,
@@ -52,7 +56,8 @@ export class InventoryService {
       const individualInventories = [];
 
       for (const item of inventories) {
-        const { pid, pricing_type, quantity, individual_items } = item;
+        const { pid, pricing_type, quantity, individual_items, attachments } =
+          item;
 
         const parsedPid = parseInt(pid);
 
@@ -65,6 +70,17 @@ export class InventoryService {
         const prodId = `${prodIdPrefix}-${uuidv4().split('-')[2]}`;
 
         if (pricing_type === PricingType.bulk) {
+          let image_urls: string[] = [];
+          if (attachments && attachments.length) {
+            const decodedFiles =
+              await this.imageUploadService.decodeBase64Images(
+                attachments || [],
+              );
+            image_urls = await this.imageUploadService.uploadImages(
+              decodedFiles,
+            );
+          }
+
           bulkInventories.push({
             prod_id: prodId,
             pricing_type: PricingType.bulk,
@@ -76,6 +92,7 @@ export class InventoryService {
             tenant_id,
             shipment_id: shipmentId,
             product_id: parsedPid,
+            attachments: image_urls,
           });
         } else if (pricing_type === PricingType.individual) {
           if (quantity !== item.individual_items.length) {
@@ -88,6 +105,18 @@ export class InventoryService {
             const individualProdId = `${prodIdPrefix}-${
               uuidv4().split('-')[2]
             }`;
+
+            let image_urls: string[] = [];
+            if (attachments && attachments.length) {
+              const decodedFiles =
+                await this.imageUploadService.decodeBase64Images(
+                  attachments || [],
+                );
+              image_urls = await this.imageUploadService.uploadImages(
+                decodedFiles,
+              );
+            }
+
             individualInventories.push({
               ...individual_item,
               prod_id: individualProdId,
@@ -96,6 +125,7 @@ export class InventoryService {
               tenant_id,
               shipment_id: shipmentId,
               product_id: parsedPid,
+              attachments: image_urls,
             });
           }
         }
