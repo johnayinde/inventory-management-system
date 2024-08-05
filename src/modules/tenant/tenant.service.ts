@@ -70,7 +70,7 @@ export class TenantService {
 
     let profile_photo: string;
 
-    if (files.length) {
+    if (files && files.length) {
       [profile_photo] = await this.imageUploadService.uploadImages(files);
     }
 
@@ -79,7 +79,7 @@ export class TenantService {
         where: { email },
         data: {
           ...data.personal_info,
-          profile_photo: profile_photo || null,
+          ...(profile_photo && { profile_photo }),
         },
       });
 

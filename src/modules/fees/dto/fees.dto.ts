@@ -52,6 +52,11 @@ export class EditFeeDto {
   @IsOptional()
   value_type: ValueType;
 
+  @ApiProperty({ enum: FeeType, example: 'all | product' })
+  @IsString()
+  @IsEnum(FeeType)
+  fee_type: FeeType;
+
   @ApiPropertyOptional({ type: [Number] })
   @IsOptional()
   products_ids: number[];

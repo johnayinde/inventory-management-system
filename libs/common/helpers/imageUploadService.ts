@@ -6,6 +6,7 @@ import {
   DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
 import { randomStrings } from './randomString';
+import { Buffer } from 'buffer';
 
 @Injectable()
 export class ImageUploadService {
@@ -92,7 +93,9 @@ export class ImageUploadService {
   }
 
   /* Deleting the image from the S3 bucket. */
-  async deleteImage(key: string): Promise<string> {
+  async deleteImage(imageToDelete: string): Promise<string> {
+    const key = `${this.folder}${imageToDelete.split('/')[4]}`;
+
     try {
       const response = await this.s3Client.send(
         new DeleteObjectCommand({
@@ -106,5 +109,28 @@ export class ImageUploadService {
     } catch (error) {
       throw new BadRequestException(error.message);
     }
+  }
+
+  async decodeBase64Images(
+    base64Images: string[],
+  ): Promise<Array<Express.Multer.File>> {
+    return base64Images.map((base64String, index) => {
+      const matches = base64String.match(/^data:(.+);base64,(.+)$/);
+      if (!matches) {
+        throw new BadRequestException('Invalid base64 image string');
+      }
+
+      const mimeType = matches[1];
+      const buffer = Buffer.from(matches[2], 'base64');
+
+      return {
+        fieldname: `file${index}`,
+        originalname: `image${index}.${mimeType.split('/')[1]}`,
+        encoding: '7bit',
+        mimetype: mimeType,
+        buffer,
+        size: buffer.length,
+      } as Express.Multer.File;
+    });
   }
 }

@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsBase64,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -36,6 +37,12 @@ class IndividualPricing {
   @ApiPropertyOptional()
   @IsString()
   serial_number?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @Type(() => IsBase64)
+  @IsOptional()
+  attachments: string[];
 }
 
 export class InventoryPayload {
@@ -69,6 +76,12 @@ export class InventoryPayload {
   @IsString()
   @IsOptional()
   note?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @Type(() => IsBase64)
+  @IsOptional()
+  attachments: string[];
 
   @ApiProperty({ type: [IndividualPricing] })
   @IsArray()

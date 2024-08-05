@@ -36,19 +36,27 @@ export class SaleService {
         throw new NotFoundException('Customer not found');
       }
 
+      const inventories_ids = products.map((item) => item.productId);
+      const inventoryItems = await tx.inventory.findMany({
+        where: {
+          id: { in: inventories_ids },
+          tenant_id,
+        },
+        include: { expenses: true },
+      });
+
+      const inventoryItemMap = new Map();
+      inventoryItems.forEach((item) => inventoryItemMap.set(item.id, item));
+
       let OverAlltotalExpenses = 0;
       let OverAllSellingPrice = 0;
       let OverAllTotalQty = 0;
-      let totalProductExpenses = 0;
       const saleProducts = [];
 
       for (const product_item of products) {
         const { productId, quantity, selling_price } = product_item;
 
-        const inventoryItem = await tx.inventory.findUnique({
-          where: { id: productId, tenant_id },
-          include: { expenses: true },
-        });
+        const inventoryItem = inventoryItemMap.get(productId);
 
         if (!inventoryItem) {
           throw new NotFoundException(`Product with ID ${productId} not found`);
@@ -63,7 +71,7 @@ export class SaleService {
           ? selling_price
           : inventoryItem.selling_price;
 
-        totalProductExpenses = inventoryItem.expenses.reduce(
+        const totalProductExpenses = inventoryItem.expenses.reduce(
           (acc, expense) => acc + expense.amount || 0,
           0,
         );

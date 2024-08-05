@@ -12,7 +12,7 @@ import {
   ImageUploadService,
 } from '@app/common/helpers';
 import { getTimeRanges } from '@app/common/helpers/date-ranges';
-import { ProductStatusType } from '@prisma/client';
+import { ExpenseType, ProductStatusType } from '@prisma/client';
 
 @Injectable()
 export class ShipmentService {
@@ -28,38 +28,44 @@ export class ShipmentService {
     const { products, expenses, ...details } = data;
     return await this.postgresService.$transaction(
       async (tx) => {
-        const createdExpenses = [];
+        let createdExpenses = [];
 
-        if (expenses && expenses.length) {
-          // Create expenses one after the other
-          for (const expenseData of expenses) {
-            const createdExpense = await tx.expense.create({
-              data: {
-                ...expenseData,
-                amount: Number(expenseData.amount),
-                type: 'shipment',
-                tenant: { connect: { id: tenant_id } },
-                date: new Date(),
-              },
-            });
-
-            createdExpenses.push(createdExpense);
-          }
+        if (expenses.length) {
+          createdExpenses = await Promise.all(
+            expenses.map(
+              async (expense) =>
+                await tx.expense.create({
+                  data: {
+                    ...expense,
+                    amount: Number(expense.amount),
+                    type: ExpenseType.shipment,
+                    tenant_id: tenant_id,
+                    date: new Date(),
+                  },
+                }),
+            ),
+          );
         }
 
-        for (const productId of products) {
-          const product = await tx.product.findUnique({
-            where: { id: productId, tenant_id },
-          });
+        const foundProducts = await tx.product.findMany({
+          where: {
+            id: { in: products },
+            tenant_id: tenant_id,
+          },
+        });
 
-          if (!product) {
-            throw new BadRequestException(
-              `Product with ID ${productId} not found`,
-            );
-          }
+        if (foundProducts.length !== products.length) {
+          const foundProductIds = foundProducts.map((product) => product.id);
+          const missingProductIds = products.filter(
+            (id) => !foundProductIds.includes(id),
+          );
+
+          throw new BadRequestException(
+            `Products with IDs ${missingProductIds.join(', ')} not found`,
+          );
         }
+
         let image_urls: string[] = [];
-
         if (files && files.length) {
           image_urls = await this.imageUploadService.uploadImages(files);
         }
@@ -76,7 +82,7 @@ export class ShipmentService {
 
         return createdShipment;
       },
-      { timeout: 10000 },
+      // { timeout: 10000 },
     );
   }
 

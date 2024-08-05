@@ -29,7 +29,6 @@ export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
   @Post(':shipmentId')
-  // @ApiFile('files', 10, { type: CreateInventoryDto })
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() createInventoryDto: CreateInventoryDto,

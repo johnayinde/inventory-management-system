@@ -25,7 +25,6 @@ export class ProductService {
     if (!category_id) {
       throw new NotFoundException('Category is required');
     }
-    console.log(files);
 
     let image_urls = [];
     if (files && files.length > 0) {

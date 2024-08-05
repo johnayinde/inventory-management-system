@@ -9,6 +9,7 @@ import { PricingType, PrismaClient, ProductStatusType } from '@prisma/client';
 import {
   calculateChangeInPercentage,
   determineProductStatus,
+  ImageUploadService,
 } from '@app/common/helpers';
 import {
   InventoryStatsDto,
@@ -21,7 +22,10 @@ import { getTimeRanges } from '@app/common/helpers/date-ranges';
 
 @Injectable()
 export class InventoryService {
-  constructor(private readonly postgresService: OrmService) {}
+  constructor(
+    private readonly postgresService: OrmService,
+    readonly imageUploadService: ImageUploadService,
+  ) {}
 
   async create(
     createInventoryDto: CreateInventoryDto,
@@ -42,47 +46,54 @@ export class InventoryService {
         throw new NotFoundException('Shipment items already in Inventory.');
       }
 
-      const shippedProductIds = shipment.products.map((i) => i.id);
-      const mappedProduct = shipment.products.reduce(
-        (i, item) => ({ ...i, [item.id]: item }),
-        {},
-      );
+      const shippedProductIds = new Set(shipment.products.map((i) => i.id));
+      const mappedProduct = shipment.products.reduce((acc, item) => {
+        acc[item.id] = item;
+        return acc;
+      }, {});
+
+      const bulkInventories = [];
+      const individualInventories = [];
 
       for (const item of inventories) {
-        const { pid, pricing_type, quantity } = item;
+        const { pid, pricing_type, quantity, individual_items, attachments } =
+          item;
 
+        const parsedPid = parseInt(pid);
+
+        if (!shippedProductIds.has(parsedPid)) {
+          throw new NotFoundException(
+            `Product with ID ${pid} not in shipped items`,
+          );
+        }
         const prodIdPrefix = `PRD${shipment.id}${pid}${tenant_id}`;
         const prodId = `${prodIdPrefix}-${uuidv4().split('-')[2]}`;
 
         if (pricing_type === PricingType.bulk) {
-          if (shippedProductIds.includes(parseInt(pid))) {
-            const inventory = await tx.inventory.create({
-              data: {
-                prod_id: prodId,
-                pricing_type: PricingType.bulk,
-                cost_price: item.cost_price,
-                selling_price: item.selling_price,
-                note: item.note,
-                quantity: Number(quantity),
-                name: mappedProduct[pid].name,
-
-                tenant: { connect: { id: tenant_id } },
-                shipment: { connect: { id: shipmentId } },
-                product: { connect: { id: parseInt(pid) } },
-              },
-              include: { product: true },
-            });
-
-            await this.getTotalQuantityByProduct(
-              tx as PrismaClient,
-              tenant_id,
-              inventory,
-            );
-          } else {
-            throw new NotFoundException(
-              `Product with ID ${pid} not in shipped items`,
+          let image_urls: string[] = [];
+          if (attachments && attachments.length) {
+            const decodedFiles =
+              await this.imageUploadService.decodeBase64Images(
+                attachments || [],
+              );
+            image_urls = await this.imageUploadService.uploadImages(
+              decodedFiles,
             );
           }
+
+          bulkInventories.push({
+            prod_id: prodId,
+            pricing_type: PricingType.bulk,
+            cost_price: item.cost_price,
+            selling_price: item.selling_price,
+            note: item.note,
+            quantity: Number(quantity),
+            name: mappedProduct[pid].name,
+            tenant_id,
+            shipment_id: shipmentId,
+            product_id: parsedPid,
+            attachments: image_urls,
+          });
         } else if (pricing_type === PricingType.individual) {
           if (quantity !== item.individual_items.length) {
             throw new BadRequestException(
@@ -90,42 +101,93 @@ export class InventoryService {
             );
           }
 
-          if (shippedProductIds.includes(parseInt(pid))) {
-            for (const individual_item of item.individual_items) {
-              const prodIdPrefix = `PRD${shipment.id}${pid}${tenant_id}`;
-              const prodId = `${prodIdPrefix}-${uuidv4().split('-')[2]}`;
-              const inventory = await tx.inventory.create({
-                data: {
-                  ...individual_item,
-                  prod_id: prodId,
-                  pricing_type: PricingType.individual,
-                  quantity: 1,
+          for (const individual_item of individual_items) {
+            const individualProdId = `${prodIdPrefix}-${
+              uuidv4().split('-')[2]
+            }`;
 
-                  tenant: { connect: { id: tenant_id } },
-                  shipment: { connect: { id: shipmentId } },
-                  product: { connect: { id: parseInt(pid) } },
-                },
-                include: { product: true },
-              });
-
-              await this.getTotalQuantityByProduct(
-                tx as PrismaClient,
-                tenant_id,
-                inventory,
+            let image_urls: string[] = [];
+            if (attachments && attachments.length) {
+              const decodedFiles =
+                await this.imageUploadService.decodeBase64Images(
+                  attachments || [],
+                );
+              image_urls = await this.imageUploadService.uploadImages(
+                decodedFiles,
               );
             }
-          } else {
-            throw new NotFoundException(
-              `${mappedProduct[pid].name} not in shipped items`,
-            );
+
+            individualInventories.push({
+              ...individual_item,
+              prod_id: individualProdId,
+              pricing_type: PricingType.individual,
+              quantity: 1,
+              tenant_id,
+              shipment_id: shipmentId,
+              product_id: parsedPid,
+              attachments: image_urls,
+            });
           }
         }
       }
+
+      // Batch create bulk inventories
+      if (bulkInventories.length > 0) {
+        const createdBulkCount = await tx.inventory.createMany({
+          data: bulkInventories,
+        });
+
+        // Fetch and update the created bulk inventories
+        const createdBulkInventories = await tx.inventory.findMany({
+          where: {
+            prod_id: {
+              in: bulkInventories.map((inv) => inv.prod_id),
+            },
+            tenant_id,
+          },
+          include: { product: true },
+        });
+
+        for (const inventory of createdBulkInventories) {
+          await this.getTotalQuantityByProduct(
+            tx as PrismaClient,
+            tenant_id,
+            inventory,
+          );
+        }
+      }
+
+      // Batch create individual inventories
+      if (individualInventories.length > 0) {
+        const createdIndividualCount = await tx.inventory.createMany({
+          data: individualInventories,
+        });
+
+        // Fetch and update the created individual inventories
+        const createdIndividualInventories = await tx.inventory.findMany({
+          where: {
+            prod_id: {
+              in: individualInventories.map((inv) => inv.prod_id),
+            },
+            tenant_id,
+          },
+          include: { product: true },
+        });
+
+        for (const inventory of createdIndividualInventories) {
+          await this.getTotalQuantityByProduct(
+            tx as PrismaClient,
+            tenant_id,
+            inventory,
+          );
+        }
+      }
+
       await tx.shipment.update({
         where: { id: shipmentId, tenant_id },
         data: { is_in_inventory: true },
       });
-      return 'Inventories creaded successfully';
+      return 'Inventories created successfully';
     });
   }
 
