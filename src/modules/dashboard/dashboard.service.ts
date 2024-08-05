@@ -82,17 +82,6 @@ export class DashboardService {
       },
     });
 
-    const previousTotalProfit = await this.postgresService.sale.aggregate({
-      _sum: {
-        total_price: true,
-        expenses: true,
-      },
-      where: {
-        tenant_id,
-        ...previousDateCondition,
-      },
-    });
-
     const previousTotalInventory = await this.postgresService.inventory.count({
       where: {
         tenant_id,
@@ -198,7 +187,6 @@ export class DashboardService {
       where: {
         tenant_id,
         ...dateCondition,
-
         sale: { tenant_id },
       },
       include: { inventory_item: { include: { product: true } } },

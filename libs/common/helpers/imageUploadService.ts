@@ -92,7 +92,9 @@ export class ImageUploadService {
   }
 
   /* Deleting the image from the S3 bucket. */
-  async deleteImage(key: string): Promise<string> {
+  async deleteImage(imageToDelete: string): Promise<string> {
+    const key = `${this.folder}${imageToDelete.split('/')[4]}`;
+
     try {
       const response = await this.s3Client.send(
         new DeleteObjectCommand({

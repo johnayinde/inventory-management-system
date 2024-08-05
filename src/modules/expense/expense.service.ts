@@ -53,15 +53,16 @@ export class ExpenseService {
       image_urls = await this.imageUploadService.uploadImages(files);
     }
 
-    if (data.type == ExpenseType.product && data.productId) {
+    const { type, productId, categoryId, shipmentId, amount, ...expenseData } =
+      data;
+
+    if (type == ExpenseType.product && productId) {
       const inventory_product = await this.postgresService.inventory.findFirst({
-        where: { id: Number(data?.productId), tenant_id },
+        where: { id: Number(productId), tenant_id },
       });
       if (!inventory_product) {
         throw new NotFoundException('Provided item not found in inventory');
       }
-      const { productId, categoryId, shipmentId, amount, ...expenseData } =
-        data;
 
       const created_expense = await this.postgresService.expense.create({
         data: {
@@ -76,21 +77,18 @@ export class ExpenseService {
       });
 
       await this.postgresService.inventory.update({
-        where: { id: Number(data?.productId), tenant_id },
+        where: { id: Number(productId), tenant_id },
         data: { cost_price: { increment: Number(amount) } },
       });
       return created_expense;
-    } else if (data.type == ExpenseType.general && data.categoryId) {
+    } else if (type == ExpenseType.general && categoryId) {
       const category = await this.postgresService.expenseCategory.findUnique({
-        where: { id: Number(data.categoryId), tenant_id },
+        where: { id: Number(categoryId), tenant_id },
       });
 
       if (!category) {
         throw new NotFoundException('Expense Category not found');
       }
-
-      const { categoryId, productId, shipmentId, amount, ...expenseData } =
-        data;
 
       return await this.postgresService.expense.create({
         data: {
@@ -103,9 +101,7 @@ export class ExpenseService {
           },
         },
       });
-    } else if (data.type == ExpenseType.shipment) {
-      const { categoryId, productId, shipmentId, ...expenseData } = data;
-
+    } else if (type == ExpenseType.shipment) {
       const shipment = await this.postgresService.shipment.findUnique({
         where: { id: shipmentId, tenant_id },
       });
@@ -262,9 +258,7 @@ export class ExpenseService {
     }
     const folder = process.env.AWS_S3_FOLDER;
 
-    const key = `${folder}${imageToDelete.split('/')[4]}`;
-
-    await this.imageUploadService.deleteImage(key);
+    await this.imageUploadService.deleteImage(imageToDelete);
     await this.postgresService.expense.update({
       where: { id, tenant_id },
       data: {

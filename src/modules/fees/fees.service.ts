@@ -14,17 +14,7 @@ export class FeesService {
   async create(tenant_id: number, data: CreateFeeDto) {
     const { products_ids, fee_type, ...restData } = data;
     if (products_ids?.length && fee_type === FeeType.product) {
-      for (const productId of products_ids) {
-        const product = await this.prismaService.product.findUnique({
-          where: { id: productId, tenant_id },
-        });
-
-        if (!product) {
-          throw new BadRequestException(
-            `Product with ID ${productId} not found`,
-          );
-        }
-      }
+      await this.catchInvalidProducts(products_ids, tenant_id);
       return await this.prismaService.fees.create({
         data: {
           ...restData,
@@ -71,17 +61,7 @@ export class FeesService {
       if (!products_ids.length) {
         throw new BadRequestException('Select product(s)');
       }
-      for (const productId of products_ids) {
-        const product = await this.prismaService.product.findUnique({
-          where: { id: productId, tenant_id },
-        });
-
-        if (!product) {
-          throw new BadRequestException(
-            `Product with ID ${productId} not found`,
-          );
-        }
-      }
+      await this.catchInvalidProducts(products_ids, tenant_id);
       return await this.prismaService.fees.update({
         where: { id, tenant_id },
         data: {
@@ -91,6 +71,27 @@ export class FeesService {
           },
         },
       });
+    }
+  }
+
+  private async catchInvalidProducts(
+    products_ids: number[],
+    tenant_id: number,
+  ) {
+    const products = await this.prismaService.product.findMany({
+      where: { id: { in: products_ids }, tenant_id },
+      select: { id: true },
+    });
+
+    const foundProductIds = products.map((product) => product.id);
+    const missingProductIds = products_ids.filter(
+      (id) => !foundProductIds.includes(id),
+    );
+
+    if (missingProductIds.length > 0) {
+      throw new BadRequestException(
+        `Products with IDs ${missingProductIds.join(', ')} not found`,
+      );
     }
   }
 
