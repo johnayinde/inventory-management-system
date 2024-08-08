@@ -7,7 +7,6 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { json, urlencoded } from 'express';
 import { useContainer } from 'class-validator';
 import { logger } from 'logger/winston.logger';
-import { WinstonModule } from 'nest-winston';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {

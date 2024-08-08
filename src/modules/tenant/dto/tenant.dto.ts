@@ -52,13 +52,13 @@ export class EditPersonalBusinessDTO {
   @ApiPropertyOptional()
   @IsObject()
   @Type(() => TenantPersonalInfoDto)
-  // @IsNotEmpty()
+  @IsOptional()
   personal_info: TenantPersonalInfoDto;
 
   @ApiPropertyOptional()
   @IsObject()
   @Type(() => TenantBusinessDTO)
-  // @IsNotEmpty()
+  @IsOptional()
   business_info: TenantBusinessDTO;
 }
 
