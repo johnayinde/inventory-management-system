@@ -106,6 +106,9 @@ export class AuthService {
         inventory: true,
         report: true,
         sales: true,
+        product: true,
+        settings: true,
+        shipment: true,
         user_auth: { connect: { id: new_account.id } },
       },
     });
