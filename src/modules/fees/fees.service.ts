@@ -9,7 +9,17 @@ import { FeeType } from '@prisma/client';
 
 @Injectable()
 export class FeesService {
-  constructor(private readonly prismaService: OrmService) {}
+  private select_fields: {};
+  constructor(private readonly prismaService: OrmService) {
+    this.select_fields = {
+      id: true,
+      name: true,
+      value: true,
+      value_type: true,
+      fee_type: true,
+      products: { select: { id: true, name: true } },
+    };
+  }
 
   async create(tenant_id: number, data: CreateFeeDto) {
     const { products_ids, fee_type, ...restData } = data;
@@ -24,7 +34,7 @@ export class FeesService {
           },
           tenant: { connect: { id: tenant_id } },
         },
-        include: { products: true },
+        select: this.select_fields,
       });
     } else if (fee_type === FeeType.all) {
       return await this.prismaService.fees.create({
@@ -33,7 +43,7 @@ export class FeesService {
           fee_type,
           tenant: { connect: { id: tenant_id } },
         },
-        include: { products: true },
+        select: this.select_fields,
       });
     } else {
       throw new BadRequestException('kindly select the appropriate field');
@@ -70,6 +80,7 @@ export class FeesService {
             set: products_ids.map((id) => ({ id })),
           },
         },
+        include: { products: true },
       });
     }
   }
@@ -98,8 +109,8 @@ export class FeesService {
   async getAllFees(tenant_id: number) {
     return await this.prismaService.fees.findMany({
       where: { tenant_id: tenant_id },
-      include: { products: true },
       orderBy: { created_at: 'desc' },
+      select: this.select_fields,
     });
   }
 
