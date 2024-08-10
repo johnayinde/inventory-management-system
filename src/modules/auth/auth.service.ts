@@ -125,7 +125,11 @@ export class AuthService {
       },
     });
 
-    if (user.email_verified !== true) {
+    if (user.is_oauth_user) {
+      throw new BadRequestException('Invalid signin method.');
+    }
+
+    if (user.email_verified) {
       const otp = await this.cache.setOTPValue(data.email);
       await this.emailService.sendOTP(otp, data.email);
       throw new HttpException(NOTACTIVATED, HttpStatus.FORBIDDEN);
@@ -222,6 +226,9 @@ export class AuthService {
       });
       auth_user = new_user;
     }
+    if (!auth_user.is_oauth_user) {
+      throw new UnauthorizedException('Invalid signin method.');
+    }
 
     const business_info = await this.postgresService.tenant.findFirst({
       where: { email },
@@ -230,7 +237,6 @@ export class AuthService {
 
     const is_profile_complete =
       !!business_info.business && !!auth_user.first_name;
-    console.log({ is_profile_complete });
 
     delete auth_user.password;
     delete auth_user.mfa_secret;

@@ -7,8 +7,7 @@ export class CreateProductoDto {
   name: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
-  threshold?: number;
+  threshold: number;
 
   @ApiPropertyOptional()
   @IsOptional()
