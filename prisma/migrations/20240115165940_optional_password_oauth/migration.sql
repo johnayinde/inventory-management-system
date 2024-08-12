@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE "Auth" ADD COLUMN     "isOauthUser" BOOLEAN NOT NULL DEFAULT false,
-ALTER COLUMN "password" DROP NOT NULL;
