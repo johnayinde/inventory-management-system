@@ -16,6 +16,9 @@ enum BusinessType {
 }
 
 enum StatusType {
+  offline
+  online
+  active
   INVITED
   INVITE_SENT
   SUSPENDED

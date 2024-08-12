@@ -25,12 +25,12 @@ export class ShipmentService {
     data: CreateShipmentDto,
     files: Array<Express.Multer.File>,
   ) {
-    const { products, expenses, ...details } = data;
+    const { products, price, expenses, ...details } = data;
     return await this.postgresService.$transaction(
       async (tx) => {
         let createdExpenses = [];
 
-        if (expenses.length) {
+        if (expenses && expenses.length) {
           createdExpenses = await Promise.all(
             expenses.map(
               async (expense) =>
@@ -49,9 +49,10 @@ export class ShipmentService {
 
         const foundProducts = await tx.product.findMany({
           where: {
-            id: { in: products },
+            id: { in: products.map((id) => Number(id)) },
             tenant_id: tenant_id,
           },
+          select: { id: true },
         });
 
         if (foundProducts.length !== products.length) {
@@ -72,6 +73,7 @@ export class ShipmentService {
         const createdShipment = await tx.shipment.create({
           data: {
             ...details,
+            price: Number(price),
             attachments: image_urls,
             tenant: { connect: { id: tenant_id } },
             expenses: { connect: createdExpenses.map((e) => ({ id: e.id })) },
