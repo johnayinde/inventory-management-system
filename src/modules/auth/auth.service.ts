@@ -129,7 +129,7 @@ export class AuthService {
       throw new BadRequestException('Invalid signin method.');
     }
 
-    if (user.email_verified) {
+    if (!user.email_verified) {
       const otp = await this.cache.setOTPValue(data.email);
       await this.emailService.sendOTP(otp, data.email);
       throw new HttpException(NOTACTIVATED, HttpStatus.FORBIDDEN);

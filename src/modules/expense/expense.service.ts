@@ -354,6 +354,13 @@ export class ExpenseService {
       },
     });
 
+    const feesPreviousMonth = await this.postgresService.fees.findMany({
+      where: {
+        tenant_id,
+        ...previousDateCondition,
+      },
+    });
+
     const LastMonthExpenses = await this.postgresService.expense.findMany({
       where: {
         tenant_id,
@@ -381,7 +388,11 @@ export class ExpenseService {
     };
 
     this.calculateBasicStats(fees, stats, expenses);
-    this.calculateBasicStats(fees, lastMonthStats, LastMonthExpenses);
+    this.calculateBasicStats(
+      feesPreviousMonth,
+      lastMonthStats,
+      LastMonthExpenses,
+    );
     this.determinePercentages(stats, lastMonthStats);
 
     return stats;

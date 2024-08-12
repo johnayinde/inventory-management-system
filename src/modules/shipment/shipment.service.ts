@@ -25,12 +25,12 @@ export class ShipmentService {
     data: CreateShipmentDto,
     files: Array<Express.Multer.File>,
   ) {
-    const { products, expenses, ...details } = data;
+    const { products, price, expenses, ...details } = data;
     return await this.postgresService.$transaction(
       async (tx) => {
         let createdExpenses = [];
 
-        if (expenses.length) {
+        if (expenses && expenses.length) {
           createdExpenses = await Promise.all(
             expenses.map(
               async (expense) =>
@@ -49,9 +49,10 @@ export class ShipmentService {
 
         const foundProducts = await tx.product.findMany({
           where: {
-            id: { in: products },
+            id: { in: products.map((id) => Number(id)) },
             tenant_id: tenant_id,
           },
+          select: { id: true },
         });
 
         if (foundProducts.length !== products.length) {
@@ -72,6 +73,7 @@ export class ShipmentService {
         const createdShipment = await tx.shipment.create({
           data: {
             ...details,
+            price: Number(price),
             attachments: image_urls,
             tenant: { connect: { id: tenant_id } },
             expenses: { connect: createdExpenses.map((e) => ({ id: e.id })) },
@@ -187,20 +189,22 @@ export class ShipmentService {
     if (!shipment) {
       throw new NotFoundException('Shipment not found');
     }
-    const formattedData = await Promise.all(
-      shipment.products.map(async (item) => {
-        const report = await this.generateShipmentReport(
-          id,
-          item.id,
-          tenant_id,
-        );
-        return {
-          ...item,
-          ...report,
-        };
-      }),
-    );
-
+    let formattedData = shipment.products;
+    if (shipment.is_in_inventory) {
+      formattedData = await Promise.all(
+        shipment.products.map(async (item) => {
+          const report = await this.generateShipmentReport(
+            id,
+            item.id,
+            tenant_id,
+          );
+          return {
+            ...item,
+            ...report,
+          };
+        }),
+      );
+    }
     return { ...shipment, products: formattedData };
   }
 
@@ -331,8 +335,6 @@ export class ShipmentService {
       profitOrLoss < 0 ? (Math.abs(profitOrLoss) / averageCostPrice) * 100 : 0;
 
     return {
-      productId: items[0].product.id,
-      productName: items[0].product.name,
       totalQtySold: totalQTYSold,
       averageSellingPrice: averageSellingPrice.toFixed(2),
       averageCostPrice: averageCostPrice.toFixed(2),
