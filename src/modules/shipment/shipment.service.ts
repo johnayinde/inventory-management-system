@@ -189,20 +189,22 @@ export class ShipmentService {
     if (!shipment) {
       throw new NotFoundException('Shipment not found');
     }
-    const formattedData = await Promise.all(
-      shipment.products.map(async (item) => {
-        const report = await this.generateShipmentReport(
-          id,
-          item.id,
-          tenant_id,
-        );
-        return {
-          ...item,
-          ...report,
-        };
-      }),
-    );
-
+    let formattedData = shipment.products;
+    if (shipment.is_in_inventory) {
+      formattedData = await Promise.all(
+        shipment.products.map(async (item) => {
+          const report = await this.generateShipmentReport(
+            id,
+            item.id,
+            tenant_id,
+          );
+          return {
+            ...item,
+            ...report,
+          };
+        }),
+      );
+    }
     return { ...shipment, products: formattedData };
   }
 
@@ -333,8 +335,6 @@ export class ShipmentService {
       profitOrLoss < 0 ? (Math.abs(profitOrLoss) / averageCostPrice) * 100 : 0;
 
     return {
-      productId: items[0].product.id,
-      productName: items[0].product.name,
       totalQtySold: totalQTYSold,
       averageSellingPrice: averageSellingPrice.toFixed(2),
       averageCostPrice: averageCostPrice.toFixed(2),
