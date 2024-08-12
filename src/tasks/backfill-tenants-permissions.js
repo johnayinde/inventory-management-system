@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const tenantPermissions = async () => {
@@ -7,7 +7,7 @@ const tenantPermissions = async () => {
       where: { is_user: false },
       select: { permission: { select: { id: true } } },
     })
-  ).map((id) => id.permission.id);
+  ).map((auth) => auth.permission.id);
 
   await prisma.permission.updateMany({
     where: { id: { in: auth_permissions_ids } },
@@ -26,7 +26,7 @@ const tenantPermissions = async () => {
 };
 
 tenantPermissions()
-  .then(async (data) => {
+  .then(async () => {
     await prisma.$disconnect();
   })
   .catch(async (e) => {
