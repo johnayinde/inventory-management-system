@@ -58,7 +58,7 @@ export class ShipmentService {
         if (foundProducts.length !== products.length) {
           const foundProductIds = foundProducts.map((product) => product.id);
           const missingProductIds = products.filter(
-            (id) => !foundProductIds.includes(id),
+            (id) => !foundProductIds.includes(Number(id)),
           );
 
           throw new BadRequestException(

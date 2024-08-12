@@ -20,7 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma --name ",
     "prisma:dbpush": "npx prisma db push --schema prisma/schema.prisma",
-    "seed": "npx prisma migrate reset"
+    "task": "ts-node src/tasks/backfill-tenants-permissions.ts"
   },
   "prisma": {
     "seed": "ts-node seed/seed.ts"

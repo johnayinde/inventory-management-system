@@ -37,9 +37,8 @@ export class CreateShipmentDto {
   date: Date;
 
   @ApiPropertyOptional()
-  @IsNumber({ allowNaN: false, allowInfinity: false })
   @IsOptional()
-  price?: number;
+  price?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -50,7 +49,7 @@ export class CreateShipmentDto {
   @IsOptional()
   expenses?: ExpenseDto[];
 
-  @ApiProperty({ type: [Number], isArray: true })
+  @ApiProperty({ isArray: true })
   @IsArray({ message: 'Products are required' })
-  products: number[];
+  products: string[];
 }
