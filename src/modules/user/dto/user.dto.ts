@@ -11,6 +11,10 @@ import { Type } from 'class-transformer';
 import { RecordExists } from '@app/common';
 import { StatusType } from '@prisma/client';
 
+export enum UserEnum {
+  DELETED = 'DELETED',
+  REVOKED = 'REVOKED',
+}
 export class UserPermissionDto {
   @IsOptional()
   @IsBoolean()
@@ -66,8 +70,8 @@ export class CreateUserDto {
   @ApiProperty()
   @IsString()
   @IsEmail()
-  @RecordExists('user.email')
-  @RecordExists('auth.email')
+  // @RecordExists('user.email')
+  // @RecordExists('auth.email')
   email: string;
 
   @ApiProperty({ type: UserPermissionDto, required: false })
@@ -89,15 +93,10 @@ export class EditUserDto {
   @IsOptional()
   permissions?: UserPermissionDto;
 
-  @ApiPropertyOptional({ enum: StatusType })
-  @IsOptional()
-  @IsString()
-  @IsEnum(StatusType)
-  status?: StatusType;
 }
 
-export class SuspendUserDto {
-  @ApiProperty()
-  @IsBoolean()
-  flag: boolean;
+export class UserActions {
+  @ApiProperty({ enum: UserEnum, example: 'DELETED | REVOKED' })
+  @IsEnum(UserEnum)
+  action: UserEnum;
 }

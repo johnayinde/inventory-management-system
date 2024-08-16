@@ -54,7 +54,7 @@ export class ExpenseController {
   }
 
   @Post('')
-  @ApiFile('files', 10, { type: CreateExpenseDto })
+  @ApiFile('files', 3, { type: CreateExpenseDto })
   @HttpCode(HttpStatus.CREATED)
   createExpense(
     @Body() data: CreateExpenseDto,
@@ -62,7 +62,7 @@ export class ExpenseController {
     @UploadedFiles(
       new ParseFilePipe({
         fileIsRequired: false,
-        validators: [new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 })],
+        validators: [new MaxFileSizeValidator({ maxSize: 2 * 1024 * 1024 })],
       }),
     )
     files?: Array<Express.Multer.File>,
@@ -116,7 +116,7 @@ export class ExpenseController {
   }
 
   @Patch(':expenseId')
-  @ApiFile('files', 10, { type: EditExpenseDto })
+  @ApiFile('files', 3, { type: EditExpenseDto })
   @HttpCode(HttpStatus.OK)
   async editExpense(
     @Param('expenseId', ParseIntPipe) expenseId: number,
@@ -125,7 +125,7 @@ export class ExpenseController {
     @UploadedFiles(
       new ParseFilePipe({
         fileIsRequired: false,
-        validators: [new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 })],
+        validators: [new MaxFileSizeValidator({ maxSize: 2 * 1024 * 1024 })],
       }),
     )
     files: Array<Express.Multer.File>,

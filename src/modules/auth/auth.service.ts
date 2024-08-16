@@ -64,6 +64,7 @@ export class AuthService {
       where: {
         email,
       },
+      select: { email: true, first_name: true, id: true },
     });
     if (!user) {
       throw new HttpException('User does not exist.', HttpStatus.BAD_REQUEST);
@@ -150,9 +151,10 @@ export class AuthService {
       const userRec = await this.postgresService.user.findFirst({
         where: { email: user.email },
       });
-      if (userRec.is_suspended) {
-        throw new UnauthorizedException('Account is Suspended!');
-      }
+      if (userRec.status == StatusType.REVOKED)
+        throw new UnauthorizedException('Your Account has been Revoked.');
+      if (userRec.status == StatusType.DELETED)
+        throw new UnauthorizedException('Your Account has been Deleted.');
       await this.postgresService.user.update({
         where: { id: userRec.id },
         data: { last_login: new Date() },
@@ -314,6 +316,7 @@ export class AuthService {
     if (is_user_flag) {
       const account = await this.postgresService.user.findFirst({
         where: { email },
+        include: { permissions: true },
       });
 
       if (!account) {
@@ -333,14 +336,24 @@ export class AuthService {
           is_user: true,
         },
       });
+      if (account.permissions.id) {
+        console.log('permission exist');
 
-      await this.postgresService.permission.create({
-        data: {
-          ...user_permissions,
-          user_auth: { connect: { id: user_auth_id } },
-          user: { connect: { id: account.id } },
-        },
-      });
+        await this.postgresService.permission.update({
+          where: { id: account.permissions.id },
+          data: {
+            ...user_permissions,
+          },
+        });
+      } else {
+        await this.postgresService.permission.create({
+          data: {
+            ...user_permissions,
+            auth_id: user_auth_id,
+            user_id: account.id,
+          },
+        });
+      }
       await this.postgresService.user.update({
         where: { id: account.id, tenant_id: account.tenant_id },
         data: {

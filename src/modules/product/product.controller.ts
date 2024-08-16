@@ -33,7 +33,7 @@ export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Post()
-  @ApiFile('files', 10, { type: CreateProductoDto })
+  @ApiFile('files', 3, { type: CreateProductoDto })
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() data: CreateProductoDto,
@@ -42,7 +42,7 @@ export class ProductController {
     @UploadedFiles(
       new ParseFilePipe({
         fileIsRequired: false,
-        validators: [new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 })],
+        validators: [new MaxFileSizeValidator({ maxSize: 2 * 1024 * 1024 })],
       }),
     )
     files: Array<Express.Multer.File>,
@@ -64,7 +64,7 @@ export class ProductController {
   }
 
   @Patch(':productId')
-  @ApiFile('files', 10, { type: EditProductDto })
+  @ApiFile('files', 3, { type: EditProductDto })
   @HttpCode(HttpStatus.OK)
   async editProduct(
     @Param('productId', ParseIntPipe) productId: number,
@@ -73,7 +73,7 @@ export class ProductController {
     @UploadedFiles(
       new ParseFilePipe({
         fileIsRequired: false,
-        validators: [new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 })],
+        validators: [new MaxFileSizeValidator({ maxSize: 2 * 1024 * 1024 })],
       }),
     )
     files: Array<Express.Multer.File>,
