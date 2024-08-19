@@ -12,6 +12,7 @@ import { Type } from 'class-transformer';
 export enum UserEnum {
   DELETED = 'DELETED',
   REVOKED = 'REVOKED',
+  INVITED = 'INVITED',
 }
 export class UserPermissionDto {
   @IsOptional()
@@ -91,7 +92,7 @@ export class EditUserDto {
 }
 
 export class UserActions {
-  @ApiProperty({ enum: UserEnum, example: 'DELETED | REVOKED' })
+  @ApiProperty({ enum: UserEnum, example: 'DELETED | REVOKED | INVITED' })
   @IsEnum(UserEnum)
   action: UserEnum;
 }

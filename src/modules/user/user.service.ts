@@ -112,13 +112,14 @@ export class UserService {
         where: { id, tenant_id },
         data: {
           status: StatusType.DELETED,
+          tenant_id: null, // Disassociates the user from the tenant
         },
       });
-
-      const te = await this.postgresService.user.update({
+    } else if (flag.action == UserEnum.INVITED) {
+      await this.postgresService.user.update({
         where: { id: user.id },
         data: {
-          tenant_id: null, // Disassociates the user from the tenant
+          status: StatusType.INVITED,
         },
       });
     }
