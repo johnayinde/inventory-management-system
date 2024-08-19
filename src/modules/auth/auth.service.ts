@@ -337,8 +337,6 @@ export class AuthService {
         },
       });
       if (account.permissions.id) {
-        console.log('permission exist');
-
         await this.postgresService.permission.update({
           where: { id: account.permissions.id },
           data: {
