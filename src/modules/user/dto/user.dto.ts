@@ -8,8 +8,6 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { RecordExists } from '@app/common';
-import { StatusType } from '@prisma/client';
 
 export enum UserEnum {
   DELETED = 'DELETED',
@@ -70,8 +68,6 @@ export class CreateUserDto {
   @ApiProperty()
   @IsString()
   @IsEmail()
-  // @RecordExists('user.email')
-  // @RecordExists('auth.email')
   email: string;
 
   @ApiProperty({ type: UserPermissionDto, required: false })
@@ -92,7 +88,6 @@ export class EditUserDto {
   @Type(() => UserPermissionDto)
   @IsOptional()
   permissions?: UserPermissionDto;
-
 }
 
 export class UserActions {
