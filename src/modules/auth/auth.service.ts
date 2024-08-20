@@ -64,7 +64,7 @@ export class AuthService {
       where: {
         email,
       },
-      select: { email: true, first_name: true, id: true },
+      select: { email: true, first_name: true, id: true, is_user: true },
     });
     if (!user) {
       throw new HttpException('User does not exist.', HttpStatus.BAD_REQUEST);
@@ -118,7 +118,6 @@ export class AuthService {
     await this.emailService.sendOTP(otp, data.email);
     return REGISTEROTP;
   }
-
   async loginUser(data: LoginDto) {
     const user = await this.postgresService.auth.findUnique({
       where: {
@@ -168,17 +167,19 @@ export class AuthService {
     delete user.mfa_secret;
 
     if (user.is_user) {
-      return {
-        ...user,
-        is_profile_complete: true,
-        token: await this.generateAccessToken(userId, user.email, user.is_user),
-      };
+      return await this.jwtToken(user, userId);
     }
 
+    return await this.jwtToken(user, userId);
+  }
+
+  async jwtToken(user, userId: number, is_profile_complete: boolean = true) {
     const { personal, business } =
       await this.tenantService.getTenantPersonalBusnessInfo(user.email);
 
-    const is_profile_complete = !!business.business && !!personal.first_name;
+    if (!user.is_user) {
+      is_profile_complete = !!business.business && !!personal.first_name;
+    }
 
     return {
       ...user,
@@ -287,7 +288,7 @@ export class AuthService {
     ]);
     await this.cache.deleteOTPValue(data.email);
 
-    return 'Your email has been verified, please continue with onbording process';
+    return await this.jwtToken(user, user.id);
   }
 
   async resetPassword(email: string) {
@@ -312,6 +313,7 @@ export class AuthService {
       is_user_flag,
       data: { email, id: user_auth_id, user_permissions },
     } = decryption(data as encryptData);
+    const user = await this.getUserByEmail(email);
 
     if (is_user_flag) {
       const account = await this.postgresService.user.findFirst({
@@ -361,7 +363,7 @@ export class AuthService {
 
       this.cache.delData(token.token);
 
-      return await this.getUserByEmail(email);
+      return await this.jwtToken(user, user.id);
     } else {
       const account = await this.getUserByEmail(email);
       if (!account) {
@@ -380,7 +382,7 @@ export class AuthService {
         },
       });
       this.cache.delData(token.token);
-      return await this.getUserByEmail(email);
+      return await this.jwtToken(user, user.id);
     }
   }
 }
