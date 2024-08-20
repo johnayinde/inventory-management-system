@@ -7,7 +7,7 @@ import { imageFileFilter, editFileName } from './fileTypeFilter';
 
 export function ApiFile(
   fieldName: string,
-  limit?: number,
+  limit: number = 3,
   body?: ApiBodyOptions,
 ) {
   return applyDecorators(

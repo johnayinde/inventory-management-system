@@ -21,7 +21,8 @@ enum StatusType {
   active
   INVITED
   INVITE_SENT
-  SUSPENDED
+  DELETED
+  REVOKED
 }
 
 enum PricingType {
@@ -157,16 +158,13 @@ model Subcategory {
 }
 
 model User {
-  id           Int        @id @default(autoincrement())
-  name         String
-  email        String
-  last_login   DateTime?  @default(now())
-  status       StatusType @default(INVITE_SENT)
-  is_suspended Boolean    @default(false)
-  is_revoked   Boolean    @default(false)
-
-  tenant_id   Int
-  tenant      Tenant      @relation(fields: [tenant_id], references: [id])
+  id          Int         @id @default(autoincrement())
+  name        String
+  email       String
+  last_login  DateTime?   @default(now())
+  status      StatusType  @default(INVITE_SENT)
+  tenant_id   Int?
+  tenant      Tenant?     @relation(fields: [tenant_id], references: [id])
   permissions Permission?
 
   //

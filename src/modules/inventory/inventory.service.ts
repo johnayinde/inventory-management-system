@@ -95,13 +95,14 @@ export class InventoryService {
             attachments: image_urls,
           });
         } else if (pricing_type === PricingType.individual) {
-          if (quantity !== item.individual_items.length) {
+          if (quantity !== individual_items.length) {
             throw new BadRequestException(
               `Expecting ${quantity} individual items for ${mappedProduct[pid].name}`,
             );
           }
 
           for (const individual_item of individual_items) {
+            const { attachments } = individual_item;
             const individualProdId = `${prodIdPrefix}-${
               uuidv4().split('-')[2]
             }`;

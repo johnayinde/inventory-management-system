@@ -1,6 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { OrmService } from 'src/database/orm.service';
-import { CreateUserDto, EditUserDto } from './dto/user.dto';
+import {
+  CreateUserDto,
+  EditUserDto,
+  UserActions,
+  UserEnum,
+} from './dto/user.dto';
 import { CacheService } from '../cache/cache.service';
 import { EmailService } from '../email/email.service';
 import { USER_SIGNUP, customersFilters, page_generator } from '@app/common';
@@ -20,25 +29,60 @@ export class UserService {
     const default_password = generatePassword();
 
     return await this.postgresService.$transaction(async (tx) => {
-      const user_acc = await tx.user.create({
-        data: {
-          email: user.email,
-          name: user.name,
-          status: StatusType.INVITE_SENT,
-          tenant: { connect: { id: tenant_id } },
-        },
+      const user_rec = await tx.user.findFirst({
+        where: { email: user.email },
       });
-      const [first_name, ...other] = user.name.split(' ');
+      let user_auth = await tx.auth.findFirst({
+        where: { email: user.email, is_user: true },
+        select: { email: true, first_name: true, id: true },
+      });
 
-      const user_auth = await tx.auth.create({
-        data: {
-          email: user.email,
-          password: default_password,
-          is_user: true,
-          first_name: first_name,
-          last_name: other.join(' '),
-        },
-      });
+      if (user_rec) {
+        if (user_rec.tenant_id || user_rec.status == StatusType.INVITED) {
+          throw new BadRequestException(
+            'Cannot invite user with the email credential',
+          );
+        }
+
+        if (user_rec.status == StatusType.DELETED) {
+          await tx.user.update({
+            where: { email: user.email, id: user_rec.id },
+            data: {
+              name: user.name,
+              status: StatusType.INVITE_SENT,
+              tenant_id,
+            },
+          });
+
+          await tx.auth.update({
+            where: { email: user.email, is_user: true },
+            data: {
+              password: default_password,
+            },
+          });
+        }
+      } else {
+        const user_acc = await tx.user.create({
+          data: {
+            email: user.email,
+            name: user.name,
+            status: StatusType.INVITE_SENT,
+            tenant: { connect: { id: tenant_id } },
+          },
+        });
+        const [first_name, ...other] = user_acc.name.split(' ');
+
+        user_auth = await tx.auth.create({
+          data: {
+            email: user.email,
+            password: default_password,
+            is_user: true,
+            first_name: first_name,
+            last_name: other.join(' '),
+          },
+          select: { email: true, first_name: true, id: true },
+        });
+      }
 
       const data = await this.emailService.sendResetPasswordToEmail(
         user.email,
@@ -53,16 +97,33 @@ export class UserService {
     });
   }
 
-  async suspendUser(tenant_id: number, id: number, suspend: boolean) {
-    await this.postgresService.user.update({
-      where: { id, tenant_id },
-      data: {
-        is_suspended: suspend,
-        status: StatusType.SUSPENDED,
-      },
-    });
+  async updateUserStatus(tenant_id: number, id: number, flag: UserActions) {
+    const user = await this.getUserById(tenant_id, id);
 
-    return 'Status Updated!';
+    if (flag.action == UserEnum.REVOKED) {
+      await this.postgresService.user.update({
+        where: { id, tenant_id },
+        data: {
+          status: StatusType.REVOKED,
+        },
+      });
+    } else if (flag.action == UserEnum.DELETED) {
+      await this.postgresService.user.update({
+        where: { id, tenant_id },
+        data: {
+          status: StatusType.DELETED,
+          tenant_id: null, // Disassociates the user from the tenant
+        },
+      });
+    } else if (flag.action == UserEnum.INVITED) {
+      await this.postgresService.user.update({
+        where: { id: user.id },
+        data: {
+          status: StatusType.INVITED,
+        },
+      });
+    }
+    return 'User Status updated successfully.';
   }
 
   async getAllTenantUsers(tenant_id: number, filters: PaginatorDTO) {
@@ -135,7 +196,6 @@ export class UserService {
       }
       return await tx.user.findUnique({
         where: { id, tenant_id },
-        include: { permissions: true },
       });
     });
   }

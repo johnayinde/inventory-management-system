@@ -31,7 +31,7 @@ export class ShipmentController {
   constructor(private readonly shipmentService: ShipmentService) {}
 
   @Post()
-  @ApiFile('files', 10, { type: CreateShipmentDto })
+  @ApiFile('files', 3, { type: CreateShipmentDto })
   @HttpCode(HttpStatus.CREATED)
   createSgipment(
     @Body() data: CreateShipmentDto,
@@ -40,7 +40,7 @@ export class ShipmentController {
     @UploadedFiles(
       new ParseFilePipe({
         fileIsRequired: false,
-        validators: [new MaxFileSizeValidator({ maxSize: 50 * 1024 * 1024 })],
+        validators: [new MaxFileSizeValidator({ maxSize: 2 * 1024 * 1024 })],
       }),
     )
     files?: Array<Express.Multer.File>,

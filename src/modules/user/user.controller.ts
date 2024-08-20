@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
-import { CreateUserDto, EditUserDto, SuspendUserDto } from './dto/user.dto';
+import { CreateUserDto, EditUserDto, UserActions } from './dto/user.dto';
 import { Request } from 'express';
 import { TenantInterceptor } from '@app/common';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
@@ -40,18 +40,18 @@ export class UserController {
 
   @ApiBearerAuth()
   @UseInterceptors(TenantInterceptor)
-  @Patch(':userId/suspend')
+  @Patch(':userId/flag')
   @ApiBody({
-    description: 'set user suspension status',
-    type: SuspendUserDto,
+    description: 'User Actions',
+    type: UserActions,
   })
   @HttpCode(HttpStatus.OK)
   async updateUserStatus(
     @Param('userId', ParseIntPipe) userId: number,
-    @Body() { flag }: SuspendUserDto,
+    @Body() flag: UserActions,
     @Req() { tenant_id }: Request,
   ) {
-    return this.userService.suspendUser(tenant_id, userId, flag);
+    return this.userService.updateUserStatus(tenant_id, userId, flag);
   }
 
   @ApiBearerAuth()

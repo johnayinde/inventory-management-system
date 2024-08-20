@@ -69,7 +69,7 @@ export class TenantController {
     @UploadedFiles(
       new ParseFilePipe({
         fileIsRequired: false,
-        validators: [new MaxFileSizeValidator({ maxSize: 1 * 1024 * 1024 })],
+        validators: [new MaxFileSizeValidator({ maxSize: 2 * 1024 * 1024 })],
       }),
     )
     files?: Array<Express.Multer.File>,
