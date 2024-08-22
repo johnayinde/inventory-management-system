@@ -33,10 +33,16 @@ export class UserService {
         where: { email: user.email },
       });
       let user_auth = await tx.auth.findFirst({
-        where: { email: user.email, is_user: true },
+        where: { email: user.email },
         select: { email: true, first_name: true, id: true },
       });
 
+      // an Existing Tenant Email check
+      if (user_auth && !user_rec) {
+        throw new BadRequestException(
+          'Cannot invite user with the email credential',
+        );
+      }
       if (user_rec) {
         if (user_rec.tenant_id || user_rec.status == StatusType.INVITED) {
           throw new BadRequestException(
@@ -54,6 +60,13 @@ export class UserService {
             },
           });
 
+          await tx.permission.update({
+            where: { user_id: user_rec.id },
+            data: {
+              ...user.permissions,
+            },
+          });
+
           await tx.auth.update({
             where: { email: user.email, is_user: true },
             data: {
@@ -62,15 +75,7 @@ export class UserService {
           });
         }
       } else {
-        const user_acc = await tx.user.create({
-          data: {
-            email: user.email,
-            name: user.name,
-            status: StatusType.INVITE_SENT,
-            tenant: { connect: { id: tenant_id } },
-          },
-        });
-        const [first_name, ...other] = user_acc.name.split(' ');
+        const [first_name, ...other] = user.name.split(' ');
 
         user_auth = await tx.auth.create({
           data: {
@@ -82,13 +87,25 @@ export class UserService {
           },
           select: { email: true, first_name: true, id: true },
         });
+
+        const user_acc = await tx.user.create({
+          data: {
+            email: user.email,
+            name: user.name,
+            status: StatusType.INVITE_SENT,
+            permissions: {
+              create: { ...user.permissions, auth_id: user_auth.id },
+            },
+            tenant: { connect: { id: tenant_id } },
+          },
+        });
       }
 
       const data = await this.emailService.sendResetPasswordToEmail(
         user.email,
         {
           is_user_flag: true,
-          data: { ...user_auth, user_permissions: user.permissions },
+          data: { ...user_auth },
         },
       );
 

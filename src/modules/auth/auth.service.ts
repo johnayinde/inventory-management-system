@@ -40,15 +40,10 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async generateAccessToken(
-    userId: number,
-    email: string,
-    isUser: boolean,
-  ): Promise<string> {
+  async generateAccessToken(email: string, isUser: boolean): Promise<string> {
     const token = await this.jwtService.signAsync(
       {
         email,
-        userId,
         isUser,
       },
       {
@@ -144,8 +139,6 @@ export class AuthService {
       );
     }
 
-    let userId: number;
-
     if (user.is_user) {
       const userRec = await this.postgresService.user.findFirst({
         where: { email: user.email },
@@ -158,22 +151,15 @@ export class AuthService {
         where: { id: userRec.id },
         data: { last_login: new Date() },
       });
-      userId = userRec.id;
-    } else {
-      userId = user.id;
     }
 
     delete user.password;
     delete user.mfa_secret;
 
-    if (user.is_user) {
-      return await this.jwtToken(user, userId);
-    }
-
-    return await this.jwtToken(user, userId);
+    return await this.jwtToken(user);
   }
 
-  async jwtToken(user, userId: number, is_profile_complete: boolean = true) {
+  async jwtToken(user, is_profile_complete: boolean = true) {
     const { personal, business } =
       await this.tenantService.getTenantPersonalBusnessInfo(user.email);
 
@@ -184,7 +170,7 @@ export class AuthService {
     return {
       ...user,
       is_profile_complete,
-      token: await this.generateAccessToken(userId, user.email, user.is_user),
+      token: await this.generateAccessToken(user.email, user.is_user),
     };
   }
 
@@ -233,26 +219,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid signin method.');
     }
 
-    const business_info = await this.postgresService.tenant.findFirst({
-      where: { email },
-      include: { business: true },
-    });
-
-    const is_profile_complete =
-      !!business_info.business && !!auth_user.first_name;
-
     delete auth_user.password;
     delete auth_user.mfa_secret;
 
-    return {
-      ...auth_user,
-      is_profile_complete,
-      token: await this.generateAccessToken(
-        auth_user.id,
-        auth_user.email,
-        auth_user.is_user,
-      ),
-    };
+    return await this.jwtToken(auth_user);
   }
 
   async verifyEmailOtp(data: OTPDto) {
@@ -288,7 +258,7 @@ export class AuthService {
     ]);
     await this.cache.deleteOTPValue(data.email);
 
-    return await this.jwtToken(user, user.id);
+    return await this.jwtToken(user);
   }
 
   async resetPassword(email: string) {
@@ -311,7 +281,7 @@ export class AuthService {
 
     const {
       is_user_flag,
-      data: { email, id: user_auth_id, user_permissions },
+      data: { email },
     } = decryption(data as encryptData);
     const user = await this.getUserByEmail(email);
 
@@ -338,22 +308,7 @@ export class AuthService {
           is_user: true,
         },
       });
-      if (account.permissions.id) {
-        await this.postgresService.permission.update({
-          where: { id: account.permissions.id },
-          data: {
-            ...user_permissions,
-          },
-        });
-      } else {
-        await this.postgresService.permission.create({
-          data: {
-            ...user_permissions,
-            auth_id: user_auth_id,
-            user_id: account.id,
-          },
-        });
-      }
+
       await this.postgresService.user.update({
         where: { id: account.id, tenant_id: account.tenant_id },
         data: {
@@ -363,7 +318,7 @@ export class AuthService {
 
       this.cache.delData(token.token);
 
-      return await this.jwtToken(user, user.id);
+      return await this.jwtToken(user);
     } else {
       const account = await this.getUserByEmail(email);
       if (!account) {
@@ -382,7 +337,7 @@ export class AuthService {
         },
       });
       this.cache.delData(token.token);
-      return await this.jwtToken(user, user.id);
+      return await this.jwtToken(user);
     }
   }
 }
