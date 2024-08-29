@@ -8,6 +8,20 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
+class ExpenseDto {
+  @ApiProperty()
+  @IsString()
+  name: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiProperty()
+  amount: string;
+}
+
 class SalesProductDto {
   @ApiProperty()
   @IsInt()
@@ -20,6 +34,10 @@ class SalesProductDto {
   @ApiPropertyOptional()
   @IsOptional()
   selling_price?: number;
+
+  @ApiPropertyOptional({ type: [ExpenseDto] })
+  @IsOptional()
+  expenses?: ExpenseDto[];
 }
 
 export class CreateSaleDto {

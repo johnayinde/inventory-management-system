@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CreateSaleDto } from './dto/sales.dto';
-import { FeeType, PrismaClient, ValueType } from '@prisma/client';
+import { ExpenseType, FeeType, PrismaClient, ValueType } from '@prisma/client';
 import { OrmService } from 'src/database/orm.service';
 
 import {
@@ -51,10 +51,11 @@ export class SaleService {
       let OverAlltotalExpenses = 0;
       let OverAllSellingPrice = 0;
       let OverAllTotalQty = 0;
-      const saleProducts = [];
+      let saleProducts = [];
 
       for (const product_item of products) {
-        const { productId, quantity, selling_price } = product_item;
+        let createdExpenses = [];
+        const { productId, quantity, selling_price, expenses } = product_item;
 
         const inventoryItem = inventoryItemMap.get(productId);
 
@@ -76,8 +77,30 @@ export class SaleService {
           0,
         );
 
+        if (expenses && expenses.length) {
+          createdExpenses = await Promise.all(
+            expenses.map(
+              async (expense) =>
+                await tx.expense.create({
+                  data: {
+                    ...expense,
+                    amount: Number(expense.amount),
+                    type: ExpenseType.miscellaneous,
+                    tenant_id: tenant_id,
+                    date: new Date(),
+                  },
+                }),
+            ),
+          );
+        }
+        const miscellaneous = createdExpenses.reduce(
+          (acc, exp) => acc + exp.amount,
+          0,
+        );
+
         OverAlltotalExpenses += totalProductExpenses;
-        const productSellingPrice = product_selling_price * quantity;
+        const productSellingPrice =
+          product_selling_price * quantity + miscellaneous;
 
         let totalFee = await this.calculateProductFee(
           tx as PrismaClient,
@@ -95,6 +118,7 @@ export class SaleService {
           expense: totalProductExpenses,
           unit_price: product_selling_price,
           total_price: productSellingPrice,
+          miscellaneous: { connect: createdExpenses.map(({ id }) => ({ id })) },
           tenant: { connect: { id: tenant_id } },
         });
       }
@@ -688,12 +712,15 @@ export class SaleService {
               include: { inventory_item: { include: { product: true } } },
             });
 
-            const totalQty = allSaleProducts.reduce(
+            const totalQtySold = allSaleProducts.reduce(
               (acc, item) => acc + item.quantity,
               0,
             );
-            const percentage =
-              (totalQty / saleProduct.inventory_item.quantity) * 100;
+            const inventoryQty = saleProduct.inventory_item.quantity;
+
+            const percentage = inventoryQty
+              ? (totalQtySold / inventoryQty) * 100
+              : 0;
 
             return {
               product: saleProduct.inventory_item.product.name,
