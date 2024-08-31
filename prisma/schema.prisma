@@ -34,6 +34,7 @@ enum ExpenseType {
   product
   general
   shipment
+  miscellaneous
 }
 
 enum ValueType {
@@ -256,11 +257,13 @@ model Expense {
   inventory_id Int?
 
   //
-  deleted    Boolean   @default(false)
-  created_at DateTime  @default(now()) @db.Timestamptz(3)
-  updated_at DateTime? @updatedAt
-  shipment   Shipment? @relation(fields: [shipmentId], references: [id])
-  shipmentId Int?
+  deleted         Boolean      @default(false)
+  created_at      DateTime     @default(now()) @db.Timestamptz(3)
+  updated_at      DateTime?    @updatedAt
+  shipment        Shipment?    @relation(fields: [shipmentId], references: [id])
+  shipmentId      Int?
+  sale_product    SaleProduct? @relation(fields: [sale_product_id], references: [id])
+  sale_product_id Int?
 }
 
 model Inventory {
@@ -326,23 +329,23 @@ model Sale {
   customerId Int
 
   //
-  deleted    Boolean   @default(false)
-  created_at DateTime  @default(now()) @db.Timestamptz(3)
-  updated_at DateTime? @updatedAt
+  deleted    Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
 
   @@index(fields: [id, tenant_id])
   @@map("sales")
 }
 
 model SaleProduct {
-  id              Int   @id @default(autoincrement())
+  id              Int       @id @default(autoincrement())
   saleId          Int
   inventory_id    Int
   quantity        Int
   expense         Float
   unit_price      Float
   total_price     Float
-  returned_counts Int   @default(0)
+  returned_counts Int       @default(0)
+  miscellaneous   Expense[]
 
   sale           Sale      @relation(fields: [saleId], references: [id])
   inventory_item Inventory @relation(fields: [inventory_id], references: [id])

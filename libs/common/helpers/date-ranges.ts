@@ -93,7 +93,7 @@ export function getTimeRanges(
 
 export function aggregateByTimestamp(
   data: any[],
-  time_period: 'day' | 'week' | 'month' | 'year',
+  time_period: 'day' | 'week' | 'month' | 'year' = 'year',
   labels?: string[],
 ): any[] {
   let aggregatedData: { [key: string]: number } = {};
@@ -131,8 +131,7 @@ export function aggregateByTimestamp(
   data.forEach((item) => {
     const dateKey = getDateKey(item.created_at);
 
-    aggregatedData[dateKey] =
-      (aggregatedData[dateKey] || 0) + (item.total_price || 0);
+    aggregatedData[dateKey] += item.amount || 1;
   });
 
   const resultArray = Object.keys(aggregatedData).map((label) => ({

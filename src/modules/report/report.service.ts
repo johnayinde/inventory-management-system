@@ -207,7 +207,7 @@ export class ReportService {
       },
     });
 
-    const profitMarginStats: { created_at: Date; profitMargin: number }[] = [];
+    const profitMarginStats: { created_at: Date; amount: number }[] = [];
 
     for (const sale of sales) {
       const totalRevenue = sale.total_price;
@@ -223,7 +223,7 @@ export class ReportService {
 
       profitMarginStats.push({
         created_at: sale.created_at,
-        profitMargin,
+        amount: profitMargin,
       });
     }
 
@@ -310,6 +310,7 @@ export class ReportService {
     const expenses = await this.prismaService.expense.findMany({
       select: {
         created_at: true,
+        amount: true,
       },
       where: {
         tenant_id,
@@ -356,7 +357,7 @@ export class ReportService {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, limit);
 
-    return customerAnalytics; // return allSale.map((sale) => ({
+    return customerAnalytics;
   }
 
   async totalRevenue(
@@ -382,16 +383,14 @@ export class ReportService {
       },
     });
 
-    // const totalRevenue = sales.reduce((sum, sale) => sum + sale.total_price, 0);
-
-    const revenueStats: { created_at: Date; num: number }[] = [];
+    const revenueStats: { created_at: Date; amount: number }[] = [];
 
     for (const sale of sales) {
       const totalRevenue = sale.total_price;
 
       revenueStats.push({
         created_at: sale.created_at,
-        num: totalRevenue,
+        amount: totalRevenue,
       });
     }
 

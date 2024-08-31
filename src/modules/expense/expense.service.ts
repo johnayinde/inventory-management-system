@@ -288,6 +288,7 @@ export class ExpenseService {
       shipmentId,
       created_at,
       updated_at,
+      sale_product_id,
 
       ...expenseData
     } = expenseToDuplicate;
@@ -414,6 +415,7 @@ export class ExpenseService {
     const expenses = await this.postgresService.expense.findMany({
       select: {
         created_at: true,
+        amount: true,
       },
       where: {
         tenant_id,

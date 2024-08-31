@@ -34,6 +34,7 @@ export class TenantInterceptor implements NestInterceptor {
       const prisma = this.ormService;
 
       if (!user.isUser) {
+        // Tenant's
         const tenantRecord = await prisma.tenant.findFirst({
           where: { email: user.email },
         });
@@ -42,8 +43,9 @@ export class TenantInterceptor implements NestInterceptor {
         request.tenant_id = tenantRecord.id;
         request.user = { is_user: false, email: tenantRecord.email };
       } else if (user.isUser) {
+        // User's
         const userRec = await prisma.user.findFirst({
-          where: { id: user.userId },
+          where: { email: user.email },
         });
         if (!userRec) throw new UnauthorizedException();
 

@@ -159,7 +159,7 @@ export class DashboardService {
       0,
     );
     const profit_margin = saleProduct.map((item) => ({
-      profitMargin: ((total_revenue - cost_price) / total_revenue) * 100,
+      amount: ((total_revenue - cost_price) / total_revenue) * 100,
       created_at: item.created_at,
     }));
     return {
@@ -271,7 +271,14 @@ export class DashboardService {
       },
     });
 
-    const prepared_data = aggregateByTimestamp(sales, time_period, labels);
+    const result = sales.map(
+      (item) => ({
+        created_at: item.created_at,
+        amount: item.total_price,
+      }),
+      {},
+    );
+    const prepared_data = aggregateByTimestamp(result, time_period, labels);
     return prepared_data;
   }
 
