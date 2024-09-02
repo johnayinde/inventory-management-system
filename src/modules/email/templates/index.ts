@@ -7,7 +7,7 @@ export const html_reset = (first_name, url) => `
           We received a request to reset the password for your account. Click the link below to reset your password:
         </p>
         <div style="text-align: center; margin: 20px 0;">
-          <a href="${url}?reset=true" style="font-size: 16px; color: #fff; background-color: #7c7835; padding: 10px 20px; border-radius: 5px; text-decoration: none;">Reset Password</a>
+          <a href="${url}&reset=true" style="font-size: 16px; color: #fff; background-color: #7c7835; padding: 10px 20px; border-radius: 5px; text-decoration: none;">Reset Password</a>
         </div>
         <p style="font-size: 16px;">
           If you didn't request this, please ignore this email. This link will expire in 24 hours.
@@ -35,7 +35,7 @@ export const html_invite = (first_name, url) => `
           </p>
           <div style="text-align: center; margin: 20px 0;">
             <a
-              href="${url}?reset=false"
+              href="${url}&reset=false"
               style="font-size: 16px; color: #fff; background-color: #7c7835; padding: 10px 20px; border-radius: 5px; text-decoration: none;"
             >
               Join Invio Now
