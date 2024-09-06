@@ -143,6 +143,35 @@ export class ReportService {
     return prepared_data;
   }
 
+  async valueAddedTax(
+    tenant_id: number,
+    time_period: 'day' | 'week' | 'month' | 'year',
+  ) {
+    const { current, labels } = getTimeRanges(time_period);
+
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
+
+    const fee = await this.prismaService.fees.findMany({
+      select: {
+        created_at: true,
+        value: true,
+      },
+      where: {
+        tenant_id,
+        ...dateCondition,
+      },
+    });
+
+    const prepared_data = aggregateByTimestamp(fee, time_period, labels);
+
+    return prepared_data;
+  }
+
   async topProductInventory(
     tenant_id: number,
     time_period: 'day' | 'week' | 'month' | 'year',
@@ -235,64 +264,53 @@ export class ReportService {
     return prepared_data;
   }
 
-  // async calculateLossMargin(
-  //   tenant_id: number,
-  //   start_date: Date,
-  //   end_date: Date,
-  // ): Promise<LossMarginData[]> {
-  //   const dateCondition: any = {};
-  //   if (start_date && end_date) {
-  //     const { startDate, endDate } = formatDate(start_date, end_date);
-  //     dateCondition.created_at = {
-  //       gte: startDate,
-  //       lte: endDate,
-  //     };
-  //   }
+  async calculateLossMargin(
+    tenant_id: number,
+    time_period: 'day' | 'week' | 'month' | 'year',
+  ): Promise<LossMarginData[]> {
+    const { current, labels } = getTimeRanges(time_period);
 
-  //   const sales = await this.prismaService.sale.findMany({
-  //     where: {
-  //       tenant_id,
-  //       ...dateCondition,
-  //     },
-  //     include: {
-  //       sales_products: true,
-  //     },
-  //   });
+    const dateCondition = {
+      created_at: {
+        gte: current.start,
+        lte: current.end,
+      },
+    };
 
-  //   const lossMarginStats: { created_at: Date; lossMargin: number }[] = [];
+    const sales = await this.prismaService.sale.findMany({
+      where: {
+        tenant_id,
+        ...dateCondition,
+      },
+      include: {
+        sales_products: true,
+      },
+    });
 
-  //   for (const sale of sales) {
-  //     const totalRevenue = sale.total_price;
-  //     const totalExpenses = sale.expenses;
-  //     const loss = totalExpenses - totalRevenue;
+    const lossMarginStats: { created_at: Date; amount: number }[] = [];
 
-  //     const lossMargin = (loss / totalExpenses) * 100;
+    for (const sale of sales) {
+      const totalRevenue = sale.total_price;
+      const totalExpenses = sale.expenses;
 
-  //     lossMarginStats.push({
-  //       created_at: sale.created_at,
-  //       lossMargin: lossMargin,
-  //     });
-  //   }
-  //   const aggregatedLossMargin = lossMarginStats.reduce((acc, item) => {
-  //     const dateKey = item.created_at.toISOString().split('T')[0];
+      const loss = totalExpenses - totalRevenue;
 
-  //     if (acc[dateKey]) {
-  //       acc[dateKey].lossMargin += item.lossMargin || 0;
-  //     } else {
-  //       acc[dateKey] = {
-  //         created_at: new Date(dateKey),
-  //         lossMargin: item.lossMargin || 0,
-  //       };
-  //     }
+      const lossMargin = totalExpenses !== 0 ? (loss / totalExpenses) * 100 : 0;
 
-  //     return acc;
-  //   }, {} as Record<string, LossMarginData>);
+      lossMarginStats.push({
+        created_at: sale.created_at,
+        amount: lossMargin,
+      });
+    }
 
-  //   // Convert the aggregated data back to an array
-  //   const resultArray = Object.values(aggregatedLossMargin);
+    const prepared_data = aggregateByTimestamp(
+      lossMarginStats,
+      time_period,
+      labels,
+    );
 
-  //   return resultArray;
-  // }
+    return prepared_data;
+  }
 
   async calculateExpenseStats(
     tenant_id: number,

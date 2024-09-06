@@ -130,8 +130,11 @@ export function aggregateByTimestamp(
 
   data.forEach((item) => {
     const dateKey = getDateKey(item.created_at);
-
-    aggregatedData[dateKey] += item.amount || 1;
+    /**
+     * value || amount :for data containing the value
+     * else count the number of doc
+     */
+    aggregatedData[dateKey] += item.amount || item.value || 1;
   });
 
   const resultArray = Object.keys(aggregatedData).map((label) => ({

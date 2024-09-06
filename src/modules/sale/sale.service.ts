@@ -680,7 +680,7 @@ export class SaleService {
     time_period: 'day' | 'week' | 'month' | 'year',
     limit: number = 5,
   ) {
-    const { current, previous } = getTimeRanges(time_period);
+    const { current } = getTimeRanges(time_period);
 
     const dateCondition = {
       created_at: {
@@ -691,7 +691,7 @@ export class SaleService {
 
     const leastSellingProducts = await this.postgresService.$transaction(
       async (tx) => {
-        const allSaleProducts = await tx.saleProduct.findMany({
+        const saleProducts = await tx.saleProduct.findMany({
           where: {
             tenant_id,
             ...dateCondition,
@@ -701,35 +701,42 @@ export class SaleService {
           take: limit,
         });
 
+        const inventoryIdsArray = [
+          ...new Set(saleProducts.map(({ inventory_id }) => inventory_id)),
+        ];
+
         const leastSellingProductStats = await Promise.all(
-          allSaleProducts.map(async (saleProduct) => {
-            const allSaleProducts = await tx.saleProduct.findMany({
+          inventoryIdsArray.map(async (inventory_id) => {
+            const productSales = await tx.saleProduct.findMany({
               where: {
                 tenant_id,
-                inventory_id: saleProduct.inventory_id,
+                inventory_id,
                 ...dateCondition,
               },
               include: { inventory_item: { include: { product: true } } },
             });
 
-            const totalQtySold = allSaleProducts.reduce(
+            const totalQtySold = productSales.reduce(
               (acc, item) => acc + item.quantity,
               0,
             );
-            const inventoryQty = saleProduct.inventory_item.quantity;
+
+            const {
+              inventory_item: { quantity: inventoryQty, product },
+            } = productSales[0];
 
             const percentage = inventoryQty
               ? (totalQtySold / inventoryQty) * 100
               : 0;
 
             return {
-              product: saleProduct.inventory_item.product.name,
+              product: product.name,
               percentage,
             };
           }),
         );
 
-        return leastSellingProductStats;
+        return leastSellingProductStats.filter((item) => item.percentage > 0);
       },
     );
 

@@ -59,12 +59,12 @@ export class ReportController {
     return this.reportService.calculateProfitMargin(tenant_id, time_period);
   }
 
-  // @Get('/loss-margin-stats')
-  // @ApiQuery({ name: 'time_period', required: false })
-  // @HttpCode(HttpStatus.OK)
-  // lossMargin(@Req() { tenant_id }: Request, @Query('time_period') time_period) {
-  //   return this.reportService.calculateLossMargin(tenant_id, time_period);
-  // }
+  @Get('/loss-margin-stats')
+  @ApiQuery({ name: 'time_period', required: false })
+  @HttpCode(HttpStatus.OK)
+  lossMargin(@Req() { tenant_id }: Request, @Query('time_period') time_period) {
+    return this.reportService.calculateLossMargin(tenant_id, time_period);
+  }
 
   @Get('/expense-stats')
   @HttpCode(HttpStatus.OK)
@@ -94,5 +94,12 @@ export class ReportController {
     @Query('time_period') time_period,
   ) {
     return this.reportService.totalRevenue(tenant_id, time_period);
+  }
+
+  @Get('/fee-stats')
+  @ApiQuery({ name: 'time_period', required: false })
+  @HttpCode(HttpStatus.OK)
+  feeStats(@Req() { tenant_id }: Request, @Query('time_period') time_period) {
+    return this.reportService.valueAddedTax(tenant_id, time_period);
   }
 }
