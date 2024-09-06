@@ -26,66 +26,63 @@ export class ShipmentService {
     files: Array<Express.Multer.File>,
   ) {
     const { products, price, expenses, ...details } = data;
-    return await this.postgresService.$transaction(
-      async (tx) => {
-        let createdExpenses = [];
+    return await this.postgresService.$transaction(async (tx) => {
+      let createdExpenses = [];
 
-        if (expenses && expenses.length) {
-          createdExpenses = await Promise.all(
-            expenses.map(
-              async (expense) =>
-                await tx.expense.create({
-                  data: {
-                    ...expense,
-                    amount: Number(expense.amount),
-                    type: ExpenseType.shipment,
-                    tenant_id: tenant_id,
-                    date: new Date(),
-                  },
-                }),
-            ),
-          );
-        }
+      if (expenses && expenses.length) {
+        createdExpenses = await Promise.all(
+          expenses.map(
+            async (expense) =>
+              await tx.expense.create({
+                data: {
+                  ...expense,
+                  amount: Number(expense.amount),
+                  type: ExpenseType.shipment,
+                  tenant_id: tenant_id,
+                  date: new Date(),
+                },
+              }),
+          ),
+        );
+      }
 
-        const foundProducts = await tx.product.findMany({
-          where: {
-            id: { in: products.map((id) => Number(id)) },
-            tenant_id: tenant_id,
-          },
-          select: { id: true },
-        });
+      const foundProducts = await tx.product.findMany({
+        where: {
+          id: { in: products.map((id) => Number(id)) },
+          tenant_id: tenant_id,
+        },
+        select: { id: true },
+      });
 
-        if (foundProducts.length !== products.length) {
-          const foundProductIds = foundProducts.map((product) => product.id);
-          const missingProductIds = products.filter(
-            (id) => !foundProductIds.includes(Number(id)),
-          );
+      if (foundProducts.length !== products.length) {
+        const foundProductIds = foundProducts.map((product) => product.id);
+        const missingProductIds = products.filter(
+          (id) => !foundProductIds.includes(Number(id)),
+        );
 
-          throw new BadRequestException(
-            `Products with IDs ${missingProductIds.join(', ')} not found`,
-          );
-        }
+        throw new BadRequestException(
+          `Products with IDs ${missingProductIds.join(', ')} not found`,
+        );
+      }
 
-        let image_urls: string[] = [];
-        if (files && files.length) {
-          image_urls = await this.imageUploadService.uploadImages(files);
-        }
-        const createdShipment = await tx.shipment.create({
-          data: {
-            ...details,
-            price: Number(price),
-            attachments: image_urls,
-            tenant: { connect: { id: tenant_id } },
-            expenses: { connect: createdExpenses.map((e) => ({ id: e.id })) },
-            products: { connect: products.map((id) => ({ id: Number(id) })) },
-          },
-          include: { products: true, expenses: true },
-        });
+      let image_urls: string[] = [];
+      if (files && files.length) {
+        image_urls = await this.imageUploadService.uploadImages(files);
+      }
+      const createdShipment = await tx.shipment.create({
+        data: {
+          ...details,
+          price: Number(price),
+          attachments: image_urls,
+          tenant: { connect: { id: tenant_id } },
+          expenses: { connect: createdExpenses.map((e) => ({ id: e.id })) },
+          products: { connect: products.map((id) => ({ id: Number(id) })) },
+        },
+        include: { products: true, expenses: true },
+      });
 
-        return createdShipment;
-      },
-      // { timeout: 10000 },
-    );
+      return createdShipment;
+    });
   }
 
   async getDashboardStats(
@@ -190,21 +187,19 @@ export class ShipmentService {
       throw new NotFoundException('Shipment not found');
     }
     let formattedData = shipment.products;
-    if (shipment.is_in_inventory) {
-      formattedData = await Promise.all(
-        shipment.products.map(async (item) => {
-          const report = await this.generateShipmentReport(
-            id,
-            item.id,
-            tenant_id,
-          );
-          return {
-            ...item,
-            ...report,
-          };
-        }),
-      );
-    }
+    formattedData = await Promise.all(
+      shipment.products.map(async (item) => {
+        const report = await this.generateShipmentReport(
+          id,
+          item.id,
+          tenant_id,
+        );
+        return {
+          ...item,
+          ...report,
+        };
+      }),
+    );
     return { ...shipment, products: formattedData };
   }
 
