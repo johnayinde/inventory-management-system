@@ -49,7 +49,10 @@ export class EmailService {
     const url = `${this.configService.get<string>(
       'FRONTEND_URL',
     )}/reset-password?token=${encrypted_data.encryptedText}`;
-    const subject = 'Password Reset Link';
+    const subject = data.is_user_flag
+      ? 'Invitation to Join Invio'
+      : 'Password Reset Link';
+
     await this.sendmail(
       email,
       subject,

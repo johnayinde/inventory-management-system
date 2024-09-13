@@ -42,17 +42,12 @@ export class DashboardService {
       },
     });
 
-    const totalRevenue = await this.postgresService.sale.aggregate({
-      where: {
-        tenant_id,
-        ...dateCondition,
-      },
-      _sum: {
-        total_price: true,
-      },
-    });
-
-    const { total_profit, total_profit_prev } = await this.calculateMetrics(
+    const {
+      total_profit,
+      total_profit_prev,
+      total_revenue,
+      total_revenue_prev,
+    } = await this.calculateMetrics(
       tenant_id,
       previousDateCondition,
       dateCondition,
@@ -72,16 +67,6 @@ export class DashboardService {
       },
     });
 
-    const previousTotalRevenue = await this.postgresService.sale.aggregate({
-      _sum: {
-        total_price: true,
-      },
-      where: {
-        tenant_id,
-        ...previousDateCondition,
-      },
-    });
-
     const previousTotalInventory = await this.postgresService.inventory.count({
       where: {
         tenant_id,
@@ -95,8 +80,8 @@ export class DashboardService {
     );
 
     const revenueChangePercentage = calculateChangeInPercentage(
-      totalRevenue._sum.total_price,
-      previousTotalRevenue._sum.total_price,
+      total_revenue,
+      total_revenue_prev,
     );
 
     const profitChangePercentage = calculateChangeInPercentage(
@@ -110,7 +95,7 @@ export class DashboardService {
 
     return {
       totalSales,
-      totalRevenue: totalRevenue._sum.total_price || 0,
+      totalRevenue: total_revenue || 0,
       totalProfit: total_profit || 0,
       totalInventory,
       salesChangePercentage,
@@ -120,7 +105,7 @@ export class DashboardService {
     };
   }
 
-  private async calculateMetrics(
+  async calculateMetrics(
     tenant_id: number,
     previousDateCondition?: { created_at: { gte: any; lte: any } },
     dateCondition?: { created_at: { gte: any; lte: any } },
@@ -141,12 +126,23 @@ export class DashboardService {
       include: { inventory_item: true },
     });
 
+    const expenses = await this.postgresService.expense.findMany({
+      where: {
+        tenant_id,
+        ...dateCondition,
+      },
+      select: { amount: true, type: true },
+    });
+
+    const expenses_prev = await this.postgresService.expense.findMany({
+      where: {
+        tenant_id,
+        ...previousDateCondition,
+      },
+      select: { amount: true, type: true },
+    });
     const total_revenue = saleProduct.reduce(
       (sac, item) => sac + item.total_price,
-      0,
-    );
-    const cost_price = saleProduct.reduce(
-      (sac, item) => sac + item.inventory_item.cost_price,
       0,
     );
 
@@ -154,18 +150,72 @@ export class DashboardService {
       (sac, item) => sac + item.total_price,
       0,
     );
-    const cost_price_prev = saleProduct_prev.reduce(
-      (sac, item) => sac + item.inventory_item.cost_price,
+
+    const total_expenses = expenses.reduce(
+      (sum, expense) => sum + expense.amount,
       0,
     );
-    const profit_margin = saleProduct.map((item) => ({
-      amount: ((total_revenue - cost_price) / total_revenue) * 100,
-      created_at: item.created_at,
-    }));
+
+    const total_expenses_prev = expenses_prev.reduce(
+      (sum, expense) => sum + expense.amount,
+      0,
+    );
+
+    const cost_price = saleProduct.reduce(
+      (sac, item) => sac + (item.inventory_item?.cost_price || 0),
+      0,
+    );
+    const cost_price_prev = saleProduct_prev.reduce(
+      (sac, item) => sac + (item.inventory_item?.cost_price || 0),
+      0,
+    );
+    const total_profit = total_revenue - cost_price;
+    const total_profit_prev = total_revenue_prev - cost_price_prev;
+
+    const net_profit = total_revenue - total_expenses;
+    const net_profit_prev = total_revenue_prev - total_expenses_prev;
+
+    const total_losses =
+      total_expenses > total_revenue ? total_expenses - total_revenue : 0;
+
+    const total_losses_prev =
+      total_expenses_prev > total_revenue_prev
+        ? total_expenses_prev - total_revenue_prev
+        : 0;
+
+    const profit_margin = saleProduct.map((item) => {
+      const item_profit = item.total_price - item.inventory_item.cost_price;
+      return {
+        amount:
+          total_revenue !== 0 ? (item_profit / item.total_price) * 100 : 0,
+        created_at: item.created_at,
+      };
+    });
+
+    const loss_margin = saleProduct.map((item) => {
+      const item_loss = item.inventory_item.cost_price - item.total_price;
+      return {
+        amount:
+          total_revenue !== 0 && item_loss > 0
+            ? (item_loss / item.total_price) * 100
+            : 0,
+        created_at: item.created_at,
+      };
+    });
+
     return {
-      total_profit: total_revenue - cost_price,
-      total_profit_prev: total_revenue_prev - cost_price_prev,
       profit_margin,
+      loss_margin,
+      total_profit,
+      total_profit_prev,
+      total_revenue,
+      total_revenue_prev,
+      total_expenses,
+      total_expenses_prev,
+      net_profit,
+      net_profit_prev,
+      total_losses,
+      total_losses_prev,
     };
   }
 
@@ -187,19 +237,32 @@ export class DashboardService {
       where: {
         tenant_id,
         ...dateCondition,
-        sale: { tenant_id },
       },
       include: { inventory_item: { include: { product: true } } },
-      orderBy: { total_price: 'desc' },
+      orderBy: { quantity: 'desc' },
       take: limit,
     });
 
+    const inventoryIdsArray = [
+      ...new Set(allSaleProducts.map(({ inventory_id }) => inventory_id)),
+    ];
     const topSellingProducts = await Promise.all(
-      allSaleProducts.map(async (saleProduct) => {
+      inventoryIdsArray.map(async (inventory_id) => {
+        const data = allSaleProducts.filter(
+          (item) => item.inventory_id === inventory_id,
+        );
+        const quantity = data.reduce((acc, item) => acc + item.quantity, 0);
+        const revenue = data.reduce((acc, item) => acc + item.total_price, 0);
+
+        const {
+          inventory_item: { product },
+        } = data[0];
+
         return {
-          product: saleProduct.inventory_item.name,
-          revenue: saleProduct.total_price || 0,
-          quantity: saleProduct.quantity || 0,
+          product: product.name,
+          revenue,
+          quantity,
+          inventory_id,
         };
       }),
     );
@@ -225,21 +288,30 @@ export class DashboardService {
         tenant_id,
         ...dateCondition,
       },
-      include: { inventory_item: { include: { product: true } } },
       orderBy: { quantity: 'desc' },
       take: limit,
     });
 
+    const inventoryIdsArray = [
+      ...new Set(allSaleProducts.map(({ inventory_id }) => inventory_id)),
+    ];
+
     const topSellingProducts = await Promise.all(
-      allSaleProducts.map(async (saleProduct) => {
+      inventoryIdsArray.map(async (inventory_id) => {
+        const data = allSaleProducts.filter(
+          (item) => item.inventory_id === inventory_id,
+        );
+
         const product = await this.postgresService.inventory.findFirst({
-          where: { tenant_id, id: saleProduct.inventory_item.id },
+          where: { tenant_id, id: inventory_id },
         });
 
+        const quantity = data.reduce((acc, item) => acc + item.quantity, 0);
+
         return {
-          product: saleProduct.inventory_item.product.name,
-          purchased_quantity: saleProduct.quantity,
-          remaining_quantity: product?.quantity || 0,
+          product: product.name,
+          purchased_quantity: quantity,
+          remaining_quantity: product.quantity,
         };
       }),
     );

@@ -346,20 +346,25 @@ export class ExpenseService {
         tenant_id,
         ...dateCondition,
       },
+      select: { amount: true, type: true },
     });
 
     const fees = await this.postgresService.fees.findMany({
       where: {
         tenant_id,
+        value_type: 'fixed',
         ...dateCondition,
       },
+      select: { value: true },
     });
 
     const feesPreviousMonth = await this.postgresService.fees.findMany({
       where: {
         tenant_id,
+        value_type: 'fixed',
         ...previousDateCondition,
       },
+      select: { value: true },
     });
 
     const LastMonthExpenses = await this.postgresService.expense.findMany({
@@ -367,6 +372,7 @@ export class ExpenseService {
         tenant_id,
         ...previousDateCondition,
       },
+      select: { amount: true, type: true },
     });
 
     const stats: ExpenseStatsDto = {
@@ -388,12 +394,14 @@ export class ExpenseService {
       miscelleneous: 0,
     };
 
-    this.calculateBasicStats(fees, stats, expenses);
+    this.calculateBasicStats(stats, fees, expenses);
+
     this.calculateBasicStats(
-      feesPreviousMonth,
       lastMonthStats,
+      feesPreviousMonth,
       LastMonthExpenses,
     );
+
     this.determinePercentages(stats, lastMonthStats);
 
     return stats;
@@ -476,20 +484,26 @@ export class ExpenseService {
     );
   }
 
-  private calculateBasicStats(fees, stats, expenses) {
-    const totalFees = fees.reduce((sum, fee) => {
-      if (fee.value_type == ValueType.fixed) return sum + fee.value;
+  private calculateBasicStats(stats, fees, expenses) {
+    stats.totalExpenses = expenses.reduce(
+      (sum, expense) => sum + expense.amount,
+      0,
+    );
+
+    stats.totalShipping = expenses.reduce((sum, expense) => {
+      if (expense.type === ExpenseType.shipment) {
+        return sum + expense.amount;
+      }
+      return sum;
     }, 0);
-    stats.totalFees = totalFees;
-    /**
-     * Miscelleneous: all expenses that is not product& shipping
-     *
-     */
-    for (const expense of expenses) {
-      if (!expense.productId && !ExpenseType.shipment && ExpenseType.general)
-        stats.miscelleneous += expense.amount;
-      if (ExpenseType.shipment) stats.totalShipping += expense.amount;
-      stats.totalExpenses += expense.amount;
-    }
+
+    stats.miscelleneous = expenses.reduce((sum, expense) => {
+      if (expense.type === ExpenseType.miscellaneous) {
+        return sum + expense.amount;
+      }
+      return sum;
+    }, 0);
+
+    stats.totalFees = fees.reduce((sum, fee) => sum + fee.value, 0);
   }
 }

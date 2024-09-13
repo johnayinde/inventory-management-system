@@ -19,10 +19,14 @@ import {
 } from '@app/common/helpers';
 import { PaginatorDTO } from '@app/common/pagination/pagination.dto';
 import { getTimeRanges } from '@app/common/helpers/date-ranges';
+import { DashboardService } from '../dashboard/dashboard.service';
 
 @Injectable()
 export class SaleService {
-  constructor(private readonly postgresService: OrmService) {}
+  constructor(
+    private readonly postgresService: OrmService,
+    private dashBoardService: DashboardService,
+  ) {}
 
   async createCustomerSales(data: CreateSaleDto, tenant_id: number) {
     const { customerId, products } = data;
@@ -433,22 +437,6 @@ export class SaleService {
       },
     });
 
-    const stats: SalesStatsDto = {
-      totalSales: 0,
-      totalProfits: 0,
-      totalExpenses: 0,
-      numberOfSoldProducts: 0,
-      returnedProducts: 0,
-
-      salesIncreasePercentage: 0,
-      profitsIncreasePercentage: 0,
-      expensesIncreasePercentage: 0,
-      soldProductsIncreasePercentage: 0,
-      returnedProductsIncreasePercentage: 0,
-    };
-
-    this.calculateBasicStats(sales, stats);
-
     const salesLastMonth = await this.postgresService.sale.findMany({
       where: {
         tenant_id,
@@ -463,36 +451,85 @@ export class SaleService {
       },
     });
 
+    const expenses = await this.postgresService.expense.findMany({
+      where: {
+        tenant_id,
+        type: 'miscellaneous',
+        ...dateCondition,
+      },
+      include: {},
+    });
+
+    const expensesPrevious = await this.postgresService.expense.findMany({
+      where: {
+        tenant_id,
+        type: 'miscellaneous',
+        ...previousDateCondition,
+      },
+      include: {},
+    });
+
+    const {
+      total_profit,
+      total_profit_prev,
+      total_revenue,
+      total_revenue_prev,
+    } = await this.dashBoardService.calculateMetrics(
+      tenant_id,
+      previousDateCondition,
+      dateCondition,
+    );
+
+    const revenueChangePercentage = calculateChangeInPercentage(
+      total_revenue,
+      total_revenue_prev,
+    );
+    const profitChangePercentage = calculateChangeInPercentage(
+      total_profit,
+      total_profit_prev,
+    );
+
+    const stats: SalesStatsDto = {
+      totalSales: 0,
+      totalProfits: total_profit,
+      totalExpenses: 0,
+      numberOfSoldProducts: 0,
+      returnedProducts: 0,
+
+      salesIncreasePercentage: revenueChangePercentage,
+      profitsIncreasePercentage: profitChangePercentage,
+      expensesIncreasePercentage: 0,
+      soldProductsIncreasePercentage: 0,
+      returnedProductsIncreasePercentage: 0,
+    };
+
+    this.calculateBasicStats(sales, expenses, stats);
+
     const lastMonthStats: SalesStatsDto = {
       totalSales: 0,
-      totalProfits: 0,
+      totalProfits: total_profit_prev,
       totalExpenses: 0,
       numberOfSoldProducts: 0,
       returnedProducts: 0,
     };
 
-    this.calculateBasicStats(salesLastMonth, lastMonthStats);
+    this.calculateBasicStats(salesLastMonth, expensesPrevious, lastMonthStats);
 
-    // Calculate percentage increase or decrease for last month
+    // Calculate percentage increase or decrease for previous dureation
     this.determinePercentages(stats, lastMonthStats);
 
     return stats;
   }
 
-  private calculateBasicStats(sales, stats) {
+  private calculateBasicStats(sales, expenses, stats) {
+    stats.totalExpenses = expenses.reduce(
+      (sum, expense) => sum + expense.amount,
+      0,
+    );
+
+    stats.totalSales = sales.reduce((sum, sale) => sum + sale.total_price, 0);
     for (const sale of sales) {
-      stats.totalSales += sale.total_price;
-      stats.totalExpenses += sale.expenses;
-
       for (const saleProduct of sale.sales_products) {
-        const unitCost = saleProduct.inventory_item.price || 0;
-        const totalSellingPrice = saleProduct.total_price || 0;
-        const quantitySold = saleProduct.quantity;
-
-        const profitPerProduct = (totalSellingPrice - unitCost) * quantitySold;
-
-        stats.totalProfits += profitPerProduct;
-
         stats.numberOfSoldProducts += saleProduct.quantity;
         stats.returnedProducts += saleProduct.returned_counts;
       }
@@ -652,26 +689,37 @@ export class SaleService {
       },
     };
 
-    const topSellingProducts = await this.postgresService.$transaction(
-      async (tx) => {
-        const allSaleProducts = await tx.saleProduct.findMany({
-          where: {
-            tenant_id,
-            ...dateCondition,
-          },
-          include: { inventory_item: { include: { product: true } } },
-          orderBy: { quantity: 'desc' },
-          take: limit,
-        });
-
-        return allSaleProducts.map((saleProduct) => ({
-          product: saleProduct.inventory_item.product.name,
-          quantity: saleProduct.quantity,
-          total_price: saleProduct.total_price,
-        }));
+    const allSaleProducts = await this.postgresService.saleProduct.findMany({
+      where: {
+        tenant_id,
+        ...dateCondition,
       },
-    );
+      include: { inventory_item: { include: { product: true } } },
+      orderBy: { quantity: 'desc' },
+      take: limit,
+    });
 
+    const inventoryIdsArray = [
+      ...new Set(allSaleProducts.map(({ inventory_id }) => inventory_id)),
+    ];
+
+    const topSellingProducts = await Promise.all(
+      inventoryIdsArray.map(async (inventory_id) => {
+        const data = allSaleProducts.filter(
+          (item) => item.inventory_id === inventory_id,
+        );
+        const revenue = data.reduce((acc, item) => acc + item.total_price, 0);
+
+        const {
+          inventory_item: { product },
+        } = data[0];
+
+        return {
+          product: product.name,
+          revenue,
+        };
+      }),
+    );
     return topSellingProducts;
   }
 
@@ -689,58 +737,52 @@ export class SaleService {
       },
     };
 
-    const leastSellingProducts = await this.postgresService.$transaction(
-      async (tx) => {
-        const saleProducts = await tx.saleProduct.findMany({
+    const saleProducts = await this.postgresService.saleProduct.findMany({
+      where: {
+        tenant_id,
+        ...dateCondition,
+      },
+      include: { inventory_item: { include: { product: true } } },
+      orderBy: { quantity: 'asc' },
+      take: limit,
+    });
+
+    const inventoryIdsArray = [
+      ...new Set(saleProducts.map(({ inventory_id }) => inventory_id)),
+    ];
+
+    const leastSellingProductStats = await Promise.all(
+      inventoryIdsArray.map(async (inventory_id) => {
+        const productSales = await this.postgresService.saleProduct.findMany({
           where: {
             tenant_id,
+            inventory_id,
             ...dateCondition,
           },
           include: { inventory_item: { include: { product: true } } },
-          orderBy: { quantity: 'asc' },
-          take: limit,
         });
 
-        const inventoryIdsArray = [
-          ...new Set(saleProducts.map(({ inventory_id }) => inventory_id)),
-        ];
-
-        const leastSellingProductStats = await Promise.all(
-          inventoryIdsArray.map(async (inventory_id) => {
-            const productSales = await tx.saleProduct.findMany({
-              where: {
-                tenant_id,
-                inventory_id,
-                ...dateCondition,
-              },
-              include: { inventory_item: { include: { product: true } } },
-            });
-
-            const totalQtySold = productSales.reduce(
-              (acc, item) => acc + item.quantity,
-              0,
-            );
-
-            const {
-              inventory_item: { quantity: inventoryQty, product },
-            } = productSales[0];
-
-            const percentage = inventoryQty
-              ? (totalQtySold / inventoryQty) * 100
-              : 0;
-
-            return {
-              product: product.name,
-              percentage,
-            };
-          }),
+        const totalQtySold = productSales.reduce(
+          (acc, item) => acc + item.quantity,
+          0,
         );
 
-        return leastSellingProductStats.filter((item) => item.percentage > 0);
-      },
+        const {
+          inventory_item: { quantity: inventoryQty, product },
+        } = productSales[0];
+
+        const percentage = inventoryQty
+          ? (totalQtySold / inventoryQty) * 100
+          : 0;
+
+        return {
+          product: product.name,
+          percentage,
+        };
+      }),
     );
 
-    return leastSellingProducts;
+    return leastSellingProductStats.filter((item) => item.percentage > 0);
   }
 
   private determinePercentages(
