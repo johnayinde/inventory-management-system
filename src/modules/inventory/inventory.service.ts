@@ -331,85 +331,31 @@ export class InventoryService {
     });
   }
 
-  async getDashboardStats(
-    tenant_id: number,
-    time_period: 'day' | 'week' | 'month' | 'year',
-  ): Promise<InventoryStatsDto> {
-    const { current, previous } = getTimeRanges(time_period);
-
-    const dateCondition = {
-      created_at: {
-        gte: current.start,
-        lte: current.end,
-      },
-    };
-
-    const previousDateCondition = {
-      created_at: {
-        gte: previous.start,
-        lte: previous.end,
-      },
-    };
-
-    const total_inventories = await this.postgresService.inventory.count({
+  async getDashboardStats(tenant_id: number): Promise<InventoryStatsDto> {
+    const totalgoods = await this.postgresService.inventory.aggregate({
       where: {
         tenant_id,
-        ...dateCondition,
       },
-    });
-
-    const inventoryStatsLastMonth = await this.postgresService.inventory.count({
-      where: {
-        tenant_id,
-        ...previousDateCondition,
-      },
+      _sum: { quantity: true },
     });
 
     const runningLow_products = await this.postgresService.product.count({
       where: {
         tenant_id,
         status: ProductStatusType.running_low,
-        ...dateCondition,
       },
     });
-
-    const runningLow_products_previous =
-      await this.postgresService.product.count({
-        where: {
-          tenant_id,
-          status: ProductStatusType.running_low,
-          ...dateCondition,
-        },
-      });
 
     const damagedCount = await this.postgresService.inventory.aggregate({
       where: {
         tenant_id,
-        ...dateCondition,
       },
-      _count: { damaged_counts: true },
+      _sum: { damaged_counts: true },
     });
-
-    const damagedCount_previous =
-      await this.postgresService.inventory.aggregate({
-        where: {
-          tenant_id,
-          ...previousDateCondition,
-        },
-        _count: { damaged_counts: true },
-      });
 
     const allcategoroes = await this.postgresService.category.count({
       where: {
         tenant_id,
-        ...dateCondition,
-      },
-    });
-
-    const allcategoroes_previous = await this.postgresService.category.count({
-      where: {
-        tenant_id,
-        ...previousDateCondition,
       },
     });
 
@@ -425,28 +371,10 @@ export class InventoryService {
       damagedPercentageChange: 0,
     };
 
-    stats.totalGoods = total_inventories;
+    stats.totalGoods = totalgoods._sum.quantity;
     stats.totalCategories = allcategoroes;
-    stats.totalDamagedProducts = damagedCount._count.damaged_counts;
+    stats.totalDamagedProducts = damagedCount._sum.damaged_counts;
     stats.totalLowStocks = runningLow_products;
-
-    stats.goodsPercentageChange = calculateChangeInPercentage(
-      total_inventories,
-      inventoryStatsLastMonth,
-    );
-    stats.totalCategories = calculateChangeInPercentage(
-      allcategoroes,
-      allcategoroes_previous,
-    );
-    stats.damagedPercentageChange = calculateChangeInPercentage(
-      stats.totalDamagedProducts,
-      damagedCount_previous._count.damaged_counts,
-    );
-
-    stats.totalLowStocksPercentChange = calculateChangeInPercentage(
-      stats.totalLowStocks,
-      runningLow_products_previous,
-    );
 
     return stats;
   }

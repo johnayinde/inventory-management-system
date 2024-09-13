@@ -55,8 +55,8 @@ export class InventoryController {
   @Get('/dashboard-stats')
   @HttpCode(HttpStatus.OK)
   @ApiQuery({ name: 'time_period', required: false })
-  getStats(@Req() { tenant_id }: Request, @Query('time_period') time_period) {
-    return this.inventoryService.getDashboardStats(tenant_id, time_period);
+  getStats(@Req() { tenant_id }: Request) {
+    return this.inventoryService.getDashboardStats(tenant_id);
   }
 
   @Get(':inventoryId')

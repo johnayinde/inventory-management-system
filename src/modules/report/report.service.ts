@@ -7,10 +7,14 @@ import {
   aggregateByTimestamp,
   getTimeRanges,
 } from '@app/common/helpers/date-ranges';
+import { DashboardService } from '../dashboard/dashboard.service';
 
 @Injectable()
 export class ReportService {
-  constructor(private readonly prismaService: OrmService) {}
+  constructor(
+    private readonly prismaService: OrmService,
+    private dashBoardService: DashboardService,
+  ) {}
 
   async getDashboardStats(
     tenant_id: number,
@@ -32,84 +36,38 @@ export class ReportService {
       },
     };
 
-    const sales = await this.prismaService.sale.findMany({
-      where: {
-        tenant_id,
-        ...dateCondition,
-      },
-      include: {
-        sales_products: true,
-      },
-    });
-
-    const sales_prev = await this.prismaService.sale.findMany({
-      where: {
-        tenant_id,
-        ...previousDateCondition,
-      },
-      include: {
-        sales_products: true,
-      },
-    });
-
-    const expenses = await this.prismaService.expense.findMany({
-      where: {
-        tenant_id,
-        ...dateCondition,
-      },
-    });
-
-    const expenses_prev = await this.prismaService.expense.findMany({
-      where: {
-        tenant_id,
-        ...previousDateCondition,
-      },
-    });
-
-    const totalRevenue = sales.reduce((sum, sale) => sum + sale.total_price, 0);
-    const totalRevenue_prev = sales_prev.reduce(
-      (sum, sale) => sum + sale.total_price,
-      0,
+    const {
+      total_losses,
+      total_losses_prev,
+      total_revenue,
+      total_revenue_prev,
+      total_expenses,
+      total_expenses_prev,
+      net_profit,
+      net_profit_prev,
+    } = await this.dashBoardService.calculateMetrics(
+      tenant_id,
+      previousDateCondition,
+      dateCondition,
     );
-
-    const totalExpenses = expenses.reduce(
-      (sum, expense) => sum + expense.amount,
-      0,
-    );
-
-    const totalExpenses_prev = expenses_prev.reduce(
-      (sum, expense) => sum + expense.amount,
-      0,
-    );
-
-    const netProfit = totalRevenue - totalExpenses;
-    const netProfit_prev = totalRevenue_prev - totalExpenses_prev;
-
-    const totalLosses = expenses.reduce((sum, expense) => {
-      return expense.amount < 0 ? sum + Math.abs(expense.amount) : sum;
-    }, 0);
-
-    const totalLosses_prev = expenses_prev.reduce((sum, expense) => {
-      return expense.amount < 0 ? sum + Math.abs(expense.amount) : sum;
-    }, 0);
 
     const stats = {
-      totalRevenue,
-      netProfit,
-      totalExpenses,
-      totalLosses,
+      totalRevenue: total_revenue,
+      netProfit: net_profit,
+      totalExpenses: total_expenses,
+      totalLosses: total_losses,
       totalRevenueChange: calculateChangeInPercentage(
-        totalRevenue,
-        totalRevenue_prev,
+        total_revenue,
+        total_revenue_prev,
       ),
-      netProfitChange: calculateChangeInPercentage(netProfit, netProfit_prev),
+      netProfitChange: calculateChangeInPercentage(net_profit, net_profit_prev),
       totalExpensesChange: calculateChangeInPercentage(
-        totalExpenses,
-        totalExpenses_prev,
+        total_expenses,
+        total_expenses_prev,
       ),
       totalLossesChange: calculateChangeInPercentage(
-        totalLosses,
-        totalLosses_prev,
+        total_losses,
+        total_losses_prev,
       ),
     };
     return stats;
@@ -163,6 +121,7 @@ export class ReportService {
       },
       where: {
         tenant_id,
+        value_type: 'fixed',
         ...dateCondition,
       },
     });
@@ -191,21 +150,30 @@ export class ReportService {
         tenant_id,
         ...dateCondition,
       },
-      include: { inventory_item: { include: { product: true } } },
       orderBy: { quantity: 'desc' },
       take: limit,
     });
 
+    const inventoryIdsArray = [
+      ...new Set(allSaleProducts.map(({ inventory_id }) => inventory_id)),
+    ];
+
     const topSellingProducts = await Promise.all(
-      allSaleProducts.map(async (saleProduct) => {
+      inventoryIdsArray.map(async (inventory_id) => {
+        const data = allSaleProducts.filter(
+          (item) => item.inventory_id === inventory_id,
+        );
+
         const product = await this.prismaService.inventory.findFirst({
-          where: { tenant_id, id: saleProduct.inventory_item.id },
+          where: { tenant_id, id: inventory_id },
         });
 
+        const quantity = data.reduce((acc, item) => acc + item.quantity, 0);
+
         return {
-          product: saleProduct.inventory_item.product.name,
-          purchased_quantity: saleProduct.quantity,
-          remaining_quantity: product?.quantity || 0,
+          product: product.name,
+          purchased_quantity: quantity,
+          remaining_quantity: product.quantity,
         };
       }),
     );
@@ -226,38 +194,13 @@ export class ReportService {
       },
     };
 
-    const sales = await this.prismaService.sale.findMany({
-      where: {
-        tenant_id,
-        ...dateCondition,
-      },
-      include: {
-        sales_products: true,
-      },
-    });
-
-    const profitMarginStats: { created_at: Date; amount: number }[] = [];
-
-    for (const sale of sales) {
-      const totalRevenue = sale.total_price;
-      const totalExpenses = sale.expenses;
-      const totalCOGS = sale.sales_products.reduce(
-        (sum, saleProduct) => sum + saleProduct.expense,
-        0,
-      );
-
-      const profit = totalRevenue - totalCOGS - totalExpenses;
-      const profitMargin =
-        totalRevenue !== 0 ? (profit / totalRevenue) * 100 : 0;
-
-      profitMarginStats.push({
-        created_at: sale.created_at,
-        amount: profitMargin,
-      });
-    }
+    const { profit_margin } = await this.dashBoardService.calculateMetrics(
+      tenant_id,
+      dateCondition,
+    );
 
     const prepared_data = aggregateByTimestamp(
-      profitMarginStats,
+      profit_margin,
       time_period,
       labels,
     );
@@ -277,38 +220,16 @@ export class ReportService {
       },
     };
 
-    const sales = await this.prismaService.sale.findMany({
-      where: {
-        tenant_id,
-        ...dateCondition,
-      },
-      include: {
-        sales_products: true,
-      },
-    });
-
-    const lossMarginStats: { created_at: Date; amount: number }[] = [];
-
-    for (const sale of sales) {
-      const totalRevenue = sale.total_price;
-      const totalExpenses = sale.expenses;
-
-      const loss = totalExpenses - totalRevenue;
-
-      const lossMargin = totalExpenses !== 0 ? (loss / totalExpenses) * 100 : 0;
-
-      lossMarginStats.push({
-        created_at: sale.created_at,
-        amount: lossMargin,
-      });
-    }
+    const { loss_margin } = await this.dashBoardService.calculateMetrics(
+      tenant_id,
+      dateCondition,
+    );
 
     const prepared_data = aggregateByTimestamp(
-      lossMarginStats,
+      loss_margin,
       time_period,
       labels,
     );
-
     return prepared_data;
   }
 

@@ -68,7 +68,6 @@ export const inventoryFilters = (data: PaginatorDTO) => {
 
   const hasOtherFilters =
     filter.OR.length > 0 || filter.AND.length > 0 ? filter : null;
-  console.log(hasOtherFilters);
 
   return hasOtherFilters;
 };
@@ -114,7 +113,6 @@ export const productFilters = (data: PaginatorDTO) => {
 
   const hasOtherFilters =
     filter.OR.length > 0 || filter.AND.length > 0 ? filter : null;
-  console.log(hasOtherFilters);
 
   return hasOtherFilters;
 };
