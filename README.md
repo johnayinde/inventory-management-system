@@ -1,73 +1,149 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# Inventory Management System
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+An inventory management system designed to help businesses efficiently manage and track their stock levels, orders, sales, and deliveries. Built with scalability and multi-tenancy in mind, this system provides a seamless experience for managing multiple organizations using the same set of credentials.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Table of Contents
 
-## Description
+- [Inventory Management System](#inventory-management-system)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Technologies Used](#technologies-used)
+  - [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+  - [Usage](#usage)
+  - [Project Structure](#project-structure)
+  - [Multi-Tenancy Support](#multi-tenancy-support)
+  - [Future Enhancements](#future-enhancements)
+  - [Contributing](#contributing)
+  - [License](#license)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Features
 
-## Installation
+- **Multi-Tenancy Support:** Allows users to manage multiple organizations using a single account.
+- **Inventory Tracking:** Keep track of stock levels in real-time.
+- **Order Management:** Manage incoming and outgoing orders effectively.
+- **Role-Based Access Control:** Define roles (e.g., Admin, Manager, Staff) for different levels of access.
+- **Reporting:** Generate detailed reports on stock levels, order histories, and more.
+- **Email Notifications:** Notify users about important events like low stock levels or order statuses.
 
-```bash
-$ yarn install
+## Technologies Used
+
+- **Backend:** NestJS, PostgreSQL, Prisma, SendGrid
+- **Authentication:** JWT for secure user authentication.
+- **Database:** PostgreSQL with Prisma ORM for data management.
+
+## Getting Started
+
+To get a local copy up and running, follow these simple steps:
+
+### Prerequisites
+
+- Node.js and yarn
+- PostgreSQL
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/johnayinde/inventory-management-system.git
+   ```
+2. Navigate to the project directory:
+   ```bash
+   cd inventory-management-system
+   ```
+3. Install dependencies:
+   ```bash
+   yarn install
+   ```
+4. Set up environment variables by creating renaming `.env-example` file to `.env`:
+
+5. Run database migrations:
+
+   ```bash
+   yarn run prisma:dbpush
+   ```
+
+6. Start the development server:
+   ```bash
+   yarn run start:dev
+   ```
+
+## Usage
+
+- To access the system, register a new account or use an existing one.
+- Users can create, update, and delete inventory items based on their roles.
+- Use the multi-tenancy feature to switch between different organizations.
+
+## Project Structure
+
+Here's a brief overview of the project's structure:
+
+```inventory-management-system/
+.
+├── libs
+│   └── common
+│    ├── constants
+│    ├── decorators
+│    ├── exceptions
+│    ├── guards
+│    ├── helpers
+│    ├── interceptors
+│    ├── pagination
+│    ├── types
+│    ├── common.module.ts
+│    ├── common.service.spec.ts
+│    ├── common.service.ts
+│    └── index.ts
+├── logger
+│   └── winston.logger.ts
+├── prisma
+│   ├── migrations
+│   └── schema.prisma
+├── src
+│   ├── database
+│   │   ├── db.module.ts
+│   │   └── db.service.ts
+│   ├── modules
+│   │   ├── auth
+│   │   ├── cache
+│   │   ├── category
+│   │   ├── customer
+│   │   ├── dashboard
+│   │   ├── email
+│   │   ├── expense
+│   │   ├── fees
+│   │   ├── inventory
+│   │   ├── mfa
+│   │   ├── notification
+│   │   ├── product
+│   │   ├── report
+│   │   ├── sale
+│   │   ├── shipment
+│   │   ├── tenant
+│   │   └── user
+│   ├── app.controller.spec.ts
+│   ├── app.controller.ts
+│   ├── app.module.ts
+│   ├── app.service.ts
+│   └── main.ts
+
 ```
 
-## Running the app
+## Multi-Tenancy Support
 
-```bash
-# development
-$ yarn run start
+The system is designed to support multiple organizations using the same user account. Users can switch between different organizations they have access to, and manage inventories accordingly. This is particularly useful for businesses with multiple branches or departments.
 
-# watch mode
-$ yarn run start:dev
+## Future Enhancements
 
-# production mode
-$ yarn run start:prod
-```
+- **Mobile App:** A mobile-friendly version to manage inventories on the go.
+- **API Integration:** Integration with third-party logistics and accounting software.
+- **Advanced Analytics:** More detailed analytics for stock trends, sales forecasting, etc.
 
-## Test
+## Contributing
 
-```bash
-# unit tests
-$ yarn run test
-
-# e2e tests
-$ yarn run test:e2e
-
-# test coverage
-$ yarn run test:cov
-```
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Contributions are welcome! Please fork this repository and open a pull request to get started.
 
 ## License
 
-Nest is [MIT licensed](LICENSE).
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
