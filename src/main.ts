@@ -43,6 +43,6 @@ async function bootstrap() {
   });
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
 
-  await app.listen(configService.get('APP_PORT'));
+  await app.listen(configService.get('APP_PORT') || 5000);
 }
 bootstrap();
