@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -91,5 +92,10 @@ export class AuthController {
     @Body() body: ResetPasswordDto,
   ) {
     return this.authService.validateEmailForReset(data, body);
+  }
+
+  @Get('wake-up')
+  job() {
+    return this.authService.job();
   }
 }

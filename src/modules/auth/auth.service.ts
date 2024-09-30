@@ -340,4 +340,7 @@ export class AuthService {
       return await this.jwtToken(user);
     }
   }
+  async job() {
+    return await this.postgresService.fees.findMany({});
+  }
 }

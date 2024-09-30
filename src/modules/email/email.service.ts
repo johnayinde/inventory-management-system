@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-// import * as nodemailer from 'nodemailer';
+import * as nodemailer from 'nodemailer';
 import { decryption, encryption } from '@app/common';
 import * as SendGrid from '@sendgrid/mail';
 import { html_invite, html_otp, html_reset } from './templates';
@@ -9,21 +9,27 @@ import { html_invite, html_otp, html_reset } from './templates';
 export class EmailService {
   transporter: any;
   constructor(private readonly configService: ConfigService) {
-    SendGrid.setApiKey(this.configService.get<string>('SENDGRID_API_KEY'));
+    // SendGrid.setApiKey(this.configService.get<string>('SENDGRID_API_KEY'));
 
-    // this.transporter = nodemailer.createTransport({
-    //   service: 'gmail',
-    //   auth: {
-    //     user: configService.get('NODEMAILER_USER'),
-    //     pass: configService.get('NODEMAILER_PASS'),
-    //   },
-    // });
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: configService.get('NODEMAILER_USER'),
+        pass: configService.get('NODEMAILER_PASS'),
+      },
+    });
   }
 
-  async send(mail: SendGrid.MailDataRequired) {
-    const transport = await SendGrid.send(mail);
-    return transport;
-  }
+  // async send(mail: SendGrid.MailDataRequired) {
+  //   try {
+  //     const transport = await SendGrid.send(mail);
+  //     console.log(transport);
+
+  //     return transport;
+  //   } catch (error) {
+  //     console.log(error);
+  //   }
+  // }
 
   public async sendmail(to: string, subject: string, html: string) {
     const mailOptions = {
@@ -33,7 +39,14 @@ export class EmailService {
       html,
     };
 
-    await this.send(mailOptions);
+    this.transporter.sendMail(mailOptions, function (error: unknown, info) {
+      if (error) {
+        console.log(error);
+      } else {
+        console.log('Email sent: ' + info.response);
+      }
+    });
+    // await this.send(mailOptions);
   }
   public async sendOTP(otp: string, email: string) {
     const subject = 'Comfirm Email';
