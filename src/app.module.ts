@@ -44,12 +44,10 @@ import { ImageUploadService } from '@app/common/helpers';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => {
-        console.log('host', configService.getOrThrow('REDIS_HOST'));
-        console.log('port', configService.getOrThrow('REDIS_PORT'));
+        const redisUrl = configService.getOrThrow('REDIS_URL');
 
         return {
-          host: await configService.getOrThrow('REDIS_HOST'),
-          port: await configService.getOrThrow('REDIS_PORT'),
+          url: redisUrl,
           store: redisStore,
         } as unknown as CacheStore;
       },

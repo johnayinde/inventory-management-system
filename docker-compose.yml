@@ -1,21 +1,21 @@
 version: '3.7'
 
 services:
-  # app:
-  # container_name: inventory-app
-  # build:
-  #   context: .
-  #   dockerfile: Dockerfile
-  # environment:
-  #   REDIS_HOST: redis
-  #   REDIS_PORT: 6379
-  # ports:
-  #   - '5000:5000'
-  # depends_on:
-  #   - postgres
-  #   - redis
-  # env_file:
-  #   - .env
+  app:
+    container_name: inventory-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - '5000:5000'
+    depends_on:
+      - postgres
+      - redis
+    env_file:
+      - .env
 
   postgres:
     image: postgres:13-alpine
