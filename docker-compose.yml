@@ -1,22 +1,49 @@
-version: '3.8'
-volumes:
-  migrations:
+version: '3.7'
 
 services:
-  invio-api:
-    # image: invio_image:latest
-    container_name: app_server
-    build: .
-    command: yarn run start:dev
-    ports:
-      - 9009:5000
+  # app:
+  # container_name: inventory-app
+  # build:
+  #   context: .
+  #   dockerfile: Dockerfile
+  # environment:
+  #   REDIS_HOST: redis
+  #   REDIS_PORT: 6379
+  # ports:
+  #   - '5000:5000'
+  # depends_on:
+  #   - postgres
+  #   - redis
+  # env_file:
+  #   - .env
+
+  postgres:
+    image: postgres:13-alpine
+    container_name: postgres
+    restart: unless-stopped
     env_file:
       - .env
-    # environment:
-    #   REDIS_HOST: 'rediss://red-coucfbq1hbls7383midg:fIlGNTUvBe57HLIX2Vd4MTN11601Ds7p@oregon-redis.render.com'
-    #   REDIS_PORT: 6379
-
     volumes:
-      - ./.env:/home/app/.env
-      - migrations:/home/app/prisma/migrations
-    # network_mode: host
+      - postgres:/var/lib/postgresql/data
+
+    ports:
+      - '5432:5432'
+
+  redis:
+    image: redis
+    container_name: redis
+    volumes:
+      - redis:/data
+    ports:
+      - '6379:6379'
+
+    environment:
+      REDIS_HOST: redis
+
+    restart: unless-stopped
+
+volumes:
+  postgres:
+    name: app
+  redis:
+    driver: local

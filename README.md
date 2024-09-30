@@ -49,24 +49,31 @@ To get a local copy up and running, follow these simple steps:
    git clone https://github.com/johnayinde/inventory-management-system.git
    ```
 2. Navigate to the project directory:
+
    ```bash
    cd inventory-management-system
    ```
-3. Install dependencies:
-   ```bash
-   yarn install
-   ```
-4. Set up environment variables by creating renaming `.env-example` file to `.env`:
 
-5. Run database migrations:
+3. Set up environment variables by creating renaming `.env-example` file to `.env`:
+
+4. Start service containers:
 
    ```bash
-   yarn run prisma:dbpush
+   $ docker compose up -d
    ```
 
-6. Start the development server:
+5. Start the server:
+
    ```bash
-   yarn run start:dev
+   $ yarn install
+   $ yarn run prisma:postgres:dbpush  # syncs the postgres with the Prisma schema
+   $ yarn run start:dev
+   ```
+
+6. Stop service containers:
+
+   ```bash
+   $ docker compose down
    ```
 
 ## Usage
