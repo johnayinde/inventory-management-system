@@ -10,6 +10,10 @@ COPY prisma ./prisma/
 # Install app dependencies
 RUN yarn install --legacy-peer-deps
 
+# install openssl
+RUN apk update && apk upgrade
+RUN apk add --no-cache openssl
+
 COPY . .
 
 RUN yarn run build
