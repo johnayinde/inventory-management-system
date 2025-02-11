@@ -164,7 +164,7 @@ export class AuthService {
       await this.tenantService.getTenantPersonalBusnessInfo(user.email);
 
     if (!user.is_user) {
-      is_profile_complete = !!business.business && !!personal.first_name;
+      is_profile_complete = !!business?.business && !!personal?.first_name;
     }
 
     return {
