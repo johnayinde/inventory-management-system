@@ -14,13 +14,14 @@ import { Public, Role, Roles, TenantInterceptor } from '@app/common';
 @Controller()
 @ApiBearerAuth()
 // @Roles(Role.Dashboard)
-@UseInterceptors(TenantInterceptor)
+// @UseInterceptors(TenantInterceptor)
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
-  getHello(@Req() { tenant_id, user_id }: Request) {
-    return this.appService.getHello(tenant_id, user_id);
+  @Public()
+  getHello() {
+    return this.appService.getHello();
   }
 
   @Get('errors')

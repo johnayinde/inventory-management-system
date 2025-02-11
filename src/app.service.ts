@@ -6,8 +6,8 @@ import * as path from 'path';
 export class AppService {
   private logDir = path.join(process.cwd(), 'logs');
 
-  getHello(tenant_id: number, user_id: number) {
-    return `Hello World! tenant_id: ${tenant_id} user_id: ${user_id}`;
+  getHello() {
+    return `Hello World!`;
   }
 
   private getMostRecentErrorLogFile(): string | null {

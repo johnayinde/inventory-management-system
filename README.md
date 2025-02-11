@@ -2,9 +2,17 @@
 
 An inventory management system designed to help businesses efficiently manage and track their stock levels, orders, sales, and deliveries. Built with scalability and multi-tenancy in mind, this system provides a seamless experience for managing multiple organizations using the same set of credentials.
 
+## Demo Account details
+
+```bash
+  Email: naijaname@gmail.com
+  Password: Demouser123@
+```
+
 ## Table of Contents
 
 - [Inventory Management System](#inventory-management-system)
+  - [Demo Account details](#demo-account-details)
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
   - [Technologies Used](#technologies-used)
