@@ -11,15 +11,21 @@ COPY prisma ./prisma/
 RUN yarn install --legacy-peer-deps
 
 # install openssl
-RUN apk update && apk upgrade
-RUN apk add --no-cache openssl
+RUN set -ex; \
+    apk update; \
+    apk add --no-cache \
+    openssl
 
 COPY . .
 
 RUN yarn run build
 
 FROM node:18-alpine
-
+RUN set -ex; \
+    apk update; \
+    apk add --no-cache \
+    openssl
+    
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/dist ./dist
