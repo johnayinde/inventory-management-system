@@ -13,7 +13,10 @@ export class AppService implements OnModuleInit {
   async onModuleInit() {
     await this.seedDemoData();
   }
-  private logDir = path.join(process.cwd(), 'logs');
+
+  getHello() {
+    return `Hello World!`;
+  }
 
   async seedDemoData() {
     // Check if demo account exists
