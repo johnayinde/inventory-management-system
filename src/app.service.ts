@@ -157,24 +157,7 @@ export class AppService implements OnModuleInit {
     });
 
     // Create inventory for products
-    await this.ormService.inventory.create({
-      data: {
-        prod_id: 'IP13-001',
-        name: 'iPhone 13',
-        selling_price: 999.99,
-        cost_price: 800.00,
-        quantity: 50,
-        tenant_id: tenant.id,
-        product_id: product1.id,
-        shipment_id: 1, // Need a shipment? Wait, maybe create a shipment first.
-      },
-    });
-
-    // For simplicity, maybe skip inventory for now, or create a dummy shipment.
-
-    // Actually, let me check if shipment is required. From the schema, Inventory has shipment_id, so I need to create a shipment first.
-
-    // Let me create a shipment
+    // Create a shipment first
     const shipment = await this.ormService.shipment.create({
       data: {
         tenant_id: tenant.id,
