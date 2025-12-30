@@ -7,8 +7,8 @@ An inventory management system designed to help businesses efficiently manage an
 Url -> https://invio-sys-frontend.vercel.app/
 
 ```bash
-  Email: naijaname@gmail.com
-  Password: Demouser123@
+  Email: demo@invio.com
+  Password: password123
 ```
 
 ## Table of Contents
