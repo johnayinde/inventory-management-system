@@ -45,10 +45,38 @@ import { ImageUploadService } from '@app/common/helpers';
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => {
         const redisUrl = configService.getOrThrow('REDIS_URL');
+        const logger = new Logger('RedisCache');
 
         return {
           url: redisUrl,
           store: redisStore,
+          socket: {
+            reconnectStrategy: (retries: number) => {
+              if (retries > 10) {
+                logger.error('Redis max reconnection attempts reached');
+                return new Error('Redis max reconnection attempts reached');
+              }
+              const delay = Math.min(retries * 100, 3000);
+              logger.warn(`Redis reconnecting in ${delay}ms (attempt ${retries})`);
+              return delay;
+            },
+            connectTimeout: 10000,
+            keepAlive: 5000,
+          },
+          onClientCreated: (client: any) => {
+            client.on('error', (err: Error) => {
+              logger.error('Redis Client Error:', err);
+            });
+            client.on('connect', () => {
+              logger.log('Redis connected successfully');
+            });
+            client.on('reconnecting', () => {
+              logger.warn('Redis reconnecting...');
+            });
+            client.on('ready', () => {
+              logger.log('Redis ready to accept commands');
+            });
+          },
         } as unknown as CacheStore;
       },
     }),

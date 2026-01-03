@@ -13,6 +13,9 @@ async function bootstrap() {
     logger,
   });
 
+  // Handle favicon.ico requests to prevent 404 errors in logs
+  app.use('/favicon.ico', (req, res) => res.status(204).end());
+
   app.enableCors();
   const configService = app.get(ConfigService);
 
