@@ -46,6 +46,9 @@ async function bootstrap() {
   });
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
 
-  await app.listen(configService.get('APP_PORT') || 5000);
+  const port = configService.get('PORT') || configService.get('APP_PORT') || 5000;
+  await app.listen(port, '0.0.0.0');
+  
+  console.log(`🚀 Application is running on: http://0.0.0.0:${port}`);
 }
 bootstrap();
