@@ -39,47 +39,51 @@ import { ImageUploadService } from '@app/common/helpers';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    CacheModule.registerAsync({
-      isGlobal: true,
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => {
-        const redisUrl = configService.getOrThrow('REDIS_URL');
-        const logger = new Logger('RedisCache');
+   CacheModule.registerAsync({
+  isGlobal: true,
+  imports: [ConfigModule],
+  inject: [ConfigService],
+  useFactory: async (configService: ConfigService) => {
+    const redisUrl = configService.getOrThrow('REDIS_URL');
+    const logger = new Logger('RedisCache');
 
-        return {
-          url: redisUrl,
-          store: redisStore,
-          socket: {
-            reconnectStrategy: (retries: number) => {
-              if (retries > 10) {
-                logger.error('Redis max reconnection attempts reached');
-                return new Error('Redis max reconnection attempts reached');
-              }
-              const delay = Math.min(retries * 100, 3000);
-              logger.warn(`Redis reconnecting in ${delay}ms (attempt ${retries})`);
-              return delay;
-            },
-            connectTimeout: 10000,
-            keepAlive: 5000,
-          },
-          onClientCreated: (client: any) => {
-            client.on('error', (err: Error) => {
-              logger.error('Redis Client Error:', err);
-            });
-            client.on('connect', () => {
-              logger.log('Redis connected successfully');
-            });
-            client.on('reconnecting', () => {
-              logger.warn('Redis reconnecting...');
-            });
-            client.on('ready', () => {
-              logger.log('Redis ready to accept commands');
-            });
-          },
-        } as unknown as CacheStore;
+    const host = new URL(redisUrl).hostname;
+    const isTls = redisUrl.startsWith('rediss://');
+
+    // ✅ IMPORTANT: create the store instance
+    const store = await redisStore({
+      url: redisUrl,
+      socket: {
+        // Helpful for TLS providers; harmless if isTls=false
+        tls: isTls,
+        servername: host,
+
+        reconnectStrategy: (retries: number) => {
+          // Don’t return Error unless you *want* to stop forever.
+          const delay = Math.min(retries * 200, 5000);
+          if (retries === 10) {
+            logger.warn(`Redis still reconnecting after ${retries} attempts…`);
+          }
+          return delay;
+        },
+        connectTimeout: 10_000,
+        keepAlive: 5_000,
       },
-    }),
+    });
+
+    // ✅ IMPORTANT: attach listeners on the underlying redis client
+    const client = store.getClient();
+    client.on('error', (err: Error) => logger.error('Redis error', err));
+    client.on('connect', () => logger.log('Redis connected'));
+    client.on('ready', () => logger.log('Redis ready'));
+    client.on('reconnecting', () => logger.warn('Redis reconnecting...'));
+    client.on('end', () => logger.warn('Redis connection ended'));
+
+    return {
+      store, // cache-manager expects the store instance here
+    };
+  },
+}),
     ScheduleModule.forRoot(),
     AuthModule,
     CacheMod,
