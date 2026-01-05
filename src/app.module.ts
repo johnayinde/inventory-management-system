@@ -33,6 +33,8 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { S3Module } from '@app/common/helpers/aws-lib';
 import { ImageUploadService } from '@app/common/helpers';
+import KeyvRedis from '@keyv/redis';
+import Keyv from 'keyv';
 
 @Module({
   imports: [
@@ -43,45 +45,15 @@ import { ImageUploadService } from '@app/common/helpers';
   isGlobal: true,
   imports: [ConfigModule],
   inject: [ConfigService],
-  useFactory: async (configService: ConfigService) => {
-    const redisUrl = configService.getOrThrow('REDIS_URL');
+  useFactory: async (config: ConfigService) => {
+    const redisUrl = config.getOrThrow('REDIS_URL');
     const logger = new Logger('RedisCache');
 
-    const host = new URL(redisUrl).hostname;
-    const isTls = redisUrl.startsWith('rediss://');
+    // Create Keyv instance backed by Redis
+    const keyv = new Keyv(new KeyvRedis(redisUrl));
+    keyv.on('error', (err) => logger.error('Keyv/Redis error', err)); // recommended in Keyv docs :contentReference[oaicite:5]{index=5}
 
-    // ✅ IMPORTANT: create the store instance
-    const store = await redisStore({
-      url: redisUrl,
-      socket: {
-        // Helpful for TLS providers; harmless if isTls=false
-        tls: isTls,
-        servername: host,
-
-        reconnectStrategy: (retries: number) => {
-          // Don’t return Error unless you *want* to stop forever.
-          const delay = Math.min(retries * 200, 5000);
-          if (retries === 10) {
-            logger.warn(`Redis still reconnecting after ${retries} attempts…`);
-          }
-          return delay;
-        },
-        connectTimeout: 10_000,
-        keepAlive: 5_000,
-      },
-    });
-
-    // ✅ IMPORTANT: attach listeners on the underlying redis client
-    const client = store.getClient();
-    client.on('error', (err: Error) => logger.error('Redis error', err));
-    client.on('connect', () => logger.log('Redis connected'));
-    client.on('ready', () => logger.log('Redis ready'));
-    client.on('reconnecting', () => logger.warn('Redis reconnecting...'));
-    client.on('end', () => logger.warn('Redis connection ended'));
-
-    return {
-      store, // cache-manager expects the store instance here
-    };
+    return { stores: [keyv] }; // Nest’s recommended approach :contentReference[oaicite:6]{index=6}
   },
 }),
     ScheduleModule.forRoot(),
