@@ -46,27 +46,14 @@ import Keyv from 'keyv';
   imports: [ConfigModule],
   inject: [ConfigService],
   useFactory: async (config: ConfigService) => {
+    const redisUrl = config.getOrThrow('REDIS_URL');
     const logger = new Logger('RedisCache');
-
-    // Build Redis URL from individual credentials or use REDIS_URL directly
-    let redisUrl = config.get('REDIS_URL');
-    
-    if (!redisUrl) {
-      const host = config.get('REDIS_HOST', '127.0.0.1');
-      const port = config.get('REDIS_PORT', '6379');
-      const password = config.get('REDIS_PASSWORD', '');
-      const useTls = config.get('REDIS_TLS', 'false') === 'true';
-      
-      const protocol = useTls ? 'rediss' : 'redis';
-      const auth = password ? `default:${password}@` : '';
-      redisUrl = `${protocol}://${auth}${host}:${port}`;
-    }
 
     // Create Keyv instance backed by Redis
     const keyv = new Keyv(new KeyvRedis(redisUrl));
-    keyv.on('error', (err) => logger.error('Keyv/Redis error', err));
+    keyv.on('error', (err) => logger.error('Keyv/Redis error', err)); // recommended in Keyv docs :contentReference[oaicite:5]{index=5}
 
-    return { stores: [keyv] };
+    return { stores: [keyv] }; // Nest’s recommended approach :contentReference[oaicite:6]{index=6}
   },
 }),
     ScheduleModule.forRoot(),
