@@ -33,29 +33,64 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { S3Module } from '@app/common/helpers/aws-lib';
 import { ImageUploadService } from '@app/common/helpers';
-import KeyvRedis from '@keyv/redis';
-import Keyv from 'keyv';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-   CacheModule.registerAsync({
-  isGlobal: true,
-  imports: [ConfigModule],
-  inject: [ConfigService],
-  useFactory: async (config: ConfigService) => {
-    const redisUrl = config.getOrThrow('REDIS_URL');
-    const logger = new Logger('RedisCache');
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => {
+        const logger = new Logger('RedisCache');
 
-    // Create Keyv instance backed by Redis
-    const keyv = new Keyv(new KeyvRedis(redisUrl));
-    keyv.on('error', (err) => logger.error('Keyv/Redis error', err)); // recommended in Keyv docs :contentReference[oaicite:5]{index=5}
+        // Use REDIS_URL if provided, otherwise build from individual credentials
+        const redisUrl = config.get('REDIS_URL');
 
-    return { stores: [keyv] }; // Nest’s recommended approach :contentReference[oaicite:6]{index=6}
-  },
-}),
+        if (redisUrl) {
+          // Parse the URL to extract components for node-redis v4
+          const url = new URL(redisUrl);
+          const isTls = url.protocol === 'rediss:';
+
+          const store = await redisStore({
+            socket: {
+              host: url.hostname,
+              port: parseInt(url.port, 10) || 6379,
+              tls: isTls,
+            },
+            username: url.username || undefined,
+            password: url.password || undefined,
+          });
+
+          return {
+            store: store as unknown as CacheStore,
+          };
+        }
+
+        // Use individual credentials
+        const host = config.get('REDIS_HOST', '127.0.0.1');
+        const port = parseInt(config.get('REDIS_PORT', '6379'), 10);
+        const username = config.get('REDIS_USER', '') || undefined;
+        const password = config.get('REDIS_PASSWORD', '') || undefined;
+        const useTls = config.get('REDIS_TLS', 'false') === 'true';
+
+        const store = await redisStore({
+          socket: {
+            host,
+            port,
+            tls: useTls,
+          },
+          username,
+          password,
+        });
+
+        return {
+          store: store as unknown as CacheStore,
+        };
+      },
+    }),
     ScheduleModule.forRoot(),
     AuthModule,
     CacheMod,
